@@ -44,7 +44,7 @@ export default function JourneyScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <MalloBrandHeader />
+        <MalloBrandHeader isConnected={!!recoverySession} />
 
         {recoverySession ? (
           <ActiveSessionState session={recoverySession} />
@@ -56,14 +56,22 @@ export default function JourneyScreen() {
   );
 }
 
-function MalloBrandHeader() {
+function MalloBrandHeader({ isConnected }: { isConnected: boolean }) {
   return (
     <View style={styles.brandHeader}>
       <View>
         <View style={styles.connectionStatus}>
-          <View style={styles.connectionDot} />
-          <Text style={styles.eyebrow}>CONNECTED TO DERNA</Text>
+          <View
+            style={[
+              styles.connectionDot,
+              !isConnected && styles.connectionDotDisconnected,
+            ]}
+          />
+          <Text style={styles.eyebrow}>
+            {isConnected ? 'CONNECTED TO DERNA' : 'DERNA 연결 전'}
+          </Text>
         </View>
+
         <Text style={styles.brandTitle}>MALLO</Text>
       </View>
 
@@ -122,11 +130,23 @@ function ActiveSessionState({ session }: { session: RecoverySession }) {
       </View>
 
       <View>
-        <SectionLabel>오늘 결과 Preview</SectionLabel>
+        <SectionLabel>오늘의 행동 결과</SectionLabel>
         <View style={styles.previewCard}>
-          <PreviewRow label="세안" result="가능" tone="possible" />
-          <PreviewRow label="스킨케어" result="조정 필요" tone="adjust" />
-          <PreviewRow label="화장" result="미루기 권장" tone="postpone" />
+          <PreviewRow
+            label="세안"
+            result="가볍게 진행할 수 있어요"
+            tone="possible"
+          />
+          <PreviewRow
+            label="스킨케어"
+            result="조절해서 진행해요"
+            tone="adjust"
+          />
+          <PreviewRow
+            label="화장"
+            result="오늘은 미루는 게 좋아요"
+            tone="postpone"
+          />
         </View>
       </View>
 
@@ -149,7 +169,7 @@ function ActiveSessionState({ session }: { session: RecoverySession }) {
               color={MALLO_COLORS.support.charcoal}
             />
           </View>
-          <Text style={styles.quickAccessLabel}>MY / 설정</Text>
+          <Text style={styles.quickAccessLabel}>설정</Text>
         </View>
       </View>
     </View>
@@ -301,6 +321,10 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.core.red,
+  },
+
+  connectionDotDisconnected: {
+    backgroundColor: MALLO_COLORS.support.secondaryTextGray,
   },
   brandTitle: {
     ...MALLO_TYPOGRAPHY.brand,
