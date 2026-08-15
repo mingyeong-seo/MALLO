@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MALLO_COLORS } from '@/constants/colors';
+import { MALLO_TEXT_STYLES } from '@/constants/text-styles';
 import {
   MALLO_RADIUS,
   MALLO_SPACING,
@@ -24,7 +25,7 @@ type RecoverySession = {
   recoveryDay: number;
 };
 
-// 개발용 임시 상태입니다. false로 바꾸면 STATE B를 확인할 수 있습니다.
+// true: 시술 정보 있음 / false: 시술 정보 없음
 const DEV_HAS_RECOVERY_SESSION = true;
 
 const MOCK_RECOVERY_SESSION: RecoverySession = {
@@ -44,7 +45,7 @@ export default function JourneyScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <MalloBrandHeader />
+        <MalloBrandHeader isConnected={!!recoverySession} />
 
         {recoverySession ? (
           <ActiveSessionState session={recoverySession} />
@@ -56,14 +57,22 @@ export default function JourneyScreen() {
   );
 }
 
-function MalloBrandHeader() {
+function MalloBrandHeader({ isConnected }: { isConnected: boolean }) {
   return (
     <View style={styles.brandHeader}>
       <View>
         <View style={styles.connectionStatus}>
-          <View style={styles.connectionDot} />
-          <Text style={styles.eyebrow}>CONNECTED TO DERNA</Text>
+          <View
+            style={[
+              styles.connectionDot,
+              !isConnected && styles.connectionDotDisconnected,
+            ]}
+          />
+          <Text style={styles.eyebrow}>
+            {isConnected ? 'CONNECTED TO DERNA' : 'DERNA 연결 전'}
+          </Text>
         </View>
+
         <Text style={styles.brandTitle}>MALLO</Text>
       </View>
 
@@ -122,11 +131,23 @@ function ActiveSessionState({ session }: { session: RecoverySession }) {
       </View>
 
       <View>
-        <SectionLabel>오늘 결과 Preview</SectionLabel>
+        <SectionLabel>오늘의 행동 결과</SectionLabel>
         <View style={styles.previewCard}>
-          <PreviewRow label="세안" result="가능" tone="possible" />
-          <PreviewRow label="스킨케어" result="조정 필요" tone="adjust" />
-          <PreviewRow label="화장" result="미루기 권장" tone="postpone" />
+          <PreviewRow
+            label="세안"
+            result="가볍게 진행할 수 있어요"
+            tone="possible"
+          />
+          <PreviewRow
+            label="스킨케어"
+            result="조절해서 진행해요"
+            tone="adjust"
+          />
+          <PreviewRow
+            label="화장"
+            result="오늘은 미루는 게 좋아요"
+            tone="postpone"
+          />
         </View>
       </View>
 
@@ -149,7 +170,7 @@ function ActiveSessionState({ session }: { session: RecoverySession }) {
               color={MALLO_COLORS.support.charcoal}
             />
           </View>
-          <Text style={styles.quickAccessLabel}>MY / 설정</Text>
+          <Text style={styles.quickAccessLabel}>설정</Text>
         </View>
       </View>
     </View>
@@ -184,8 +205,7 @@ function EmptySessionState() {
             DERNA의 시술 정보를 불러올까요?
           </Text>
           <Text style={styles.emptyStateText}>
-            최근 시술 정보를 확인하고{`\n`}
-            맞춤 회복관리를 시작할 수 있어요.
+            최근 시술 정보를 확인하고 맞춤 회복관리를 시작할 수 있어요.
           </Text>
         </View>
 
@@ -277,7 +297,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingTop: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.md,
     paddingBottom: MALLO_SPACING.xxl,
   },
   brandHeader: {
@@ -301,6 +321,10 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.core.red,
+  },
+
+  connectionDotDisconnected: {
+    backgroundColor: MALLO_COLORS.support.secondaryTextGray,
   },
   brandTitle: {
     ...MALLO_TYPOGRAPHY.brand,
@@ -486,18 +510,17 @@ const styles = StyleSheet.create({
   },
   emptyStateBody: {
     flex: 1,
-    paddingTop: MALLO_SPACING.xxl,
-    paddingBottom: MALLO_SPACING.xl,
+    justifyContent: 'center',
+    paddingBottom: MALLO_SPACING.xxl * 3,
   },
   emptyStateActionGap: {
-    height: MALLO_SPACING.xxl,
+    height: MALLO_SPACING.xl,
   },
   emptyStatePanel: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingVertical: MALLO_SPACING.xxl,
+    paddingVertical: MALLO_SPACING.xl,
     borderRadius: MALLO_RADIUS.lg,
     backgroundColor: MALLO_COLORS.support.warmGray,
   },
@@ -514,6 +537,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     ...MALLO_TYPOGRAPHY.cardTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
     fontSize: 20,
     lineHeight: 28,
     color: MALLO_COLORS.core.ink,
@@ -521,6 +545,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
     fontSize: 15,
     lineHeight: 22,
     marginTop: MALLO_SPACING.md,
