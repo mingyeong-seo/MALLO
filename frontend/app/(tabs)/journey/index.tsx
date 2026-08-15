@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MALLO_COLORS } from '@/constants/colors';
+import { MALLO_TEXT_STYLES } from '@/constants/text-styles';
 import {
   MALLO_RADIUS,
   MALLO_SPACING,
@@ -24,7 +25,7 @@ type RecoverySession = {
   recoveryDay: number;
 };
 
-// 개발용 임시 상태입니다. false로 바꾸면 STATE B를 확인할 수 있습니다.
+// true: 시술 정보 있음 / false: 시술 정보 없음
 const DEV_HAS_RECOVERY_SESSION = true;
 
 const MOCK_RECOVERY_SESSION: RecoverySession = {
@@ -204,8 +205,7 @@ function EmptySessionState() {
             DERNA의 시술 정보를 불러올까요?
           </Text>
           <Text style={styles.emptyStateText}>
-            최근 시술 정보를 확인하고{`\n`}
-            맞춤 회복관리를 시작할 수 있어요.
+            최근 시술 정보를 확인하고 맞춤 회복관리를 시작할 수 있어요.
           </Text>
         </View>
 
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingTop: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.md,
     paddingBottom: MALLO_SPACING.xxl,
   },
   brandHeader: {
@@ -510,18 +510,17 @@ const styles = StyleSheet.create({
   },
   emptyStateBody: {
     flex: 1,
-    paddingTop: MALLO_SPACING.xxl,
-    paddingBottom: MALLO_SPACING.xl,
+    justifyContent: 'center',
+    paddingBottom: MALLO_SPACING.xxl * 3,
   },
   emptyStateActionGap: {
-    height: MALLO_SPACING.xxl,
+    height: MALLO_SPACING.xl,
   },
   emptyStatePanel: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingVertical: MALLO_SPACING.xxl,
+    paddingVertical: MALLO_SPACING.xl,
     borderRadius: MALLO_RADIUS.lg,
     backgroundColor: MALLO_COLORS.support.warmGray,
   },
@@ -538,6 +537,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     ...MALLO_TYPOGRAPHY.cardTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
     fontSize: 20,
     lineHeight: 28,
     color: MALLO_COLORS.core.ink,
@@ -545,6 +545,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
     fontSize: 15,
     lineHeight: 22,
     marginTop: MALLO_SPACING.md,

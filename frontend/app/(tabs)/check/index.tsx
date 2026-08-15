@@ -1,9 +1,5 @@
-import { View, Text } from 'react-native';
+import { Redirect } from 'expo-router';
 
 export default function CheckScreen() {
-  return (
-    <View>
-      <Text>Quick Check</Text>
-    </View>
-  );
+  return <Redirect href="/(tabs)/check/result" />;
 }

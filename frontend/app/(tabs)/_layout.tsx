@@ -18,13 +18,17 @@ export default function TabLayout() {
     <Tabs
       safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
+        headerShown: false,
+
         tabBarActiveTintColor: MALLO_COLORS.core.red,
         tabBarInactiveTintColor: MALLO_COLORS.support.secondaryTextGray,
         tabBarLabelPosition: 'below-icon',
         tabBarLabelStyle: styles.tabBarLabel,
+
         sceneStyle: {
           backgroundColor: MALLO_COLORS.core.white,
         },
+
         tabBarStyle: [
           styles.tabBar,
           Platform.OS === 'web'
@@ -40,7 +44,6 @@ export default function TabLayout() {
         name="journey"
         options={{
           title: 'Journey',
-          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'pulse' : 'pulse-outline'}
@@ -107,11 +110,14 @@ const styles = StyleSheet.create({
     paddingTop: MALLO_SPACING.xs,
     paddingBottom: MALLO_SPACING.xs,
     paddingHorizontal: MALLO_SPACING.xs,
+
     borderWidth: 1,
-    borderColor: MALLO_COLORS.support.mistGray,
+    borderColor: 'rgba(220, 220, 220, 0.65)',
     borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.core.white,
+
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
+
   nativeTabBarShadow: {
     shadowColor: MALLO_COLORS.core.ink,
     shadowOffset: {
@@ -122,9 +128,11 @@ const styles = StyleSheet.create({
     shadowRadius: MALLO_SPACING.sm,
     elevation: 2,
   },
+
   webTabBarShadow: {
     boxShadow: `0px ${MALLO_SPACING.xs / 2}px ${MALLO_SPACING.sm}px ${MALLO_COLORS.core.ink}0F`,
   },
+
   tabBarLabel: {
     ...MALLO_TYPOGRAPHY.caption,
     fontSize: 10,
