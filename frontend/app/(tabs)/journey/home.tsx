@@ -46,7 +46,7 @@ const QUICK_ENTRIES: QuickEntry[] = [
     description: '오늘 뭘 하면 될까요?',
     icon: 'sparkles-outline',
     label: 'Today Action Plan',
-    href: '/(tabs)/journey/today-plan',
+    href: '/(tabs)/check',
   },
   {
     description: '지금 해도 괜찮을까요?',
