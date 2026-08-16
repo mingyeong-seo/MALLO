@@ -47,6 +47,8 @@ type ActionResultRouteParams = {
   action?: string | string[];
   condition?: string | string[];
   decision?: string | string[];
+  question?: string | string[];
+  source?: string | string[];
 };
 
 type SemanticColor =
@@ -205,6 +207,11 @@ export default function ActionResultScreen() {
   const baseResult = ACTION_RESULT_MOCKS[decision];
   const routeAction = getFirstParam(params.action)?.trim();
   const routeCondition = getFirstParam(params.condition)?.trim();
+  const routeQuestion = getFirstParam(params.question)?.trim();
+  const routeSource = getFirstParam(params.source)?.trim();
+
+  const isFromAsk = routeSource === 'ask-mallo';
+
   const result: ActionResult = {
     ...baseResult,
     action: routeAction || baseResult.action,
@@ -219,7 +226,7 @@ export default function ActionResultScreen() {
       return;
     }
 
-    router.replace('/(tabs)/journey/today-plan');
+    router.push('/(tabs)/check');
   };
 
   return (
@@ -238,6 +245,10 @@ export default function ActionResultScreen() {
             recoveryDay={MOCK_RESULT_CONTEXT.recoveryDay}
             color={semanticColor}
           />
+
+          {isFromAsk && routeQuestion ? (
+            <QuestionRecall question={routeQuestion} />
+          ) : null}
 
           <Text style={styles.resultSectionLabel}>확인 결과</Text>
 
@@ -344,7 +355,14 @@ function ContextSection({
     </View>
   );
 }
-
+function QuestionRecall({ question }: { question: string }) {
+  return (
+    <View style={styles.questionRecall}>
+      <Text style={styles.questionRecallLabel}>내 질문</Text>
+      <Text style={styles.questionRecallText}>“{question}”</Text>
+    </View>
+  );
+}
 function getResultIcon(decision: ActionResultDecision) {
   switch (decision) {
     case 'POSSIBLE':
@@ -589,6 +607,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: MALLO_SPACING.sm,
     paddingVertical: MALLO_SPACING.md,
+  },
+  questionRecall: {
+    marginBottom: MALLO_SPACING.lg,
+    paddingVertical: MALLO_SPACING.sm,
+  },
+
+  questionRecallLabel: {
+    ...MALLO_TYPOGRAPHY.caption,
+    color: MALLO_COLORS.core.red,
+  },
+
+  questionRecallText: {
+    ...MALLO_TYPOGRAPHY.body,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginTop: MALLO_SPACING.xs,
+    fontWeight: '600',
+    color: MALLO_COLORS.support.charcoal,
   },
   contextChip: {
     minHeight: 32,
