@@ -31,6 +31,12 @@ type ActionResult = {
   headline: string;
   reason: string;
   protocol_refs: string[];
+
+  detail?: {
+    title: string;
+    text: string;
+  };
+
   next_action: {
     type: string;
     label: string;
@@ -71,10 +77,17 @@ const ACTION_RESULT_MOCKS: Record<ActionResultDecision, ActionResult> = {
     headline: '강도를 낮춰서 진행하는 편이 좋아요.',
     reason:
       '현재 DAY와 선택한 운동 강도를 기준으로 무리한 움직임보다 낮은 강도의 대안을 먼저 안내해요.',
+
+    detail: {
+      title: '조정 방법',
+      text: '가벼운 산책 등 낮은 강도로 조정해 주세요.',
+    },
+
     protocol_refs: [
       'Recovery Protocol · 운동 강도 기준',
       'Recovery Protocol · 열 자극 확인 기준',
     ],
+
     next_action: {
       type: 'VIEW_ALTERNATIVE',
       label: '저강도 대안 보기',
@@ -86,10 +99,17 @@ const ACTION_RESULT_MOCKS: Record<ActionResultDecision, ActionResult> = {
     headline: '오늘은 강도 높은 운동을 미루는 편이 좋아요.',
     reason:
       '현재 DAY와 선택한 운동 강도를 기준으로 격한 운동과 과도한 열 자극을 피하도록 안내해요.',
+
+    detail: {
+      title: '다시 확인할 시점',
+      text: 'DAY 5 이후 다시 확인해 주세요.(DAY 5 임시 Mock)',
+    },
+
     protocol_refs: [
       'Recovery Protocol · 고강도 운동 기준',
       'Recovery Protocol · 회복 중 열 자극 기준',
     ],
+
     next_action: {
       type: 'CHECK_LATER',
       label: '나중에 다시 확인하기',
@@ -112,6 +132,32 @@ const ACTION_RESULT_MOCKS: Record<ActionResultDecision, ActionResult> = {
   },
 };
 
+const PROTOCOL_DETAIL_MAP: Record<string, string> = {
+  'Recovery Protocol · 세안 강도 기준':
+    '현재 회복 단계에서는 피부 자극을 줄이기 위해 세안 강도를 낮춰 안내합니다.',
+
+  'Recovery Protocol · 회복 단계 확인 기준':
+    '현재 회복 일차와 시술 후 경과를 기준으로 적용 가능한 행동 범위를 확인합니다.',
+
+  'Recovery Protocol · 운동 강도 기준':
+    '회복 단계에 따라 무리가 될 수 있는 운동 강도를 확인하고 낮은 강도의 활동을 우선 안내합니다.',
+
+  'Recovery Protocol · 열 자극 확인 기준':
+    '운동이나 환경으로 체온이 크게 오를 수 있는 조건을 함께 확인합니다.',
+
+  'Recovery Protocol · 고강도 운동 기준':
+    '회복 중에는 강한 운동으로 인한 자극 가능성을 확인해 진행 여부를 안내합니다.',
+
+  'Recovery Protocol · 회복 중 열 자극 기준':
+    '회복 단계에서 과도한 열 자극이 발생할 수 있는 행동인지 확인합니다.',
+
+  'Recovery Protocol · 의료진 확인 필요 항목':
+    '일반적인 생활 행동 기준만으로 판단하기 어려운 내용은 의료진 확인 단계로 연결합니다.',
+
+  'MALLO Connect · 상담 연결 기준':
+    '의료적 판단이 필요한 질문은 MALLO가 직접 판단하지 않고 의료진 상담으로 연결합니다.',
+};
+
 const DEFAULT_CONDITIONS: Record<ActionResultDecision, string> = {
   POSSIBLE: '가볍게',
   ADJUST: '중간 강도',
@@ -126,17 +172,35 @@ const DECISION_COLORS: Record<ActionResultDecision, SemanticColor> = {
   CONNECT: MALLO_COLORS.semantic.connect,
 };
 
-const DECISION_LABELS: Record<ActionResultDecision, string> = {
-  POSSIBLE: '가볍게 진행할 수 있어요',
-  ADJUST: '조절해서 진행해요',
-  POSTPONE: '오늘은 미루는 게 좋아요',
-  CONNECT: '의료진의 확인이 필요해요',
+const DECISION_PRESENTATION = {
+  POSSIBLE: {
+    label: '지금 진행해도 괜찮아요',
+    primaryActionLabel: '오늘 행동 목록으로',
+  },
+  ADJUST: {
+    label: '조정해서 진행해 주세요',
+    primaryActionLabel: '오늘 행동 목록으로',
+  },
+  POSTPONE: {
+    label: '오늘은 미루는 게 좋아요',
+    primaryActionLabel: '오늘 행동 목록으로',
+  },
+  CONNECT: {
+    label: '의료진 확인이 필요해요',
+    primaryActionLabel: '의료진에게 문의하기',
+  },
 };
+
+// API 연동 전 S08 표시용 Context Mock입니다.
+// decision/action/condition 계약과 분리해 실제 세션 데이터로 교체할 수 있게 합니다.
+const MOCK_RESULT_CONTEXT = {
+  procedureName: 'REJURAN',
+  recoveryDay: 1,
+} as const;
 
 export default function ActionResultScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<ActionResultRouteParams>();
-  const [showMockFeedback, setShowMockFeedback] = useState(false);
   const decision = resolveDecision(getFirstParam(params.decision));
   const baseResult = ACTION_RESULT_MOCKS[decision];
   const routeAction = getFirstParam(params.action)?.trim();
@@ -147,6 +211,7 @@ export default function ActionResultScreen() {
   };
   const condition = routeCondition || DEFAULT_CONDITIONS[decision];
   const semanticColor = DECISION_COLORS[decision];
+  const presentation = DECISION_PRESENTATION[decision];
 
   const handleNextAction = () => {
     if (decision === 'CONNECT') {
@@ -154,7 +219,7 @@ export default function ActionResultScreen() {
       return;
     }
 
-    setShowMockFeedback(true);
+    router.replace('/(tabs)/journey/today-plan');
   };
 
   return (
@@ -166,46 +231,46 @@ export default function ActionResultScreen() {
         <ScreenHeader topInset={insets.top} />
 
         <View style={styles.content}>
-          <View style={styles.actionSection}>
-            <Text style={styles.eyebrow}>확인할 행동</Text>
+          <ContextSection
+            action={result.action}
+            condition={condition}
+            procedureName={MOCK_RESULT_CONTEXT.procedureName}
+            recoveryDay={MOCK_RESULT_CONTEXT.recoveryDay}
+            color={semanticColor}
+          />
 
-            <View style={styles.actionTitleRow}>
-              <Text style={styles.actionTitle}>{result.action}</Text>
+          <Text style={styles.resultSectionLabel}>확인 결과</Text>
 
-              <View style={styles.conditionRow}>
-                <Text style={styles.conditionLabel}>조건</Text>
-                <Text style={styles.conditionValue}>{condition}</Text>
-              </View>
-            </View>
-          </View>
+          <ResultSummary
+            color={semanticColor}
+            decision={decision}
+            label={presentation.label}
+          />
 
-          <View style={styles.resultSection}>
-            <DecisionBadge decision={result.decision} color={semanticColor} />
-            <View
-              style={[
-                styles.decisionAccent,
-                { backgroundColor: semanticColor },
-              ]}
+          <ExplanationSection reason={result.reason} />
+
+          {result.detail ? (
+            <DecisionDetail
+              color={semanticColor}
+              title={result.detail.title}
+              text={result.detail.text}
             />
-            <Text style={styles.headline}>{result.headline}</Text>
-            <Text style={styles.reason}>{result.reason}</Text>
-          </View>
+          ) : null}
 
           <ProtocolReferences references={result.protocol_refs} />
 
-          <View style={styles.nextActionSection}>
+          {decision !== 'CONNECT' ? <RecoveryRecordAction /> : null}
+
+          <View
+            style={[
+              styles.nextActionSection,
+              decision === 'CONNECT' && styles.connectNextActionSection,
+            ]}
+          >
             <PrimaryActionButton
-              label={result.next_action.label}
+              label={presentation.primaryActionLabel}
               onPress={handleNextAction}
             />
-            {showMockFeedback ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={styles.mockFeedback}
-              >
-                현재 단계에서는 Mock 동작으로 처리되었습니다.
-              </Text>
-            ) : null}
           </View>
         </View>
       </ScrollView>
@@ -214,93 +279,235 @@ export default function ActionResultScreen() {
 }
 
 function ScreenHeader({ topInset }: { topInset: number }) {
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-
-    router.replace('/(tabs)/check');
-  };
-
   return (
     <View style={styles.header}>
       <View
-        style={[
-          styles.systemNavigationRow,
-          {
-            minHeight: topInset + MIN_NAVIGATION_HEIGHT,
-            paddingTop: topInset,
-          },
-        ]}
-      >
-        <Pressable
-          accessibilityLabel="이전 화면으로 돌아가기"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={handleBack}
-          style={({ pressed }) => [
-            styles.backButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={20}
-            color={MALLO_COLORS.support.charcoal}
-          />
-          <Text style={styles.backLabel}>Quick Check</Text>
-        </Pressable>
-      </View>
-
-      <Image
-        accessible
-        accessibilityLabel="MALLO"
-        source={require('../../../assets/images/mallo-logo-red.png')}
-        style={styles.brandLogo}
-        resizeMode="contain"
+        style={{
+          minHeight:
+            Platform.OS === 'web' ? 0 : topInset + MIN_NAVIGATION_HEIGHT,
+          paddingTop: Platform.OS === 'web' ? 0 : topInset,
+        }}
       />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="MALLO 홈으로 이동"
+        onPress={() => router.replace('/(tabs)/journey')}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        <Image
+          accessible={false}
+          source={require('../../../assets/images/mallo-logo-red.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+      </Pressable>
     </View>
   );
 }
 
 const MIN_NAVIGATION_HEIGHT = 44;
 
-function DecisionBadge({
-  decision,
+function ContextSection({
+  action,
+  condition,
+  procedureName,
+  recoveryDay,
   color,
 }: {
-  decision: ActionResultDecision;
+  action: string;
+  condition: string;
+  procedureName: string;
+  recoveryDay: number;
   color: SemanticColor;
 }) {
   return (
-    <View style={[styles.decisionBadge, { borderColor: color }]}>
-      <View style={[styles.decisionDot, { backgroundColor: color }]} />
-      <Text style={[styles.decisionText, { color }]}>
-        {DECISION_LABELS[decision]}
+    <View accessibilityLabel="현재 확인 정보" style={styles.contextSection}>
+      <View style={styles.contextChip}>
+        <Text style={styles.contextText}>
+          {procedureName} · DAY {recoveryDay}
+        </Text>
+      </View>
+      <View style={styles.contextChip}>
+        <Text style={styles.contextText}>{action}</Text>
+      </View>
+      <View
+        style={[
+          styles.contextChip,
+          styles.conditionChip,
+          { borderColor: color },
+        ]}
+      >
+        <Text style={[styles.contextLabel, { color }]}>조건</Text>
+        <Text style={[styles.contextValue, { color }]}>{condition}</Text>
+      </View>
+    </View>
+  );
+}
+
+function getResultIcon(decision: ActionResultDecision) {
+  switch (decision) {
+    case 'POSSIBLE':
+      return 'checkmark';
+
+    case 'ADJUST':
+      return 'options-outline';
+
+    case 'POSTPONE':
+      return 'time-outline';
+
+    case 'CONNECT':
+      return 'chatbubble-ellipses-outline';
+
+    default:
+      return 'checkmark';
+  }
+}
+
+function ResultSummary({
+  color,
+  decision,
+  label,
+}: {
+  color: SemanticColor;
+  decision: ActionResultDecision;
+  label: string;
+}) {
+  const iconName = getResultIcon(decision);
+
+  return (
+    <View style={styles.resultSummary}>
+      <View style={[styles.resultAccent, { backgroundColor: color }]} />
+
+      <View style={styles.resultSummaryContent}>
+        <View style={styles.resultDecisionRow}>
+          <View
+            style={[
+              styles.resultIcon,
+              {
+                borderColor: color,
+              },
+            ]}
+          >
+            <Ionicons name={iconName} size={16} color={color} />
+          </View>
+
+          <Text style={styles.resultDecision}>{label}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ExplanationSection({ reason }: { reason: string }) {
+  return (
+    <View style={styles.explanationSection}>
+      <Text style={styles.explanationTitle}>왜 이런 결과인가요?</Text>
+
+      <Text style={styles.reason} lineBreakStrategyIOS="hangul-word">
+        {reason}
       </Text>
     </View>
   );
 }
 
+function DecisionDetail({
+  color,
+  title,
+  text,
+}: {
+  color: SemanticColor;
+  title: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.decisionDetail}>
+      <View style={[styles.detailIndicator, { backgroundColor: color }]} />
+
+      <View style={styles.detailContent}>
+        <Text style={styles.detailTitle}>{title}</Text>
+        <Text style={styles.detailText}>{text}</Text>
+      </View>
+    </View>
+  );
+}
+
 function ProtocolReferences({ references }: { references: string[] }) {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
   return (
     <View style={styles.protocolSection}>
       <Text style={styles.protocolTitle}>Recovery Protocol 근거</Text>
+
       <View style={styles.protocolCard}>
-        {references.map((reference, index) => (
-          <View key={reference} style={styles.protocolRow}>
-            <View style={styles.protocolIndex}>
-              <Text style={styles.protocolIndexText}>{index + 1}</Text>
+        {references.map((reference, index) => {
+          const isExpanded = expandedIndex === index;
+          const detail = PROTOCOL_DETAIL_MAP[reference];
+
+          return (
+            <View key={reference}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${reference} 상세 보기`}
+                onPress={() => setExpandedIndex(isExpanded ? null : index)}
+                style={({ pressed }) => [
+                  styles.protocolRow,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <View style={styles.protocolIndex}>
+                  <Text style={styles.protocolIndexText}>{index + 1}</Text>
+                </View>
+
+                <Text style={styles.protocolText}>{reference}</Text>
+
+                <Ionicons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={12}
+                  color={MALLO_COLORS.support.secondaryTextGray}
+                />
+              </Pressable>
+
+              {isExpanded ? (
+                <View style={styles.protocolDetail}>
+                  <Text
+                    style={styles.protocolDetailText}
+                    lineBreakStrategyIOS="hangul-word"
+                  >
+                    {detail ?? '상세 Recovery Protocol 기준을 확인 중입니다.'}
+                  </Text>
+                </View>
+              ) : null}
             </View>
-            <Text style={styles.protocolText}>{reference}</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
+
       <Text style={styles.protocolNote}>
         현재 화면은 개발용 Mock Recovery Protocol을 표시합니다.
       </Text>
     </View>
+  );
+}
+
+function RecoveryRecordAction() {
+  return (
+    <Pressable
+      accessibilityLabel="오늘 기록하기, 선택 사항"
+      accessibilityRole="button"
+      onPress={() => router.push('/(tabs)/journey/record')}
+      style={({ pressed }) => [styles.recordAction, pressed && styles.pressed]}
+    >
+      <View>
+        <Text style={styles.recordTitle}>오늘 기록하기</Text>
+        <Text style={styles.recordMeta}>선택 사항</Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color={MALLO_COLORS.support.secondaryTextGray}
+      />
+    </Pressable>
   );
 }
 
@@ -354,7 +561,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingBottom: MALLO_SPACING.xxl,
+    paddingBottom: MALLO_SPACING.xxl * 2,
   },
   header: {
     alignItems: 'stretch',
@@ -366,130 +573,150 @@ const styles = StyleSheet.create({
       marginTop: -30,
     }),
   },
-  systemNavigationRow: {
-    justifyContent: 'center',
-  },
-  backButton: {
-    minWidth: 96,
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: -MALLO_SPACING.sm,
-    paddingHorizontal: MALLO_SPACING.sm,
-  },
-  backLabel: {
-    ...MALLO_TYPOGRAPHY.caption,
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-  brandLogo: {
-    width: 160,
-    height: 36,
-    alignSelf: 'center',
-    marginTop: MALLO_SPACING.md,
 
-    ...(Platform.OS === 'web' && {
-      width: 132,
-      height: 30,
-    }),
+  brandLogo: {
+    width: 112,
+    height: 25,
+    alignSelf: 'center',
+    marginTop: Platform.OS === 'web' ? MALLO_SPACING.lg : MALLO_SPACING.md,
   },
   content: {
     flexGrow: 1,
   },
-  actionSection: {
-    paddingVertical: MALLO_SPACING.xl,
-  },
-  eyebrow: {
-    ...MALLO_TYPOGRAPHY.caption,
-    marginBottom: MALLO_SPACING.xs,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    letterSpacing: 0.8,
-  },
-  actionTitle: {
-    ...MALLO_TYPOGRAPHY.screenTitle,
-    color: MALLO_COLORS.core.ink,
-  },
-  conditionRow: {
+  contextSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: MALLO_SPACING.sm,
+    paddingVertical: MALLO_SPACING.md,
+  },
+  contextChip: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: MALLO_SPACING.xs,
     paddingHorizontal: MALLO_SPACING.md,
-    paddingVertical: MALLO_SPACING.sm,
+    paddingVertical: MALLO_SPACING.xs,
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.support.warmGray,
   },
-  actionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: MALLO_SPACING.md,
-    flexWrap: 'wrap',
-  },
-  conditionLabel: {
-    ...MALLO_TYPOGRAPHY.caption,
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-  conditionValue: {
+  contextText: {
     ...MALLO_TYPOGRAPHY.statusLabel,
     color: MALLO_COLORS.support.charcoal,
   },
-  resultSection: {
-    paddingTop: MALLO_SPACING.xl,
-    borderTopWidth: 1,
-    borderTopColor: MALLO_COLORS.support.mistGray,
+  contextLabel: {
+    ...MALLO_TYPOGRAPHY.caption,
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
-  sectionLabel: {
+  contextValue: {
+    ...MALLO_TYPOGRAPHY.statusLabel,
+    color: MALLO_COLORS.support.charcoal,
+  },
+  conditionChip: {
+    borderWidth: 1,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+
+  resultSectionLabel: {
     ...MALLO_TYPOGRAPHY.caption,
     marginBottom: MALLO_SPACING.sm,
     color: MALLO_COLORS.support.secondaryTextGray,
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
   },
-  decisionBadge: {
-    alignSelf: 'flex-start',
+  resultSummary: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+    borderRadius: MALLO_RADIUS.lg,
+    backgroundColor: MALLO_COLORS.support.warmGray,
+  },
+  resultAccent: {
+    width: 4,
+  },
+  resultSummaryContent: {
+    flex: 1,
+    paddingHorizontal: MALLO_SPACING.lg,
+    paddingLeft: MALLO_SPACING.lg,
+    paddingVertical: MALLO_SPACING.lg,
+  },
+  resultDecisionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: MALLO_SPACING.sm,
-    paddingHorizontal: MALLO_SPACING.md,
-    paddingVertical: MALLO_SPACING.sm,
+  },
+
+  resultIcon: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.core.white,
   },
-  decisionDot: {
-    width: 7,
-    height: 7,
-    borderRadius: MALLO_RADIUS.full,
-  },
-  decisionText: {
-    ...MALLO_TYPOGRAPHY.statusLabel,
-    letterSpacing: 0.6,
-  },
-  decisionAccent: {
-    width: 32,
-    height: 3,
-    marginTop: MALLO_SPACING.xl,
-    marginBottom: MALLO_SPACING.md,
-    borderRadius: MALLO_RADIUS.full,
-  },
-  headline: {
+
+  resultDecision: {
     ...MALLO_TYPOGRAPHY.screenTitle,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
     color: MALLO_COLORS.core.ink,
     letterSpacing: -0.5,
   },
+
+  explanationSection: {
+    marginTop: Platform.OS === 'web' ? MALLO_SPACING.xl : MALLO_SPACING.lg,
+  },
+  explanationTitle: {
+    ...MALLO_TYPOGRAPHY.sectionTitle,
+    marginBottom: MALLO_SPACING.md,
+    color: MALLO_COLORS.support.charcoal,
+  },
+  headline: {
+    ...MALLO_TYPOGRAPHY.cardTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    color: MALLO_COLORS.core.ink,
+  },
   reason: {
     ...MALLO_TYPOGRAPHY.body,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
-    marginTop: MALLO_SPACING.lg,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+  decisionDetail: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: MALLO_SPACING.md,
+    marginTop: Platform.OS === 'web' ? MALLO_SPACING.lg : MALLO_SPACING.md,
+    paddingVertical: MALLO_SPACING.md,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+  },
+  detailIndicator: {
+    width: 3,
+    borderRadius: MALLO_RADIUS.full,
+  },
+  detailContent: {
+    flex: 1,
+  },
+  detailTitle: {
+    ...MALLO_TYPOGRAPHY.sectionTitle,
+    color: MALLO_COLORS.support.charcoal,
+  },
+  detailText: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginTop: MALLO_SPACING.xs,
     color: MALLO_COLORS.support.secondaryTextGray,
   },
   protocolSection: {
-    marginTop: MALLO_SPACING.xxl,
+    marginTop: Platform.OS === 'web' ? MALLO_SPACING.xl : MALLO_SPACING.lg,
   },
   protocolTitle: {
     ...MALLO_TYPOGRAPHY.sectionTitle,
     marginBottom: MALLO_SPACING.md,
     color: MALLO_COLORS.support.charcoal,
   },
+
   protocolCard: {
     gap: MALLO_SPACING.lg,
     padding: MALLO_SPACING.lg,
@@ -497,6 +724,7 @@ const styles = StyleSheet.create({
     backgroundColor: MALLO_COLORS.support.warmGray,
   },
   protocolRow: {
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     gap: MALLO_SPACING.md,
@@ -521,15 +749,56 @@ const styles = StyleSheet.create({
     flex: 1,
     color: MALLO_COLORS.support.charcoal,
   },
+  protocolDetail: {
+    marginTop: MALLO_SPACING.sm,
+    marginLeft: 40,
+    marginRight: MALLO_SPACING.sm,
+    paddingTop: MALLO_SPACING.sm,
+    paddingBottom: MALLO_SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: MALLO_COLORS.support.mistGray,
+  },
+
+  protocolDetailText: {
+    ...MALLO_TYPOGRAPHY.caption,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    color: MALLO_COLORS.support.secondaryTextGray,
+    lineHeight: 20,
+  },
   protocolNote: {
     ...MALLO_TYPOGRAPHY.caption,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
     marginTop: MALLO_SPACING.sm,
     color: MALLO_COLORS.support.secondaryTextGray,
   },
+  connectNextActionSection: {
+    marginTop: MALLO_SPACING.xxl + MALLO_SPACING.md,
+  },
+  recordAction: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: MALLO_SPACING.xl,
+    paddingVertical: MALLO_SPACING.md,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+  },
+  recordTitle: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    color: MALLO_COLORS.support.charcoal,
+  },
+  recordMeta: {
+    ...MALLO_TYPOGRAPHY.caption,
+    marginTop: MALLO_SPACING.xs,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
   nextActionSection: {
-    marginTop: MALLO_SPACING.xxl,
-    paddingTop: MALLO_SPACING.xxl,
+    marginTop: Platform.OS === 'web' ? 'auto' : MALLO_SPACING.lg,
+
+    paddingTop: Platform.OS === 'web' ? MALLO_SPACING.xl : 0,
+
     paddingBottom: MALLO_SPACING.xxl * 2,
   },
   primaryButton: {
@@ -546,13 +815,7 @@ const styles = StyleSheet.create({
     ...MALLO_TYPOGRAPHY.buttonLabel,
     color: MALLO_COLORS.core.white,
   },
-  mockFeedback: {
-    ...MALLO_TYPOGRAPHY.caption,
-    ...MALLO_TEXT_STYLES.koreanWordWrap,
-    marginTop: MALLO_SPACING.sm,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    textAlign: 'center',
-  },
+
   pressed: {
     opacity: 0.72,
   },
