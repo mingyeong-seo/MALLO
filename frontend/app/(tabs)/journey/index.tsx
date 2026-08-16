@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import {
   Image,
   Platform,
@@ -39,19 +39,20 @@ export default function JourneyScreen() {
     ? MOCK_RECOVERY_SESSION
     : null;
 
+  // 이미 시술 정보가 있으면 Recovery Journey Home(S04)으로 바로 이동
+  if (recoverySession) {
+    return <Redirect href="/(tabs)/journey/home" />;
+  }
+
+  // 시술 정보가 없을 때만 DERNA 연결 전 화면 표시
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <MalloBrandHeader isConnected={!!recoverySession} />
-
-        {recoverySession ? (
-          <ActiveSessionState session={recoverySession} />
-        ) : (
-          <EmptySessionState />
-        )}
+        <MalloBrandHeader isConnected={false} />
+        <EmptySessionState />
       </ScrollView>
     </SafeAreaView>
   );
