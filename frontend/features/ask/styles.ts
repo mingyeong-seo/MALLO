@@ -647,14 +647,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingTop: 12,
   },
-  // =====================================================
-  // STATE C - APP 전용
-  // =====================================================
-
-  quickAnswerStateRestingNative: {
-    justifyContent: 'flex-start',
-    paddingTop: 12,
-  },
 
   quickAnswerDescriptionNative: {
     marginTop: 18,
