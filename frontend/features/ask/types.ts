@@ -1,4 +1,8 @@
-export type AskMalloState = 'input' | 'behavior-follow-up' | 'quick-result';
+export type AskMalloState =
+  | 'input'
+  | 'loading'
+  | 'behavior-follow-up'
+  | 'quick-result';
 export type ActionResultDecision = 'POSSIBLE' | 'ADJUST' | 'POSTPONE';
 
 export type QuickAnswer = {
