@@ -16,7 +16,6 @@ import {
   AskHeader,
   BehaviorFollowUpState,
   QuestionInputState,
-  QuickAnswerState,
   RecoveryContextTags,
 } from '@/features/ask/components/AskContent';
 import { AskLoadingState } from '@/features/ask/components/AskLoadingState';
@@ -27,7 +26,6 @@ import type {
   ActionResultDecision,
   AskMalloState,
   FollowUpOption,
-  QuickAnswer,
 } from '@/features/ask/types';
 import { classifyMockQuestion } from '@/features/ask/utils';
 
@@ -58,8 +56,6 @@ export default function AskScreen() {
   const [submittedQuestion, setSubmittedQuestion] = useState('');
   const [inputNotice, setInputNotice] = useState('');
 
-  const [quickAnswer, setQuickAnswer] = useState<QuickAnswer | null>(null);
-
   // false = thinking ↔ searching
   // true = checked
   const [isLoadingComplete, setIsLoadingComplete] = useState(false);
@@ -83,7 +79,10 @@ export default function AskScreen() {
   }, [screenState]);
 
   /**
-   * S08 상세 결과 화면 이동
+   * S08 결과 화면 이동
+   *
+   * ASK에서는 결과를 직접 보여주지 않고
+   * 최종 결과 화면으로 통일한다.
    */
   const openResult = ({
     action,
@@ -109,27 +108,36 @@ export default function AskScreen() {
       },
     });
 
-    // 다음에 Ask 탭으로 돌아왔을 때 초기 상태가 되도록 정리
+    /**
+     * 사용자가 이후 Ask 탭으로 다시 돌아왔을 때
+     * 처음 질문 화면부터 시작하도록 상태 초기화
+     */
     setScreenState('input');
     setQuestion('');
     setSubmittedQuestion('');
     setInputNotice('');
-    setQuickAnswer(null);
     setIsLoadingComplete(false);
+    setIsComposerFocused(false);
   };
 
   /**
-   * 운동 추가 조건 선택 후
-   * checked 상태를 잠깐 보여준 뒤 S08 결과로 이동
+   * 운동 추가 조건 선택
+   *
+   * 조건 선택
+   * → checked
+   * → S08 Result
    */
   const completeExerciseCheck = (option: FollowUpOption) => {
     Keyboard.dismiss();
 
-    // 조건 확인이 끝났으므로 checked 상태로 전환
+    // 조건 확인 완료
     setIsLoadingComplete(true);
     setScreenState('loading');
 
-    // checked 이미지를 0.7초 보여준 뒤 결과 화면으로 이동
+    /**
+     * checked 캐릭터를 잠깐 보여준 뒤
+     * 결과 화면으로 이동
+     */
     setTimeout(() => {
       openResult({
         action: '운동',
@@ -138,6 +146,37 @@ export default function AskScreen() {
         question: submittedQuestion,
       });
     }, 1200);
+  };
+
+  /**
+   * 세안 결과
+   *
+   * thinking/searching
+   * → checked
+   * → POSSIBLE Result
+   */
+  const openWashResult = (questionText: string) => {
+    openResult({
+      action: '세안',
+      condition: '가볍게',
+      decision: 'POSSIBLE',
+      question: questionText,
+    });
+  };
+
+  /**
+   * 스킨케어 결과
+   *
+   * 현재 MVP Mock:
+   * 제품 성분 확인이 필요한 상황으로 처리
+   */
+  const openSkincareResult = (questionText: string) => {
+    openResult({
+      action: '스킨케어 제품 사용',
+      condition: '성분 확인 필요',
+      decision: 'ADJUST',
+      question: questionText,
+    });
   };
 
   /**
@@ -155,17 +194,16 @@ export default function AskScreen() {
     setSubmittedQuestion(normalizedQuestion);
     setInputNotice('');
     setIsComposerFocused(false);
-    setQuickAnswer(null);
 
     Keyboard.dismiss();
 
     const intent = classifyMockQuestion(normalizedQuestion);
 
     /**
-     * 모든 질문은 먼저 Loading 진입
+     * 모든 질문 공통
      *
-     * false:
-     * thinking ↔ searching 반복
+     * 질문 전송
+     * → thinking ↔ searching
      */
     setIsLoadingComplete(false);
     setScreenState('loading');
@@ -173,10 +211,8 @@ export default function AskScreen() {
     /**
      * 운동 질문
      *
-     * thinking ↔ searching
-     * → 조건 확인
-     *
-     * 아직 조건이 부족하므로 여기서는 checked를 보여주지 않음.
+     * 운동은 강도 Context가 필요하므로
+     * 바로 결과로 보내지 않고 추가 질문 화면으로 이동한다.
      */
     if (intent === 'exercise-follow-up') {
       setTimeout(() => {
@@ -195,63 +231,46 @@ export default function AskScreen() {
     }
 
     /**
-     * 세안 / 스킨케어 등 바로 답변 가능한 질문
+     * 세안 / 스킨케어
      *
-     * thinking ↔ searching
+     * 추가 Context 없이 현재 Mock에서
+     * 결과를 결정할 수 있으므로:
+     *
+     * thinking/searching
      * → checked
-     * → Quick Result
+     * → Result
      */
 
-    // 2.7초 후 checked 표시
+    // thinking/searching을 충분히 보여준 뒤 checked
     setTimeout(() => {
       setIsLoadingComplete(true);
     }, 3600);
 
-    // checked를 약 1.1초 보여준 뒤 결과로 이동
+    // checked를 잠깐 보여준 뒤 최종 Result
     setTimeout(() => {
       if (intent === 'wash-result') {
-        setQuickAnswer({
-          action: '세안',
-          condition: '가볍게',
-          decision: 'POSSIBLE',
-          title: '지금 진행해도 괜찮아요',
-          description:
-            '현재 회복 단계에서는 자극을 줄여 가볍게 세안하는 방향으로 안내해요.',
-        });
-
-        setQuestion('');
-        setIsLoadingComplete(false);
-        setScreenState('quick-result');
-
+        openWashResult(normalizedQuestion);
         return;
       }
 
       if (intent === 'skincare-result') {
-        setQuickAnswer({
-          action: '스킨케어 제품 사용',
-          condition: '성분 확인 필요',
-          decision: 'ADJUST',
-          title: '조건을 확인해서 조절해 주세요',
-          description:
-            '현재 회복 단계에서는 사용하는 제품의 성분을 확인한 뒤 조절해서 사용하는 방향으로 안내해요.',
-        });
-
-        setQuestion('');
-        setIsLoadingComplete(false);
-        setScreenState('quick-result');
-
+        openSkincareResult(normalizedQuestion);
         return;
       }
 
       /**
-       * 현재 Mock 범위에서 분류하지 못한 질문
+       * 현재 Mock 범위 밖 질문
        *
-       * NO_PROTOCOL 전용 화면은 다음 브랜치에서 구현 예정.
-       * 지금은 기존 입력 화면의 notice 방식 유지.
+       * NO_PROTOCOL / CONNECT 자동 분류는
+       * 이후 실제 API 연결 시 확장.
+       *
+       * 현재는 기존 notice 방식 유지.
        */
       setIsLoadingComplete(false);
       setScreenState('input');
+
       setQuestion(normalizedQuestion);
+      setSubmittedQuestion('');
 
       setInputNotice(
         '운동, 세안, 스킨케어처럼 확인할 행동을 포함해 질문해 주세요.',
@@ -269,8 +288,8 @@ export default function AskScreen() {
     setQuestion('');
     setSubmittedQuestion('');
     setInputNotice('');
-    setQuickAnswer(null);
     setIsLoadingComplete(false);
+    setIsComposerFocused(false);
 
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({
@@ -318,24 +337,10 @@ export default function AskScreen() {
               onOptionPress={completeExerciseCheck}
               onReset={resetQuestion}
             />
-          ) : quickAnswer ? (
-            <QuickAnswerState
-              answer={quickAnswer}
-              question={submittedQuestion}
-              isComposerFocused={isComposerFocused}
-              onDetailPress={() =>
-                openResult({
-                  action: quickAnswer.action,
-                  condition: quickAnswer.condition,
-                  decision: quickAnswer.decision,
-                  question: submittedQuestion,
-                })
-              }
-            />
           ) : null}
         </ScrollView>
 
-        {(screenState === 'input' || screenState === 'quick-result') && (
+        {screenState === 'input' ? (
           <QuestionComposer
             bottomClearance={floatingTabClearance}
             notice={inputNotice}
@@ -351,7 +356,7 @@ export default function AskScreen() {
             suggestions={EXAMPLE_QUESTIONS}
             value={question}
           />
-        )}
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
