@@ -251,8 +251,6 @@ export function QuickAnswerState({
         <Text style={styles.questionRecallText}>“{question}”</Text>
       </View>
 
-      <View style={styles.questionFlowLine} />
-
       {/* MALLO 간단 답변 */}
       <View style={styles.quickAnswerSection}>
         <Text style={styles.quickAnswerEyebrow}>MALLO가 확인했어요</Text>

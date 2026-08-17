@@ -192,10 +192,21 @@ export const styles = StyleSheet.create({
 
   questionRecall: {
     marginTop: MALLO_SPACING.xl,
+
+    minHeight: 64,
+    justifyContent: 'center',
+
+    borderLeftWidth: 3,
+    borderLeftColor: '#C86A59',
+
+    paddingLeft: MALLO_SPACING.md,
+    paddingVertical: 4,
   },
 
   questionRecallLabel: {
     ...MALLO_TYPOGRAPHY.caption,
+    fontSize: 14,
+    lineHeight: 20,
     color: MALLO_COLORS.core.red,
   },
 
@@ -203,10 +214,11 @@ export const styles = StyleSheet.create({
     ...MALLO_TYPOGRAPHY.body,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
     marginTop: MALLO_SPACING.xs,
+    fontSize: 18,
+    lineHeight: 26,
     fontWeight: '600',
     color: MALLO_COLORS.support.charcoal,
   },
-
   followUpSection: {
     marginTop: 0,
   },
@@ -256,8 +268,85 @@ export const styles = StyleSheet.create({
     backgroundColor: MALLO_COLORS.support.mistGray,
   },
 
+  loadingStateContent: {
+    flex: 1,
+  },
+
   followUpKeyword: {
     color: MALLO_COLORS.core.red,
+  },
+
+  loadingBody: {
+    flex: Platform.OS === 'web' ? 0 : 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: Platform.OS === 'web' ? 40 : 28,
+    paddingBottom: Platform.OS === 'web' ? MALLO_SPACING.xxl : MALLO_SPACING.xl,
+  },
+  loadingCharacterContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+  },
+
+  loadingCharacterComplete: {
+    backgroundColor: 'rgba(180, 68, 51, 0.08)',
+    padding: Platform.OS === 'web' ? 18 : 14,
+  },
+
+  loadingCharacter: {
+    width: Platform.OS === 'web' ? 280 : 200,
+    height: Platform.OS === 'web' ? 280 : 200,
+  },
+
+  loadingTitle: {
+    ...MALLO_TYPOGRAPHY.screenTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+
+    // 앱에서 캐릭터와 제목 사이가 조금 넓어서 줄임
+    marginTop: Platform.OS === 'web' ? 8 : 8,
+
+    fontSize: Platform.OS === 'web' ? 30 : 28,
+    lineHeight: Platform.OS === 'web' ? 38 : 34,
+    color: MALLO_COLORS.core.ink,
+    textAlign: 'center',
+  },
+
+  loadingTitleAccent: {
+    color: MALLO_COLORS.core.red,
+  },
+
+  loadingDescription: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+
+    marginTop: Platform.OS === 'web' ? MALLO_SPACING.md : 14,
+
+    fontSize: Platform.OS === 'web' ? 15 : 14,
+    lineHeight: Platform.OS === 'web' ? 22 : 20,
+    color: MALLO_COLORS.support.secondaryTextGray,
+    textAlign: 'center',
+  },
+
+  loadingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: MALLO_SPACING.sm,
+
+    // 앱에서는 설명과 점을 조금 더 붙임
+    marginTop: Platform.OS === 'web' ? MALLO_SPACING.lg : 14,
+  },
+
+  loadingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.support.mistGray,
+  },
+
+  loadingDotActive: {
+    backgroundColor: MALLO_COLORS.core.red,
   },
 
   optionList: {
@@ -662,5 +751,21 @@ export const styles = StyleSheet.create({
 
   quickAnswerNextGuideNative: {
     marginTop: 24,
+  },
+
+  loadingQuestionRecallWeb: {
+    marginTop: 16,
+  },
+
+  loadingQuestionRecallLabelWeb: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  loadingQuestionRecallTextWeb: {
+    marginTop: 6,
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '600',
   },
 });
