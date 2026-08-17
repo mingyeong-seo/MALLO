@@ -50,7 +50,7 @@ export function AskLoadingState({
     <View style={[styles.stateContent, styles.loadingStateContent]}>
       {/* 사용자가 입력한 질문 */}
       <View style={styles.questionRecall}>
-        <Text style={styles.questionRecallLabel}>내 질문</Text>
+        <Text style={styles.questionRecallLabel}>오늘 내가 궁금한 것</Text>
 
         <Text style={styles.questionRecallText}>“{question}”</Text>
       </View>

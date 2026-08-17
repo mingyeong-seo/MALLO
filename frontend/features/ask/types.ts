@@ -1,17 +1,10 @@
-export type AskMalloState =
-  | 'input'
-  | 'loading'
-  | 'behavior-follow-up'
-  | 'quick-result';
-export type ActionResultDecision = 'POSSIBLE' | 'ADJUST' | 'POSTPONE';
+export type AskMalloState = 'input' | 'loading' | 'behavior-follow-up';
 
-export type QuickAnswer = {
-  action: string;
-  condition: string;
-  decision: ActionResultDecision;
-  title: string;
-  description: string;
-};
+export type ActionResultDecision =
+  | 'POSSIBLE'
+  | 'ADJUST'
+  | 'POSTPONE'
+  | 'CONNECT';
 
 export type FollowUpOption = {
   condition: string;

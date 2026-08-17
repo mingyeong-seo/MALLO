@@ -136,14 +136,11 @@ export const styles = StyleSheet.create({
 
   askGuideDivider: {
     width: '72%',
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
   },
 
   askGuideLine: {
-    flex: 1,
+    width: '100%',
     height: 1,
     backgroundColor: MALLO_COLORS.support.mistGray,
   },
@@ -181,13 +178,14 @@ export const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 20,
+
+    marginTop: Platform.OS === 'web' ? 42 : 24,
+    marginBottom: Platform.OS === 'web' ? 28 : 20,
   },
 
   followUpIllustration: {
-    width: 230,
-    height: 230,
+    width: Platform.OS === 'web' ? 230 : 200,
+    height: Platform.OS === 'web' ? 230 : 200,
   },
 
   questionRecall: {
@@ -200,7 +198,13 @@ export const styles = StyleSheet.create({
     borderLeftColor: '#C86A59',
 
     paddingLeft: MALLO_SPACING.md,
-    paddingVertical: 4,
+    paddingRight: MALLO_SPACING.md,
+    paddingVertical: 10,
+
+    backgroundColor:
+      Platform.OS === 'web'
+        ? 'rgba(180, 68, 51, 0.055)'
+        : 'rgba(180, 68, 51, 0.035)',
   },
 
   questionRecallLabel: {
@@ -220,7 +224,7 @@ export const styles = StyleSheet.create({
     color: MALLO_COLORS.support.charcoal,
   },
   followUpSection: {
-    marginTop: 0,
+    marginTop: Platform.OS === 'web' ? 28 : 24,
   },
 
   malloIdentityRow: {
@@ -256,16 +260,6 @@ export const styles = StyleSheet.create({
     ...MALLO_TEXT_STYLES.koreanWordWrap,
     marginTop: 0,
     color: MALLO_COLORS.core.ink,
-  },
-
-  questionFlowLine: {
-    width: 2,
-    height: 18,
-    marginLeft: 8,
-    marginTop: 8,
-    marginBottom: 18,
-    borderRadius: 1,
-    backgroundColor: MALLO_COLORS.support.mistGray,
   },
 
   loadingStateContent: {
@@ -426,28 +420,14 @@ export const styles = StyleSheet.create({
     borderBottomColor: MALLO_COLORS.support.mistGray,
   },
 
-  protocolNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: MALLO_SPACING.sm,
-    marginTop: MALLO_SPACING.lg,
-    paddingVertical: MALLO_SPACING.md,
-  },
-
-  protocolNoteText: {
-    ...MALLO_TYPOGRAPHY.secondaryBody,
-    ...MALLO_TEXT_STYLES.koreanWordWrap,
-    flex: 1,
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-
   resetButton: {
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: MALLO_SPACING.sm,
-    marginTop: 20,
+
+    marginTop: Platform.OS === 'web' ? 46 : 20,
 
     borderWidth: 1,
     borderColor: MALLO_COLORS.support.mistGray,
@@ -614,145 +594,6 @@ export const styles = StyleSheet.create({
     opacity: 0.68,
   },
 
-  // =====================================================
-  // STATE C - 공통 스타일
-  // =====================================================
-
-  quickAnswerStateContent: {
-    flex: 1,
-  },
-
-  quickAnswerSection: {
-    marginTop: 0,
-  },
-
-  quickAnswerEyebrow: {
-    ...MALLO_TYPOGRAPHY.caption,
-    fontWeight: '600',
-    color: MALLO_COLORS.core.red,
-  },
-
-  quickAnswerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: MALLO_SPACING.sm,
-    marginTop: 10,
-  },
-
-  quickAnswerTitle: {
-    ...MALLO_TYPOGRAPHY.screenTitle,
-    ...MALLO_TEXT_STYLES.koreanWordWrap,
-    flex: 1,
-    fontSize: 24,
-    lineHeight: 30,
-    color: MALLO_COLORS.core.ink,
-  },
-
-  quickAnswerDescription: {
-    ...MALLO_TYPOGRAPHY.body,
-    ...MALLO_TEXT_STYLES.koreanWordWrap,
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-
-  quickAnswerProtocol: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: MALLO_SPACING.sm,
-  },
-
-  quickAnswerProtocolText: {
-    ...MALLO_TYPOGRAPHY.secondaryBody,
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-
-  quickAnswerDetailButton: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: MALLO_SPACING.sm,
-    borderRadius: MALLO_RADIUS.md,
-    backgroundColor: MALLO_COLORS.core.red,
-  },
-
-  quickAnswerDetailButtonText: {
-    ...MALLO_TYPOGRAPHY.buttonLabel,
-    color: MALLO_COLORS.core.white,
-  },
-
-  quickAnswerNextGuide: {
-    alignItems: 'center',
-  },
-
-  quickAnswerNextTitle: {
-    ...MALLO_TYPOGRAPHY.body,
-    fontWeight: '700',
-    color: MALLO_COLORS.support.charcoal,
-    textAlign: 'center',
-  },
-
-  quickAnswerNextDescription: {
-    ...MALLO_TYPOGRAPHY.secondaryBody,
-    marginTop: 4,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    textAlign: 'center',
-  },
-
-  // =====================================================
-  // STATE C - WEB 전용
-  // =====================================================
-
-  questionRecallWeb: {
-    marginTop: 56,
-  },
-
-  quickAnswerStateRestingWeb: {
-    justifyContent: 'flex-start',
-    paddingBottom: 24,
-  },
-
-  quickAnswerDescriptionWeb: {
-    marginTop: 28,
-  },
-
-  quickAnswerProtocolWeb: {
-    marginTop: 30,
-  },
-
-  quickAnswerDetailButtonWeb: {
-    marginTop: 34,
-  },
-
-  quickAnswerNextGuideWeb: {
-    marginTop: 34,
-    marginBottom: 24,
-  },
-
-  // =====================================================
-  // STATE C - APP 전용
-  // =====================================================
-
-  quickAnswerStateRestingNative: {
-    justifyContent: 'flex-start',
-    paddingTop: 12,
-  },
-
-  quickAnswerDescriptionNative: {
-    marginTop: 18,
-  },
-
-  quickAnswerProtocolNative: {
-    marginTop: 18,
-  },
-
-  quickAnswerDetailButtonNative: {
-    marginTop: 24,
-  },
-
-  quickAnswerNextGuideNative: {
-    marginTop: 24,
-  },
-
   loadingQuestionRecallWeb: {
     marginTop: 16,
   },
@@ -767,5 +608,9 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
     fontWeight: '600',
+  },
+
+  followUpMainContent: {
+    marginTop: Platform.OS === 'web' ? 0 : 1,
   },
 });

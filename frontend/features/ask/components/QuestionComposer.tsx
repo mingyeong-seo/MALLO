@@ -181,7 +181,7 @@ export function QuestionComposer({
             onChangeText={handleInputChange}
             onFocus={handleFocus}
             onSubmitEditing={handleSubmit}
-            placeholder="오늘 회복 중 궁금한 행동을 물어보세요"
+            placeholder="오늘은 무엇이 궁금한가요?"
             placeholderTextColor={MALLO_COLORS.support.secondaryTextGray}
             ref={inputRef}
             returnKeyType="send"
