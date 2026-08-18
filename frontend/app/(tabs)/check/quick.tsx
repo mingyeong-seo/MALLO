@@ -5,9 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import {MALLO_COLORS} from '@/constants/colors';
 
 export type ActionType = 'EXERCISE' | 'MAKEUP' | 'CLEANSING' | 'SKINCARE' | 'HEAT';
 
@@ -42,13 +44,7 @@ export default function QuickCheckScreen() {
         },
       });
     } else {
-      router.push({
-        pathname: '/(tabs)/check/result',
-        params: {
-          action: selectedAction.id,
-          condition: 'NONE',
-        },
-      });
+      router.push('/(tabs)/ask/consultation');
     }
   };
 
@@ -63,7 +59,13 @@ export default function QuickCheckScreen() {
         >
           <Text style={styles.backText}>← 이전</Text>
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Quick Check</Text>
+        <Image
+          accessible
+          accessibilityLabel="MALLO"
+          source={require('../../../assets/images/mallo-logo-red.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        /> 
         <View style={styles.backButton} />
       </View>
 
@@ -131,7 +133,7 @@ export default function QuickCheckScreen() {
             ]}
           >
             {selectedAction
-              ? '다음으로 이동'
+              ? (selectedAction.requiresCondition ?'다음으로 이동' : '의료진에게 문의하기')
               : '행동을 선택하면 다음으로 이동합니다'}
           </Text>
         </TouchableOpacity>
@@ -143,7 +145,7 @@ export default function QuickCheckScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: MALLO_COLORS.core.white,
   },
   navigation: {
     height: 48,
@@ -152,20 +154,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: MALLO_COLORS.support.mistGray,
   },
   backButton: {
     width: 60,
   },
   backText: {
     fontSize: 15,
-    color: '#1A1A1A',
+    color: MALLO_COLORS.core.ink,
     fontWeight: '500',
   },
-  navTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1A1A1A',
+  headerLogo: {
+    width: 112,
+    height: 25,
   },
   scrollView: {
     flex: 1,
@@ -181,13 +182,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: MALLO_COLORS.core.ink,
     marginBottom: 10,
     lineHeight: 30,
   },
   headerDescription: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
     lineHeight: 20,
   },
   grid: {
@@ -198,38 +199,49 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    aspectRatio: 1.15,
+    height: 120,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
+    borderColor: MALLO_COLORS.support.mistGray,
+    backgroundColor: MALLO_COLORS.core.white,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 16,
+    // 은은한 카드 그림자
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cardSelected: {
-    borderColor: '#111111',
-    backgroundColor: '#FAFAFA',
+    borderColor: MALLO_COLORS.core.red,
+    backgroundColor: MALLO_COLORS.support.redTint,
+    shadowColor: MALLO_COLORS.core.red,
+    shadowOpacity: 0.12,
   },
   cardEmoji: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: MALLO_COLORS.core.ink,
+    textAlign: 'center',
   },
   cardTitleSelected: {
     fontWeight: '700',
-    color: '#000000',
+    color: MALLO_COLORS.core.red,
   },
   bottomContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 90, // 플로팅 하단 탭바 겹침 방지
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 110, // 플로팅 하단 탭바 겹침 방지
+    backgroundColor: MALLO_COLORS.core.white,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: MALLO_COLORS.support.mistGray,
   },
   bottomButton: {
     height: 52,
@@ -238,19 +250,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bottomButtonActive: {
-    backgroundColor: '#111111',
+    backgroundColor: MALLO_COLORS.core.red,
   },
   bottomButtonDisabled: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: MALLO_COLORS.support.warmGray,
   },
   bottomButtonText: {
     fontSize: 15,
     fontWeight: '600',
   },
   bottomButtonTextActive: {
-    color: '#FFFFFF',
+    color: MALLO_COLORS.core.white,
   },
   bottomButtonTextDisabled: {
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
 });

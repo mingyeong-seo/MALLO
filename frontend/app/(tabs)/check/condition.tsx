@@ -5,9 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import {MALLO_COLORS} from '@/constants/colors';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -73,9 +75,17 @@ export default function ConditionCheckScreen() {
         >
           <Text style={styles.backText}>← Quick Check</Text>
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Condition Check</Text>
-        <View style={styles.navSpacer} />
+        <View style={styles.logoContainer} pointerEvents="none">
+          <Image
+            accessible
+            accessibilityLabel="MALLO"
+            source={require('../../../assets/images/mallo-logo-red.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+        </View>
       </View>
+    
 
       {/* ─── 스크롤 콘텐츠 ─────────────────────────────────── */}
       <ScrollView
@@ -193,7 +203,7 @@ export default function ConditionCheckScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: MALLO_COLORS.core.white,
   },
 
   // Navigation
@@ -204,25 +214,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: MALLO_COLORS.support.mistGray,
+    position: 'relative',
   },
   backButton: {
-    flexShrink: 0,
+    zIndex: 1,
+  },
+  logoContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backText: {
     fontSize: 15,
-    color: '#1A1A1A',
+    color: MALLO_COLORS.core.ink,
     fontWeight: '500',
   },
-  navTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    textAlign: 'center',
-    flex: 1,
-  },
-  navSpacer: {
-    width: 100,
+  headerLogo: {
+    width: 112,
+    height: 25,
   },
 
   // Scroll
@@ -243,7 +257,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   badgeBlack: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: MALLO_COLORS.core.ink,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -251,10 +265,10 @@ const styles = StyleSheet.create({
   badgeBlackText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: MALLO_COLORS.core.white,
   },
   badgeGray: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: MALLO_COLORS.support.warmGray,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -262,7 +276,7 @@ const styles = StyleSheet.create({
   badgeGrayText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
 
   // Header
@@ -272,19 +286,19 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: MALLO_COLORS.core.red,
     marginBottom: 8,
   },
   headerQuestion: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: MALLO_COLORS.core.ink,
     lineHeight: 32,
     marginBottom: 12,
   },
   headerGuide: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
     lineHeight: 22,
   },
 
@@ -299,12 +313,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
+    borderColor: MALLO_COLORS.support.mistGray,
+    backgroundColor: MALLO_COLORS.core.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   optionCardSelected: {
-    borderColor: '#111111',
-    backgroundColor: '#F2F2F7',
+    borderColor: MALLO_COLORS.core.red,
+    backgroundColor: MALLO_COLORS.support.redTint,
+    shadowColor: MALLO_COLORS.core.red,
+    shadowOpacity: 0.1,
   },
 
   // Radio
@@ -313,19 +334,19 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#E5E5EA',
+    borderColor: MALLO_COLORS.support.mistGray,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   radioSelected: {
-    borderColor: '#111111',
+    borderColor: MALLO_COLORS.core.red,
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#111111',
+    backgroundColor: MALLO_COLORS.core.red,
   },
 
   // Option Text
@@ -335,16 +356,16 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: MALLO_COLORS.core.ink,
     marginBottom: 4,
   },
   optionLabelSelected: {
     fontWeight: '700',
-    color: '#111111',
+    color: MALLO_COLORS.core.red,
   },
   optionDescription: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
     lineHeight: 18,
   },
 
@@ -352,10 +373,10 @@ const styles = StyleSheet.create({
   bottomContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 34,
+    paddingBottom: 100,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: MALLO_COLORS.support.mistGray,
+    backgroundColor: MALLO_COLORS.core.white,
     gap: 10,
   },
   primaryButton: {
@@ -366,20 +387,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryButtonActive: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: MALLO_COLORS.core.red,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: MALLO_COLORS.support.mistGray,
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
   primaryButtonTextActive: {
-    color: '#FFFFFF',
+    color: MALLO_COLORS.core.white,
   },
   primaryButtonTextDisabled: {
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
   secondaryButton: {
     width: '100%',
@@ -388,12 +409,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
+    borderColor: MALLO_COLORS.support.mistGray,
+    backgroundColor: MALLO_COLORS.core.white,
   },
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#8E8E93',
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
 });
