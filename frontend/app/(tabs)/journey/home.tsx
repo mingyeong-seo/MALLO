@@ -52,7 +52,7 @@ const QUICK_ENTRIES: QuickEntry[] = [
     description: '지금 해도 괜찮을까요?',
     icon: 'checkmark-circle-outline',
     label: 'Quick Check',
-    href: '/(tabs)/check',
+    href: '/(tabs)/check/quick',
   },
   {
     description: '회복 중 궁금한 게 있나요?',
