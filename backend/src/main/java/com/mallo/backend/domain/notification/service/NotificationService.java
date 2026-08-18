@@ -49,18 +49,19 @@ public class NotificationService {
 	}
 
 	/**
-	 * PHOTO_ANALYSIS_READY 트리거 (docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 2-1 참고).
-	 * PhotoRecordService가 관찰 결과 저장 트랜잭션 끝에서 직접 호출한다 — 우리 도메인 안에서 완결되는 유일한 트리거라
-	 * 별도 이벤트/폴링 없이 바로 호출하는 방식으로 충분하다.
+	 * PHOTO_ANALYSIS_READY 트리거 (docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 2-1, S09_S10_PHOTO_QA_REPLY.md 참고).
+	 * Record 도메인의 RecoveryRecordService가 사진들을 기록에 실제로 연결하는 시점에 호출한다 —
+	 * "사진 여러 장을 동시에 분석하고 최종 결과가 나왔을 때 알림 1번"으로 확정돼서, 사진 업로드 개별 건이 아니라
+	 * 기록(record) 단위로 한 번만 호출되는 구조다. 그래서 referenceId도 사진 id가 아니라 recordId를 가리킨다.
 	 */
 	@Transactional
-	public void createPhotoAnalysisReady(String sessionId, Long photoRecordId) {
+	public void createPhotoAnalysisReady(String sessionId, Long recordId) {
 		Notification notification = Notification.builder()
 				.sessionId(sessionId)
 				.type(NotificationType.PHOTO_ANALYSIS_READY)
 				.title("사진 분석이 끝났어요")
 				.body("업로드한 사진의 관찰 결과를 확인해보세요.")
-				.referenceId(String.valueOf(photoRecordId))
+				.referenceId(String.valueOf(recordId))
 				.scheduledAt(LocalDateTime.now())
 				.build();
 		notificationRepository.save(notification);
