@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mallo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-mallo}
+      MYSQL_USER: ${DB_USERNAME:-mallo}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-mallo1234}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root1234}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mallo-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mallo-mysql-data:
