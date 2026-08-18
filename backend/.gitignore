@@ -39,3 +39,6 @@ out/
 ### env ###
 .env
 .env.local
+
+### 로컬 사진 업로드 저장소 (야매 — CI/CD 붙이면 리눅스 서버 경로로 교체 예정, docs 참고) ###
+/uploads/
