@@ -4,10 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 import java.util.Map;
 
@@ -18,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
-import com.mallo.backend.domain.notification.service.NotificationService;
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
@@ -43,9 +40,6 @@ class PhotoRecordServiceTest {
 	private PhotoStorageAdapter photoStorageAdapter;
 
 	@Mock
-	private NotificationService notificationService;
-
-	@Mock
 	private JsonMapper jsonMapper;
 
 	@InjectMocks
@@ -67,7 +61,6 @@ class PhotoRecordServiceTest {
 		assertThat(response.observation()).isEqualTo(observation);
 		assertThat(response.observation()).doesNotContainKeys("risk_score", "diagnosis", "side_effect");
 		assertThat(response.photoUrl()).isEqualTo("/uploads/photos/" + SESSION_ID + "/generated.jpg");
-		verify(notificationService).createPhotoAnalysisReady(eq(SESSION_ID), any());
 	}
 
 	@Test

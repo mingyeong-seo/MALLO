@@ -2,7 +2,9 @@ package com.mallo.backend.domain.record.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -89,42 +91,67 @@ class RecoveryRecordRepositoryTest {
 	}
 
 	@Test
-	void 사진을_연결한_기록을_저장하고_조회하면_사진이_같이_따라온다() {
-		PhotoRecord photo = photoRecordRepository.save(PhotoRecord.builder()
+	void 사진_여러_장을_연결한_기록을_저장하고_조회하면_사진이_id순으로_같이_따라온다() {
+		PhotoRecord photo1 = photoRecordRepository.save(PhotoRecord.builder()
 				.sessionId(SESSION_ID)
 				.observationJson("{\"redness\":\"LOW\"}")
 				.build());
+		PhotoRecord photo2 = photoRecordRepository.save(PhotoRecord.builder()
+				.sessionId(SESSION_ID)
+				.observationJson("{\"redness\":\"HIGH\"}")
+				.build());
 
-		RecoveryRecord record = RecoveryRecord.builder()
+		RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
 				.sessionId(SESSION_ID)
 				.elapsedDay(1)
 				.action("WOUND_CARE")
 				.performedStatus(PerformedStatus.DONE)
-				.photoRecord(photo)
-				.build();
-		Long savedId = recoveryRecordRepository.save(record).getId();
+				.build());
+		record.attachPhotos(List.of(photo1, photo2));
+		testEntityManager.flush();
+		testEntityManager.clear();
 
-		RecoveryRecord found = recoveryRecordRepository.findById(savedId).orElseThrow();
-		assertThat(found.getPhotoRecord()).isNotNull();
-		assertThat(found.getPhotoRecord().getId()).isEqualTo(photo.getId());
+		RecoveryRecord found = recoveryRecordRepository.findById(record.getId()).orElseThrow();
+		assertThat(found.getPhotoRecords()).extracting(PhotoRecord::getId)
+				.containsExactly(photo1.getId(), photo2.getId());
+	}
+
+	@Test
+	void 사진_교체시_기존_사진의_연결이_끊어진다() {
+		PhotoRecord photo1 = photoRecordRepository.save(PhotoRecord.builder()
+				.sessionId(SESSION_ID).observationJson("{}").build());
+		PhotoRecord photo2 = photoRecordRepository.save(PhotoRecord.builder()
+				.sessionId(SESSION_ID).observationJson("{}").build());
+
+		RecoveryRecord record = recoveryRecordRepository.save(record(1, "WOUND_CARE"));
+		record.attachPhotos(List.of(photo1));
+		testEntityManager.flush();
+
+		record.attachPhotos(List.of(photo2));
+		testEntityManager.flush();
+		testEntityManager.clear();
+
+		RecoveryRecord found = recoveryRecordRepository.findById(record.getId()).orElseThrow();
+		assertThat(found.getPhotoRecords()).extracting(PhotoRecord::getId).containsExactly(photo2.getId());
+		assertThat(photoRecordRepository.findById(photo1.getId()).orElseThrow().getRecoveryRecord()).isNull();
 	}
 
 	@Test
 	void 저널_조회는_사진이_여러_건이어도_쿼리_한_번으로_끝난다() {
-		// N+1 회귀 방지: @EntityGraph(attributePaths = "photoRecord") 없이 되돌아가면
+		// N+1 회귀 방지: @EntityGraph(attributePaths = "photoRecords") 없이 되돌아가면
 		// 이 테스트가 실패해야 한다 (기록마다 photo_record를 추가로 SELECT하게 되므로)
 		for (int day = 1; day <= 3; day++) {
 			PhotoRecord photo = photoRecordRepository.save(PhotoRecord.builder()
 					.sessionId(SESSION_ID)
 					.observationJson("{}")
 					.build());
-			recoveryRecordRepository.save(RecoveryRecord.builder()
+			RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(day)
 					.action("WOUND_CARE")
 					.performedStatus(PerformedStatus.DONE)
-					.photoRecord(photo)
 					.build());
+			record.attachPhotos(List.of(photo));
 		}
 		// 저장 시점에 1차 캐시에 올라온 인스턴스를 재사용하면 N+1이 가려지므로,
 		// 영속성 컨텍스트를 비워서 아래 조회가 진짜로 DB를 다시 타게 만든다.
@@ -136,11 +163,36 @@ class RecoveryRecordRepositoryTest {
 		statistics.clear();
 
 		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
-		// 서비스 코드(RecoveryRecordService.toResponse)처럼 실제로 photoRecord 필드까지 읽어야
-		// lazy 프록시 초기화 여부가 드러난다
-		journal.forEach(record -> record.getPhotoRecord().getObservationJson());
+		// 서비스 코드(RecoveryRecordService.toResponse)처럼 실제로 photoRecords까지 읽어야
+		// lazy 컬렉션 초기화 여부가 드러난다
+		journal.forEach(record -> record.getPhotoRecords().forEach(PhotoRecord::getObservationJson));
 
 		assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+	}
+
+	@Test
+	void 생성일_범위_안의_기록을_찾는다() {
+		RecoveryRecord record = recoveryRecordRepository.save(record(1, "EXERCISE"));
+
+		LocalDate today = LocalDate.now();
+		Optional<RecoveryRecord> found = recoveryRecordRepository
+				.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+						SESSION_ID, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+
+		assertThat(found).isPresent();
+		assertThat(found.get().getId()).isEqualTo(record.getId());
+	}
+
+	@Test
+	void 생성일_범위_밖이면_찾지_못한다() {
+		recoveryRecordRepository.save(record(1, "EXERCISE"));
+
+		LocalDate yesterday = LocalDate.now().minusDays(1);
+		Optional<RecoveryRecord> found = recoveryRecordRepository
+				.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+						SESSION_ID, yesterday.atStartOfDay(), yesterday.plusDays(1).atStartOfDay());
+
+		assertThat(found).isEmpty();
 	}
 
 	private RecoveryRecord record(int elapsedDay, String action) {

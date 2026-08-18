@@ -13,6 +13,7 @@ public enum RecordErrorCode implements ErrorCode {
 
 	RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "기록을 찾을 수 없습니다."),
 	RECORD_SESSION_MISMATCH(HttpStatus.BAD_REQUEST, "다른 세션의 기록은 수정할 수 없습니다."),
+	RECORD_NOT_EDITABLE(HttpStatus.FORBIDDEN, "오늘 작성한 기록만 수정할 수 있습니다."),
 	PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "사진을 찾을 수 없습니다."),
 	PHOTO_SESSION_MISMATCH(HttpStatus.BAD_REQUEST, "다른 세션의 사진은 연결할 수 없습니다."),
 	PHOTO_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "사진 저장에 실패했습니다.");

@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.mallo.backend.domain.notification.service.NotificationService;
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
@@ -26,9 +25,12 @@ public class PhotoRecordService {
 	private final PhotoRecordRepository photoRecordRepository;
 	private final PhotoObservationAdapter photoObservationAdapter;
 	private final PhotoStorageAdapter photoStorageAdapter;
-	private final NotificationService notificationService;
 	private final JsonMapper jsonMapper;
 
+	// 프론트가 한 장씩 업로드해서 photoRecordId를 모으는 방식으로 확정 — 여러 장 한 번에 받는 배치 업로드는 안 씀
+	// (몇 장까지 붙일 수 있는지는 RecoveryRecord.MAX_PHOTOS로 기록 저장 시점에 검증)
+	// PHOTO_ANALYSIS_READY 알림은 여기서 안 쏜다 — "n장 동시 분석 후 최종 결과 1번"으로 확정돼서,
+	// 사진이 기록에 실제로 붙는 시점(RecoveryRecordService.create/update)에 한 번만 호출한다.
 	@Transactional
 	public PhotoRecordResponse upload(String sessionId, MultipartFile photo) {
 		String storageKey = photoStorageAdapter.upload(sessionId, photo);
@@ -41,9 +43,6 @@ public class PhotoRecordService {
 				.build();
 
 		photoRecordRepository.save(photoRecord);
-		// PHOTO_ANALYSIS_READY 트리거 — 우리 도메인 안에서 완결되는 유일한 알림이라 저장 트랜잭션 끝에서 바로 호출
-		// (docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 2-1 참고)
-		notificationService.createPhotoAnalysisReady(sessionId, photoRecord.getId());
 
 		return toResponse(photoRecord, observation);
 	}

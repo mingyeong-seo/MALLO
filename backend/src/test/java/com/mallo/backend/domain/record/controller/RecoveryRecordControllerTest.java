@@ -38,7 +38,7 @@ class RecoveryRecordControllerTest {
 
 	private RecoveryRecordResponse response() {
 		return new RecoveryRecordResponse(1L, SESSION_ID, 1, "EXERCISE",
-				PerformedStatus.DONE, "메모", null, LocalDateTime.now());
+				PerformedStatus.DONE, "메모", List.of(), LocalDateTime.now());
 	}
 
 	@Test
@@ -99,5 +99,39 @@ class RecoveryRecordControllerTest {
 								{"memo":"수정된 메모"}
 								"""))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void 오늘_기록이_있으면_반환한다() throws Exception {
+		given(recoveryRecordService.getToday(SESSION_ID)).willReturn(response());
+
+		mockMvc.perform(get("/v1/sessions/{sessionId}/records/today", SESSION_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.id").value(1));
+	}
+
+	@Test
+	void 오늘_기록이_없으면_data가_null이다() throws Exception {
+		given(recoveryRecordService.getToday(SESSION_ID)).willReturn(null);
+
+		mockMvc.perform(get("/v1/sessions/{sessionId}/records/today", SESSION_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data").doesNotExist());
+	}
+
+	@Test
+	void 오늘_작성한_기록이_아니면_403을_반환한다() throws Exception {
+		given(recoveryRecordService.update(eq(SESSION_ID), eq(1L), any()))
+				.willThrow(new CustomException(RecordErrorCode.RECORD_NOT_EDITABLE));
+
+		mockMvc.perform(patch("/v1/sessions/{sessionId}/records/{recordId}", SESSION_ID, 1L)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"memo":"수정"}
+								"""))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.success").value(false));
 	}
 }
