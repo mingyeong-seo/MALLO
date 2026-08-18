@@ -16,6 +16,7 @@ spring:
     open-in-view: false
   servlet:
     multipart:
+      # 사진은 한 장씩만 업로드받는다 (여러 장은 프론트가 여러 번 호출해서 photoRecordId를 모음)
       max-file-size: 10MB
       max-request-size: 10MB
 

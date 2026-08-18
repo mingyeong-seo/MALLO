@@ -1,6 +1,8 @@
 package com.mallo.backend.domain.record.service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,13 +29,7 @@ public class RecoveryRecordService {
 
 	@Transactional
 	public RecoveryRecordResponse create(String sessionId, RecoveryRecordCreateRequest request) {
-		PhotoRecord photoRecord = null;
-		if (request.photoRecordId() != null) {
-			photoRecord = photoRecordService.getById(request.photoRecordId());
-			if (!photoRecord.getSessionId().equals(sessionId)) {
-				throw new CustomException(RecordErrorCode.PHOTO_SESSION_MISMATCH);
-			}
-		}
+		List<PhotoRecord> photoRecords = resolvePhotos(sessionId, request.photoRecordIds());
 
 		RecoveryRecord record = RecoveryRecord.builder()
 				.sessionId(sessionId)
@@ -41,8 +37,8 @@ public class RecoveryRecordService {
 				.action(request.action())
 				.performedStatus(request.performedStatus())
 				.memo(request.memo())
-				.photoRecord(photoRecord)
 				.build();
+		record.attachPhotos(photoRecords);
 
 		recoveryRecordRepository.save(record);
 
@@ -55,6 +51,19 @@ public class RecoveryRecordService {
 				.toList();
 	}
 
+	/**
+	 * "오늘 기록이 있는지 / record_id가 뭔지"를 프론트가 전체 목록에서 찾지 않아도 되도록
+	 * 백엔드가 오늘 날짜 기준으로 직접 판단해서 돌려준다 (docs/S09_S10_PHOTO_QA_REPLY.md 참고).
+	 * 없으면 null — 프론트는 null이면 신규 작성, 있으면 그 record_id로 수정하면 된다.
+	 */
+	public RecoveryRecordResponse getToday(String sessionId) {
+		LocalDate today = LocalDate.now();
+		Optional<RecoveryRecord> record = recoveryRecordRepository
+				.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+						sessionId, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+		return record.map(this::toResponse).orElse(null);
+	}
+
 	@Transactional
 	public RecoveryRecordResponse update(String sessionId, Long recordId, RecoveryRecordUpdateRequest request) {
 		RecoveryRecord record = recoveryRecordRepository.findById(recordId)
@@ -62,27 +71,42 @@ public class RecoveryRecordService {
 		if (!record.getSessionId().equals(sessionId)) {
 			throw new CustomException(RecordErrorCode.RECORD_SESSION_MISMATCH);
 		}
+		// 당일 작성한 기록만 수정 가능, 과거 DAY는 조회만 (docs/S09_S10_PHOTO_QA_REPLY.md 섹션 6 확정)
+		// 세션 도메인의 elapsed_day 없이도 판단 가능하도록 "생성일 == 오늘"로 검사한다.
+		if (!record.getCreatedAt().toLocalDate().isEqual(LocalDate.now())) {
+			throw new CustomException(RecordErrorCode.RECORD_NOT_EDITABLE);
+		}
 
 		if (request.memo() != null) {
 			record.updateMemo(request.memo());
 		}
-		if (request.photoRecordId() != null) {
-			PhotoRecord photoRecord = photoRecordService.getById(request.photoRecordId());
-			if (!photoRecord.getSessionId().equals(sessionId)) {
-				throw new CustomException(RecordErrorCode.PHOTO_SESSION_MISMATCH);
-			}
-			record.attachPhoto(photoRecord);
+		if (request.photoRecordIds() != null) {
+			record.attachPhotos(resolvePhotos(sessionId, request.photoRecordIds()));
 		}
 
 		return toResponse(record);
 	}
 
-	private RecoveryRecordResponse toResponse(RecoveryRecord record) {
-		PhotoRecordResponse photoResponse = null;
-		PhotoRecord photoRecord = record.getPhotoRecord();
-		if (photoRecord != null) {
-			photoResponse = photoRecordService.toResponse(photoRecord);
+	/** photoRecordId 각각이 존재하고 같은 세션 것인지 검증한 뒤 엔티티 목록으로 바꾼다. */
+	private List<PhotoRecord> resolvePhotos(String sessionId, List<Long> photoRecordIds) {
+		if (photoRecordIds == null) {
+			return List.of();
 		}
-		return RecoveryRecordResponse.of(record, photoResponse);
+		return photoRecordIds.stream()
+				.map(photoRecordId -> {
+					PhotoRecord photoRecord = photoRecordService.getById(photoRecordId);
+					if (!photoRecord.getSessionId().equals(sessionId)) {
+						throw new CustomException(RecordErrorCode.PHOTO_SESSION_MISMATCH);
+					}
+					return photoRecord;
+				})
+				.toList();
+	}
+
+	private RecoveryRecordResponse toResponse(RecoveryRecord record) {
+		List<PhotoRecordResponse> photos = record.getPhotoRecords().stream()
+				.map(photoRecordService::toResponse)
+				.toList();
+		return RecoveryRecordResponse.of(record, photos);
 	}
 }

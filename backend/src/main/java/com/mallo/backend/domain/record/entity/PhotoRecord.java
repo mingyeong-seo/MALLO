@@ -4,9 +4,12 @@ import com.mallo.backend.global.entity.BaseTimeEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -39,10 +42,20 @@ public class PhotoRecord extends BaseTimeEntity {
 	@Column(name = "observation_json", columnDefinition = "TEXT")
 	private String observationJson;
 
+	// 기록 하나에 사진 여러 장(RecoveryRecord.MAX_PHOTOS)이 붙을 수 있어 FK는 이쪽(N)이 갖는다.
+	// 사진은 기록보다 먼저(POST /photos) 만들어지므로 업로드 시점엔 null이고, 기록 생성/수정 때 연결된다.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "recovery_record_id")
+	private RecoveryRecord recoveryRecord;
+
 	@Builder
 	private PhotoRecord(String sessionId, String storageKey, String observationJson) {
 		this.sessionId = sessionId;
 		this.storageKey = storageKey;
 		this.observationJson = observationJson;
+	}
+
+	void attachToRecord(RecoveryRecord recoveryRecord) {
+		this.recoveryRecord = recoveryRecord;
 	}
 }

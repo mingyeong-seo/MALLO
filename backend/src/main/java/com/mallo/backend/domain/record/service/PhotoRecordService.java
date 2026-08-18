@@ -27,6 +27,8 @@ public class PhotoRecordService {
 	private final PhotoStorageAdapter photoStorageAdapter;
 	private final JsonMapper jsonMapper;
 
+	// 프론트가 한 장씩 업로드해서 photoRecordId를 모으는 방식으로 확정 — 여러 장 한 번에 받는 배치 업로드는 안 씀
+	// (몇 장까지 붙일 수 있는지는 RecoveryRecord.MAX_PHOTOS로 기록 저장 시점에 검증)
 	@Transactional
 	public PhotoRecordResponse upload(String sessionId, MultipartFile photo) {
 		String storageKey = photoStorageAdapter.upload(sessionId, photo);

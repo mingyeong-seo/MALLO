@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
+import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.domain.record.service.PhotoRecordService;
 import com.mallo.backend.global.response.ApiResponse;
 
@@ -27,7 +28,9 @@ public class PhotoRecordController {
 	private final PhotoRecordService photoRecordService;
 
 	@Operation(
-			summary = "사진 업로드 및 비의료적 관찰 결과 조회 (관찰은 Mock, 저장은 로컬 디스크)",
+			summary = "사진 업로드 (한 장씩) 및 비의료적 관찰 결과 조회 (관찰은 Mock, 저장은 로컬 디스크)",
+			description = "여러 장 붙이려면 이 API를 여러 번 호출해서 photoRecordId를 모은 뒤, "
+					+ "기록 저장/수정 시 photoRecordIds로 같이 보내면 된다 (최대 " + RecoveryRecord.MAX_PHOTOS + "장).",
 			requestBody = @RequestBody(content = @Content(mediaType = "multipart/form-data",
 					schema = @Schema(type = "object")))
 	)
