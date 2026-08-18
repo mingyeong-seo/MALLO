@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.mallo.backend.domain.notification.service.NotificationService;
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
@@ -25,6 +26,7 @@ public class PhotoRecordService {
 	private final PhotoRecordRepository photoRecordRepository;
 	private final PhotoObservationAdapter photoObservationAdapter;
 	private final PhotoStorageAdapter photoStorageAdapter;
+	private final NotificationService notificationService;
 	private final JsonMapper jsonMapper;
 
 	@Transactional
@@ -39,6 +41,9 @@ public class PhotoRecordService {
 				.build();
 
 		photoRecordRepository.save(photoRecord);
+		// PHOTO_ANALYSIS_READY 트리거 — 우리 도메인 안에서 완결되는 유일한 알림이라 저장 트랜잭션 끝에서 바로 호출
+		// (docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 2-1 참고)
+		notificationService.createPhotoAnalysisReady(sessionId, photoRecord.getId());
 
 		return toResponse(photoRecord, observation);
 	}

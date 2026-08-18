@@ -31,3 +31,12 @@ photo:
     dir: ${PHOTO_STORAGE_DIR:./uploads/photos}
     # 위 dir을 정적 리소스로 서빙할 URL prefix (PhotoStorageConfig 참고)
     url-prefix: ${PHOTO_STORAGE_URL_PREFIX:/uploads/photos}
+
+fcm:
+  # Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > "새 비공개 키 생성"으로 받은 JSON. 둘 중 하나만 채우면 됨.
+  # - credentials-json: JSON 내용을 통째로 환경변수에 붙여넣기 (파일 필요 없음, 배포 플랫폼에 편함)
+  # - credentials-path: JSON 파일을 로컬 어딘가에 두고 그 경로만 지정
+  # 둘 다 안 채우면 FCM 없이 그냥 기동하고 실제 푸시는 발송되지 않는다
+  # (FirebaseConfig가 경고 로그만 남기고 넘어감 — 다른 기능 개발하는 팀원이 FCM 키 없다고 앱을 못 띄우면 안 되니까).
+  credentials-json: ${FCM_CREDENTIALS_JSON:}
+  credentials-path: ${FCM_CREDENTIALS_PATH:}
