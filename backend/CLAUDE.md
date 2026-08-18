@@ -18,6 +18,7 @@
 
 ## Notification (담당: 이평강)
 
+- 2026-08-19: `PHOTO_ANALYSIS_READY` 트리거 완전히 제거 — Record 저장 로직에 사진 분석 알림을 끼워 넣는 게 억지스러웠고(저장은 사진과 무관한 범용 액션), 지금은 사진 분석이 동기·Mock이라 유저가 이미 화면에서 결과를 본 상태라 알림 자체가 무의미했음. `RecoveryRecordService`에서 `NotificationService` 의존성 제거. `NotificationService.createPhotoAnalysisReady()` 메서드/테스트는 나중에 실제 비동기 AI 분석 붙을 때 다시 연결할 수 있게 코드는 남겨둠(지금은 아무도 호출 안 함). 지금 당장은 알림 트리거 전부 보류 — `DAILY_ACTION_REMINDER`(DAY 전환)는 세션 도메인 조회 연동 필요, `HANDOFF_REPLY`는 AI 챗 도메인 붙을 때 진행 예정
 - 2026-08-18: 서비스/컨트롤러 구현 — 인박스 조회, 읽음 처리, 알림 설정 조회/수정
 - 2026-08-18: API 4개 — `GET /v1/sessions/{sessionId}/notifications`, `PATCH /v1/sessions/{sessionId}/notifications/{notificationId}/read`, `GET /v1/sessions/{sessionId}/notification-preference`, `PATCH /v1/sessions/{sessionId}/notification-preference`
 - 2026-08-18: `PHOTO_ANALYSIS_READY` 트리거 연결 — `PhotoRecordService.upload()`가 사진 저장 직후 `NotificationService.createPhotoAnalysisReady()` 호출, 생성과 동시에 발송 처리. 실제 MySQL로 사진 업로드 → 알림 자동 생성까지 확인함

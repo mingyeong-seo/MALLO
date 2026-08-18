@@ -7,7 +7,6 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.mallo.backend.domain.notification.service.NotificationService;
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
 import com.mallo.backend.domain.record.dto.RecoveryRecordCreateRequest;
 import com.mallo.backend.domain.record.dto.RecoveryRecordResponse;
@@ -27,7 +26,6 @@ public class RecoveryRecordService {
 
 	private final RecoveryRecordRepository recoveryRecordRepository;
 	private final PhotoRecordService photoRecordService;
-	private final NotificationService notificationService;
 
 	@Transactional
 	public RecoveryRecordResponse create(String sessionId, RecoveryRecordCreateRequest request) {
@@ -43,7 +41,6 @@ public class RecoveryRecordService {
 		record.attachPhotos(photoRecords);
 
 		recoveryRecordRepository.save(record);
-		notifyIfPhotosAttached(sessionId, record, photoRecords);
 
 		return toResponse(record);
 	}
@@ -84,24 +81,10 @@ public class RecoveryRecordService {
 			record.updateMemo(request.memo());
 		}
 		if (request.photoRecordIds() != null) {
-			List<PhotoRecord> photoRecords = resolvePhotos(sessionId, request.photoRecordIds());
-			record.attachPhotos(photoRecords);
-			notifyIfPhotosAttached(sessionId, record, photoRecords);
+			record.attachPhotos(resolvePhotos(sessionId, request.photoRecordIds()));
 		}
 
 		return toResponse(record);
-	}
-
-	/**
-	 * PHOTO_ANALYSIS_READY 트리거 (docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 2-1, S09_S10_PHOTO_QA_REPLY.md 참고).
-	 * 사진 업로드(PhotoRecordService.upload) 시점이 아니라, 그 사진들이 실제로 기록에 붙는 시점(여기)에
-	 * "n장을 동시에 다 분석하고 최종 결과가 나왔을 때 알림 1번"만 보내도록 확정돼서 여기서 호출한다.
-	 * referenceId는 사진 하나가 아니라 이 기록(record) 자체를 가리킨다 — 탭하면 이 기록으로 이동.
-	 */
-	private void notifyIfPhotosAttached(String sessionId, RecoveryRecord record, List<PhotoRecord> photoRecords) {
-		if (!photoRecords.isEmpty()) {
-			notificationService.createPhotoAnalysisReady(sessionId, record.getId());
-		}
 	}
 
 	/** photoRecordId 각각이 존재하고 같은 세션 것인지 검증한 뒤 엔티티 목록으로 바꾼다. */

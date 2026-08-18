@@ -20,7 +20,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.mallo.backend.domain.notification.service.NotificationService;
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
 import com.mallo.backend.domain.record.dto.RecoveryRecordCreateRequest;
 import com.mallo.backend.domain.record.dto.RecoveryRecordResponse;
@@ -43,9 +42,6 @@ class RecoveryRecordServiceTest {
 
 	@Mock
 	private PhotoRecordService photoRecordService;
-
-	@Mock
-	private NotificationService notificationService;
 
 	@InjectMocks
 	private RecoveryRecordService recoveryRecordService;
@@ -84,7 +80,6 @@ class RecoveryRecordServiceTest {
 			assertThat(response.photos()).isEmpty();
 			verify(recoveryRecordRepository).save(any(RecoveryRecord.class));
 			verify(photoRecordService, never()).getById(any());
-			verify(notificationService, never()).createPhotoAnalysisReady(any(), any());
 		}
 
 		@Test
@@ -103,8 +98,6 @@ class RecoveryRecordServiceTest {
 
 			assertThat(response.photos()).hasSize(2);
 			assertThat(response.photos()).allSatisfy(p -> assertThat(p.sessionId()).isEqualTo(SESSION_ID));
-			// 사진 여러 장이어도 "n장 동시 분석 후 최종 결과 1번"이라 알림은 딱 1번만 나가야 한다
-			verify(notificationService).createPhotoAnalysisReady(eq(SESSION_ID), any());
 		}
 
 		@Test
@@ -192,7 +185,6 @@ class RecoveryRecordServiceTest {
 
 			assertThat(response.memo()).isEqualTo("수정된 메모");
 			verify(photoRecordService, never()).getById(any());
-			verify(notificationService, never()).createPhotoAnalysisReady(any(), any());
 		}
 
 		@Test
@@ -213,7 +205,6 @@ class RecoveryRecordServiceTest {
 					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, List.of(10L)));
 
 			assertThat(response.photos()).hasSize(1);
-			verify(notificationService).createPhotoAnalysisReady(eq(SESSION_ID), any());
 		}
 
 		@Test
@@ -232,7 +223,6 @@ class RecoveryRecordServiceTest {
 					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, List.of()));
 
 			assertThat(response.photos()).isEmpty();
-			verify(notificationService, never()).createPhotoAnalysisReady(any(), any());
 		}
 
 		@Test
