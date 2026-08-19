@@ -13,7 +13,11 @@ from fastapi.responses import JSONResponse
 
 from mallo_ai.api_contracts import TriageRequest
 from mallo_ai.auth import UnauthorizedError, service_bearer_auth
-from mallo_ai.errors import ModelBudgetExhaustedError, ModelUnavailableError
+from mallo_ai.errors import (
+    ModelBudgetExhaustedError,
+    ModelResponseInvalidError,
+    ModelUnavailableError,
+)
 from mallo_ai.logging import log_handled_5xx
 from mallo_ai.provider_contracts import RequestId, StrictModel, TriageInput
 from mallo_ai.service import TriageProvider, TriageService
@@ -90,31 +94,23 @@ def create_app(settings: Settings, provider: TriageProvider) -> FastAPI:
         )
         try:
             response = await service.triage(triage_input, RequestId(request_id))
-        except ModelUnavailableError:
+        except (
+            ModelBudgetExhaustedError,
+            ModelResponseInvalidError,
+            ModelUnavailableError,
+        ) as exc:
+            status_code, code, message = _provider_failure_body(exc)
             elapsed_ms = _elapsed_ms(started_at)
             log_handled_5xx(
                 request_id=request_id,
-                code="MODEL_UNAVAILABLE",
+                code=code,
                 model=settings.mallo_ai_model,
                 elapsed_ms=elapsed_ms,
             )
             return _error_response(
-                status_code=503,
-                code="MODEL_UNAVAILABLE",
-                message="model provider unavailable",
-            )
-        except ModelBudgetExhaustedError:
-            elapsed_ms = _elapsed_ms(started_at)
-            log_handled_5xx(
-                request_id=request_id,
-                code="MODEL_BUDGET_EXHAUSTED",
-                model=settings.mallo_ai_model,
-                elapsed_ms=elapsed_ms,
-            )
-            return _error_response(
-                status_code=503,
-                code="MODEL_BUDGET_EXHAUSTED",
-                message="model budget exhausted",
+                status_code=status_code,
+                code=code,
+                message=message,
             )
         return JSONResponse(content=response.model_dump(mode="json"))
 
@@ -161,6 +157,16 @@ def _parse_request_id(value: str | None) -> UUID | None:
         return UUID(value)
     except ValueError:
         return None
+
+
+def _provider_failure_body(
+    exc: ModelBudgetExhaustedError | ModelResponseInvalidError | ModelUnavailableError,
+) -> tuple[int, str, str]:
+    if isinstance(exc, ModelBudgetExhaustedError):
+        return 503, "MODEL_BUDGET_EXHAUSTED", "model budget exhausted"
+    if isinstance(exc, ModelResponseInvalidError):
+        return 502, "MODEL_RESPONSE_INVALID", "model provider returned invalid response"
+    return 503, "MODEL_UNAVAILABLE", "model provider unavailable"
 
 
 def _error_response(*, status_code: int, code: str, message: str) -> JSONResponse:

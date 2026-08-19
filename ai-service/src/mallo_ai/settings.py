@@ -20,11 +20,24 @@ class Settings(BaseSettings):
         extra="forbid",
     )
 
-    openrouter_api_key: SecretStr
-    ai_shared_secret: SecretStr
+    openrouter_api_key: SecretStr = SecretStr("")
+    ai_shared_secret: SecretStr = SecretStr("")
     mallo_ai_model: str = "openai/gpt-5.6-luna"
     openrouter_app_url: str = "https://github.com/mingyeong-seo/MALLO"
     openrouter_app_title: str = "MALLO AI"
+
+    @classmethod
+    def load(cls) -> "Settings":
+        """Load validated settings from the configured environment."""
+        return cls()
+
+    @field_validator("openrouter_api_key")
+    @classmethod
+    def _require_openrouter_api_key(cls, value: SecretStr) -> SecretStr:
+        if value.get_secret_value() == "":
+            msg = "OPENROUTER_API_KEY is required"
+            raise ValueError(msg)
+        return value
 
     @field_validator("ai_shared_secret")
     @classmethod

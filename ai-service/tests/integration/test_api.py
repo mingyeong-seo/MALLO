@@ -3,20 +3,37 @@ from uuid import UUID
 
 import httpx2
 import pytest
-
-from conftest import (  # pyright: ignore[reportImplicitRelativeImport]
+from pydantic import SecretStr
+from tests.support import (
     TEST_REQUEST_ID,
     TEST_SECRET,
     VALID_REQUEST,
     ClosableFakeProvider,
     FakeProvider,
 )
+
 from mallo_ai.app import create_app
 from mallo_ai.settings import Settings
 
 
 def _auth_headers(request_id: UUID = TEST_REQUEST_ID) -> dict[str, str]:
     return {"Authorization": f"Bearer {TEST_SECRET}", "X-Request-Id": str(request_id)}
+
+
+def test_settings_reject_missing_openrouter_api_key() -> None:
+    with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+        _ = Settings(
+            openrouter_api_key=SecretStr(""),
+            ai_shared_secret=SecretStr(TEST_SECRET),
+        )
+
+
+def test_settings_reject_missing_shared_secret() -> None:
+    with pytest.raises(ValueError, match="AI_SHARED_SECRET"):
+        _ = Settings(
+            openrouter_api_key=SecretStr("test-openrouter-key"),
+            ai_shared_secret=SecretStr(""),
+        )
 
 
 @pytest.mark.anyio
@@ -196,6 +213,42 @@ async def test_provider_budget_maps_to_stable_503(settings: Settings) -> None:
         "code": "MODEL_BUDGET_EXHAUSTED",
         "message": "model budget exhausted",
     }
+
+
+@pytest.mark.anyio
+async def test_invalid_provider_response_maps_to_stable_502(
+    settings: Settings, caplog: pytest.LogCaptureFixture
+) -> None:
+    provider = FakeProvider(mode="invalid")
+    transport = httpx2.ASGITransport(app=create_app(settings, provider))
+    caplog.set_level(logging.WARNING, logger="mallo_ai.api")
+    async with httpx2.AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as client:
+        response = await client.post(
+            "/internal/v1/triage",
+            headers=_auth_headers(),
+            json=VALID_REQUEST,
+        )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "code": "MODEL_RESPONSE_INVALID",
+        "message": "model provider returned invalid response",
+    }
+    records = [
+        record
+        for record in caplog.records
+        if record.message == "handled_ai_provider_error"
+    ]
+    assert len(records) == 1
+    record_attrs = vars(records[0])
+    assert record_attrs["request_id"] == str(TEST_REQUEST_ID)
+    assert record_attrs["code"] == "MODEL_RESPONSE_INVALID"
+    assert record_attrs["model"] == "test/model"
+    assert isinstance(record_attrs["elapsed_ms"], int)
+    assert "오늘 가벼운 운동해도 될까요?" not in caplog.text
+    assert TEST_SECRET not in caplog.text
 
 
 @pytest.mark.anyio

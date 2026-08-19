@@ -1,19 +1,18 @@
-import socket
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import cast
 
 import anyio
 import httpx2
 import pytest
 import uvicorn
 from pydantic import SecretStr
-
-from conftest import (  # pyright: ignore[reportImplicitRelativeImport]
+from tests.support import (
     TEST_REQUEST_ID,
     TEST_SECRET,
     VALID_REQUEST,
 )
+
 from mallo_ai.app import create_app
 from mallo_ai.provider_contracts import GeneralDecision, ProviderDecision, TriageInput
 from mallo_ai.settings import Settings
@@ -30,11 +29,8 @@ class HttpFakeProvider:
         self.closed = True
 
 
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        address = cast("tuple[str, int]", sock.getsockname())
-        return address[1]
+def _test_port() -> int:
+    return 18_000 + (os.getpid() % 10_000)
 
 
 @asynccontextmanager
@@ -45,7 +41,7 @@ async def _running_server(
         openrouter_api_key=SecretStr("test-openrouter-key"),
         ai_shared_secret=SecretStr(TEST_SECRET),
     )
-    port = _free_port()
+    port = _test_port()
     server = uvicorn.Server(
         uvicorn.Config(
             create_app(settings, provider),
