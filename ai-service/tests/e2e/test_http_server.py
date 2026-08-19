@@ -17,9 +17,7 @@ from mallo_ai.app import create_app
 from mallo_ai.provider_contracts import GeneralDecision, ProviderDecision, TriageInput
 from mallo_ai.settings import Settings
 
-_SOCKET_ADDRESS_ADAPTER: TypeAdapter[tuple[object, ...]] = TypeAdapter(
-    tuple[object, ...]
-)
+_SOCKET_ADDRESS_ADAPTER: TypeAdapter[tuple[str, int]] = TypeAdapter(tuple[str, int])
 
 
 class HttpFakeProvider:
@@ -38,7 +36,7 @@ def _reserved_socket() -> socket.socket:
     try:
         sock.bind(("127.0.0.1", 0))
         sock.listen()
-    except Exception:
+    except OSError:
         sock.close()
         raise
     return sock
@@ -49,15 +47,8 @@ def _port_from_socket(sock: socket.socket) -> int:
     return _port_from_socket_address(address)
 
 
-def _port_from_socket_address(address: tuple[object, ...]) -> int:
-    if len(address) < 2:
-        message = "unexpected socket address shape"
-        raise AssertionError(message)
-    port = address[1]
-    if not isinstance(port, int):
-        message = "unexpected socket port type"
-        raise TypeError(message)
-    return port
+def _port_from_socket_address(address: tuple[str, int]) -> int:
+    return address[1]
 
 
 @asynccontextmanager
