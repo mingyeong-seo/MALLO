@@ -286,7 +286,9 @@ Every request requires strict structured output and sends these provider prefere
 - `zdr: true`, so only Zero Data Retention endpoints are eligible,
 - `allow_fallbacks: true`, so OpenRouter may fail over between eligible endpoints for the same configured model.
 
-The model slug is an environment value, not an unpinned `auto` router. Deployment must select one text model whose current OpenRouter endpoint advertises structured-output and ZDR support. Changing the model does not change the MALLO internal contract.
+The default model is `openai/gpt-5.6-luna`. The 2026-08-20 OpenRouter catalog identifies it as a fast, cost-efficient model for classification and latency-sensitive workflows. It supports `response_format` and `structured_outputs`, has a ZDR-eligible endpoint, and is priced at USD 0.20 per million input tokens and USD 1.20 per million output tokens. MALLO disables model reasoning for this classification task.
+
+The model slug remains an environment value, not an unpinned `auto` router. A future model change requires the same contract tests and a current endpoint check for structured-output and ZDR support, but does not change the MALLO internal contract.
 
 Production startup requires:
 
