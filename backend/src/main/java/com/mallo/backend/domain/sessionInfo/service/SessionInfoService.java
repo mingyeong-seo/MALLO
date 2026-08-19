@@ -60,4 +60,17 @@ public class SessionInfoService {
 		SessionInfo sessionInfo = getSession(sessionId);
 		sessionInfoRepository.delete(sessionInfo);
 	}
+
+	/**
+	 * X-Session-Id 헤더의 세션을 ACTIVE → COMPLETED로 전환한다 (수동 트리거).
+	 * 언제 호출할지는 FE 몫 — DAY 기준 자동 전환은 하지 않는다(어떤 DAY에 "회복 완료"인지
+	 * 근거 문서가 없어서 임의로 정하면 안 됨. FE·BE 공통 연동 기준 문서 협의 결과).
+	 * 이미 COMPLETED인 세션에 다시 호출해도 그대로 COMPLETED 유지(멱등).
+	 */
+	@Transactional
+	public SessionInfo completeSession(UUID sessionId) {
+		SessionInfo sessionInfo = getSession(sessionId);
+		sessionInfo.complete();
+		return sessionInfo;
+	}
 }

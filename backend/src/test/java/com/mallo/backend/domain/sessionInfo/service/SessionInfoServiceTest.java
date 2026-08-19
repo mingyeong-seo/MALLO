@@ -109,4 +109,44 @@ class SessionInfoServiceTest {
 				.isInstanceOf(CustomException.class);
 		verify(sessionInfoRepository, never()).delete(any(SessionInfo.class));
 	}
+
+	@Test
+	void completeSession은_ACTIVE_세션을_COMPLETED로_전환한다() {
+		UUID sessionId = UUID.randomUUID();
+		SessionInfo sessionInfo = SessionInfo.builder()
+				.procedure("REJURAN")
+				.procedureAt(LocalDate.now())
+				.build();
+		when(sessionInfoRepository.findById(sessionId)).thenReturn(Optional.of(sessionInfo));
+
+		SessionInfo result = sessionInfoService.completeSession(sessionId);
+
+		assertThat(result.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+	}
+
+	@Test
+	void completeSession은_이미_COMPLETED인_세션에_다시_호출해도_COMPLETED를_유지한다() {
+		UUID sessionId = UUID.randomUUID();
+		SessionInfo sessionInfo = SessionInfo.builder()
+				.procedure("REJURAN")
+				.procedureAt(LocalDate.now())
+				.build();
+		sessionInfo.complete();
+		when(sessionInfoRepository.findById(sessionId)).thenReturn(Optional.of(sessionInfo));
+
+		SessionInfo result = sessionInfoService.completeSession(sessionId);
+
+		assertThat(result.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+	}
+
+	@Test
+	void completeSession은_존재하지_않으면_SESSION_NOT_FOUND_예외를_던진다() {
+		UUID sessionId = UUID.randomUUID();
+		when(sessionInfoRepository.findById(sessionId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> sessionInfoService.completeSession(sessionId))
+				.isInstanceOf(CustomException.class)
+				.extracting(e -> ((CustomException) e).getErrorCode())
+				.isEqualTo(SessionErrorCode.SESSION_NOT_FOUND);
+	}
 }

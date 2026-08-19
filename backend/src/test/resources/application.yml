@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: test
   jackson:
     property-naming-strategy: SNAKE_CASE
   datasource:

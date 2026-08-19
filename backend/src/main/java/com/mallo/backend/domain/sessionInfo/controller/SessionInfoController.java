@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -21,6 +22,7 @@ import com.mallo.backend.domain.sessionInfo.service.SessionInfoService;
 import com.mallo.backend.global.response.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,9 @@ public class SessionInfoController {
 	private final SessionInfoService sessionInfoService;
 
 	@Operation(summary = "Recovery Session 생성", description = "새 Recovery Journey를 시작하며 새 session_id(UUID)를 발급한다.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
+	})
 	@PostMapping
 	public ResponseEntity<ApiResponse<SessionResponse>> createSession(@Valid @RequestBody SessionCreateRequest request) {
 		SessionInfo sessionInfo = sessionInfoService.createSession(
@@ -67,10 +72,22 @@ public class SessionInfoController {
 	}
 
 	@Operation(summary = "세션 삭제", description = "X-Session-Id 헤더의 세션을 삭제한다.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공")
+	})
 	@DeleteMapping
 	public ResponseEntity<Void> deleteSession(
 			@RequestHeader(SessionAuthenticationFilter.SESSION_HEADER) UUID sessionId) {
 		sessionInfoService.deleteSession(sessionId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@Operation(summary = "세션 종료(ACTIVE → COMPLETED)", description = "X-Session-Id 헤더의 세션을 완료 처리한다. "
+			+ "DAY 기준 자동 전환은 없고 FE가 명시적으로 호출할 때만 상태가 바뀐다(수동 트리거).")
+	@PatchMapping("/complete")
+	public ApiResponse<SessionResponse> completeSession(
+			@RequestHeader(SessionAuthenticationFilter.SESSION_HEADER) UUID sessionId) {
+		SessionInfo sessionInfo = sessionInfoService.completeSession(sessionId);
+		return ApiResponse.success(SessionResponse.from(sessionInfo));
 	}
 }

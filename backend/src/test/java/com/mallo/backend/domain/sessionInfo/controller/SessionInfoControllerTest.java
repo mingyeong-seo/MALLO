@@ -3,6 +3,7 @@ package com.mallo.backend.domain.sessionInfo.controller;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -130,5 +131,33 @@ class SessionInfoControllerTest {
 
 		mockMvc.perform(get("/v1/sessions/today").header(SESSION_HEADER, sessionId))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void 헤더_없이_세션_종료하면_401이다() throws Exception {
+		mockMvc.perform(patch("/v1/sessions/complete"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void 발급받은_세션ID_헤더로_종료하면_COMPLETED_상태를_반환한다() throws Exception {
+		String createResponse = mockMvc.perform(post("/v1/sessions")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"procedure":"REJURAN","procedure_at":"2026-08-17","clinic_id":"DERNA"}
+								"""))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		String sessionId = JsonPath.read(createResponse, "$.data.session_id");
+
+		mockMvc.perform(patch("/v1/sessions/complete").header(SESSION_HEADER, sessionId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.session_id").value(sessionId))
+				.andExpect(jsonPath("$.data.status").value("COMPLETED"));
+
+		// 종료 후에도 today 조회 자체는 계속 가능해야 한다 (조회는 status로만 분기, 세션 자체를 막는 게 아님)
+		mockMvc.perform(get("/v1/sessions/today").header(SESSION_HEADER, sessionId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.status").value("COMPLETED"));
 	}
 }

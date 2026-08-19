@@ -1,0 +1,63 @@
+{
+  "document": {
+    "title": "MALLO Shared Enum & Field Contract",
+    "version": "mvp-0.1",
+    "purpose": "프론트와 백엔드가 반드시 동일하게 맞출 값"
+  },
+  "enums": {
+    "session_status": [
+      "ACTIVE",
+      "COMPLETED"
+    ],
+    "action": [
+      "EXERCISE",
+      "MAKEUP",
+      "CLEANSING",
+      "SKINCARE",
+      "HEAT"
+    ],
+    "decision": [
+      "POSSIBLE",
+      "ADJUST",
+      "POSTPONE",
+      "CONNECT"
+    ],
+    "api_status": [
+      "ANSWERABLE",
+      "CLARIFY",
+      "CONNECT",
+      "NO_PROTOCOL"
+    ],
+    "exercise_intensity": [
+      "LIGHT",
+      "MODERATE",
+      "HIGH"
+    ],
+    "plan_state": [
+      "COMPLETED",
+      "SAVED",
+      "DISMISSED"
+    ]
+  },
+  "common_fields": {
+    "session_id": "Recovery Journey 식별자",
+    "elapsed_day": "백엔드 계산 숫자. 시술 당일=0",
+    "action": "사용자가 확인하려는 행동",
+    "context": "행동 판단에 필요한 추가 조건 JSON",
+    "status": "API 처리 결과 분기값",
+    "decision": "Protocol 최종 행동 판단",
+    "protocol_refs": "사용한 검수 Protocol 참조",
+    "protocol_version": "Protocol 버전",
+    "request_id": "요청 추적용 ID",
+    "interaction_id": "ASK Interaction 식별자"
+  },
+  "frontend_rule": {
+    "day_display": "elapsed_day=0 -> DAY 1 · 시술 당일, elapsed_day=1 -> DAY 2",
+    "routing": {
+      "ANSWERABLE": "결과 화면",
+      "CLARIFY": "조건 추가 질문 화면",
+      "CONNECT": "의료진 확인/병원 문의 화면",
+      "NO_PROTOCOL": "답변 불가 안내 + 병원 문의 선택 CTA"
+    }
+  }
+}
