@@ -18,7 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 병원이 검수한 Recovery Protocol 규칙 하나. 매칭은 procedure+action+dayStart~dayEnd로
+ * Recovery Protocol 규칙 하나. 매칭은 procedure+action+dayStart~dayEnd로
  * 먼저 DB에서 후보를 좁히고, conditions(JSON)는 애플리케이션에서 소수 후보만 비교한다.
  * seed 데이터로 관리되며 사용자 요청으로 생성되지 않는다.
  */
