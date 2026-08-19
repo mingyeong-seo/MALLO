@@ -782,6 +782,7 @@ git commit -m "feat: ASK MALLO에 AI triage 연결"
 
 **Files:**
 - Create: `ai-service/tests/live/test_openrouter_live.py`
+- Modify: `ai-service/pyproject.toml`
 - Modify: `ai-service/README.md`
 
 **Interfaces:**
@@ -790,7 +791,9 @@ git commit -m "feat: ASK MALLO에 AI triage 연결"
 
 - [ ] **Step 1: Add an explicitly excluded live smoke test**
 
-Mark the test `live` and exclude it from the default suite. It loads the existing ignored env file and sends three bounded questions to `openai/gpt-5.6-luna`:
+Register a strict `live` pytest marker and exclude it in the default `addopts`;
+an explicit `-m live` command overrides that default. The test loads the existing
+ignored env file and sends three bounded questions to `openai/gpt-5.6-luna`:
 
 1. `고강도 운동해도 될까요?` -> complete `EXERCISE/INTENSE_ACTIVITY`,
 2. `운동해도 될까요?` -> missing `intensity`,
@@ -857,7 +860,8 @@ Kiro failure or reviewer prose does not fail product acceptance. Actionable find
 - [ ] **Step 7: Commit live-smoke documentation**
 
 ```bash
-git add ai-service/tests/live/test_openrouter_live.py ai-service/README.md \
+git add ai-service/tests/live/test_openrouter_live.py ai-service/pyproject.toml \
+  ai-service/README.md \
   docs/superpowers/specs/2026-08-20-mallo-ai-triage-service-design.md \
   docs/superpowers/plans/2026-08-20-mallo-ai-triage-service.md
 git commit -m "test: AI triage 실연동 검증 추가"
