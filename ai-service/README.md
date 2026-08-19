@@ -9,11 +9,11 @@ returns the closed triage route/action/context contract.
 Create `ai-service/.env.local` locally. It is ignored by Git and excluded from
 the Docker build context.
 
-```sh
-OPENROUTER_API_KEY=...
-AI_SHARED_SECRET=32-character-shared-secret
-MALLO_AI_MODEL=openai/gpt-5.6-luna
-```
+Add these variables to `ai-service/.env.local`:
+
+- `OPENROUTER_API_KEY`: your OpenRouter key
+- `AI_SHARED_SECRET`: `<exactly-32-characters>`
+- `MALLO_AI_MODEL`: `openai/gpt-5.6-luna`
 
 `MALLO_AI_MODEL` is optional. The default is `openai/gpt-5.6-luna`.
 

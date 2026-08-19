@@ -86,7 +86,10 @@ docstring-code-line-length = "dynamic"
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = ["-ra", "--strict-config", "--strict-markers"]
+addopts = ["-ra", "--strict-config", "--strict-markers", "-m", "not live"]
+markers = [
+    "live: paid OpenRouter smoke tests that require ai-service/.env.local",
+]
 filterwarnings = ["error"]
 
 [tool.coverage.run]

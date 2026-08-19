@@ -36,7 +36,12 @@ _TRIAGE_INSTRUCTIONS: Final = (
     "Return only the requested structured output. Use ACTION for routine lifestyle "
     "actions, GENERAL for in-scope non-action recovery questions, UNSUPPORTED for "
     "unrelated questions, and CONNECT when the user needs clinic review. Do not "
-    "diagnose, prescribe, or generate treatment advice."
+    "diagnose, prescribe, or generate treatment advice. For exercise ACTION, map "
+    "Korean intensity words explicitly: 고강도, 격한, 무리한, 러닝, 웨이트, 헬스, "
+    "인터벌, 땀이 많이 나는 운동 to INTENSE_ACTIVITY; 땀나는, 유산소, 조깅, "
+    "필라테스, 요가 to SWEAT_ACTIVITY; 가벼운, 산책, 스트레칭 to LIGHT_ACTIVITY. "
+    "If exercise is mentioned without an intensity clue, return MISSING_CONTEXT "
+    "with ASK_EXERCISE_INTENSITY."
 )
 
 
