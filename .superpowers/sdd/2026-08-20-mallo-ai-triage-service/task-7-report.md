@@ -48,3 +48,35 @@ Status: implemented and verified.
 
 - No DB migration or dependency changes.
 - No secret or `.env.local` changes.
+
+### Fix Round 1
+
+Review requested stronger deterministic safety bypass, defensive invalid-AI-result handling, and removal of the external AI call from the service transaction boundary.
+
+RED:
+
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home GRADLE_USER_HOME=/private/tmp/mallo-gradle ./gradlew test --tests '*AskServiceTest' --tests '*AskControllerTest'`
+- Result: BUILD FAILED, 26 focused test failures.
+- Failures proved medication/treatment phrases still reached AI, `병풀` falsely matched bare `병`, invalid AI results produced NPE/IllegalArgumentException/500 paths, and the mocked `AiTriagePort` observed an active transaction.
+
+GREEN:
+
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home GRADLE_USER_HOME=/private/tmp/mallo-gradle ./gradlew test --tests '*AskServiceTest' --tests '*AskControllerTest'`
+- Result: BUILD SUCCESSFUL.
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home GRADLE_USER_HOME=/private/tmp/mallo-gradle ./gradlew test`
+- Result: BUILD SUCCESSFUL.
+- `git diff --check`
+- Result: no output.
+- `rg -n "@Transactional|ACTION_KEYWORDS|RECOVERY_KEYWORDS|extractAction|extractContext|extractOne|Set\\.of\\(\\\"운동\\\"|\\\"헬스\\\"|\\\"약\\\"|\\\"병\\\"" backend/src/main/java/com/mallo/backend/domain/interaction/service/AskService.java`
+- Result: no matches.
+- `rg -n "sk-|OPENROUTER|OPENROUTER_API_KEY|AI_SHARED_SECRET|Bearer" backend/src/main/java/com/mallo/backend/domain/interaction/service/AskService.java backend/src/test/java/com/mallo/backend/domain/interaction/service/AskServiceTest.java backend/src/test/java/com/mallo/backend/domain/interaction/controller/AskControllerTest.java .superpowers/sdd/2026-08-20-mallo-ai-triage-service/task-7-report.md`
+- Result: no matches.
+
+Changes:
+
+- Restored deterministic medication/treatment bypass with targeted phrases including `약 먹`, `약먹`, `약을`, `약 추천`, `약추천`, `복용`, `연고`, `항생제`, `진통제`, `스테로이드`, `처방`, `용량`, and `투약`.
+- Removed bare `병` from high-risk matching and retained precise diagnosis phrases such as `질환`, `병인가`, `감염인가`, `의사처럼`, and `전문가처럼`.
+- Added regressions proving `약산성` and `병풀` do not trigger high-risk bypass.
+- Added explicit parsers for route, action state, action, complete context, and clarification code so null/unknown AI results map to `CustomException(AI_INVALID_RESPONSE)`.
+- Removed method-level `@Transactional`; controller regression proves `TransactionSynchronizationManager.isActualTransactionActive()` is false inside the mocked `AiTriagePort` call.
+- Added controller 502 regressions for invalid AI result and AI `CustomException`.

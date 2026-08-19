@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.mallo.backend.domain.interaction.dto.AskRequest;
 import com.mallo.backend.domain.interaction.dto.AskResponse;
@@ -37,26 +36,32 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class AskService {
 
-	private static final Set<String> MEDICAL_KEYWORDS =
-			Set.of("부작용", "질환", "병", "치료", "진료", "정상인가", "비정상", "아파", "아픈", "통증", "감염", "위험한가");
+	private static final Set<String> SYMPTOM_KEYWORDS =
+			Set.of("부작용", "정상인가", "비정상", "아파", "아픈", "통증", "감염", "위험한가");
+
+	private static final Set<String> MEDICATION_TREATMENT_KEYWORDS =
+			Set.of("약 먹", "약먹", "약을", "약 추천", "약추천", "복용", "연고", "항생제", "진통제",
+					"스테로이드", "처방", "용량", "투약", "치료", "진료");
+
+	private static final Set<String> DIAGNOSIS_KEYWORDS =
+			Set.of("질환", "병인가", "감염인가", "의사처럼", "전문가처럼");
 
 	private final InteractionRepository interactionRepository;
 	private final ProtocolRepository protocolRepository;
 	private final AiTriagePort aiTriagePort;
 	private final ObjectMapper objectMapper;
 
-	@Transactional
 	public AskResponse ask(UUID sessionId, SessionSnapshot session, AskRequest request) {
 		String question = request.question();
 
-		if (containsAny(question, MEDICAL_KEYWORDS)) {
+		if (isHighRisk(question)) {
 			return save(sessionId, question, InteractionStatus.CONNECT, null, null, null,
 					request.photoRecordIds(), null, null, "이 질문은 의료진 확인이 필요해요.", null);
 		}
 
 		AiTriageResult triageResult = aiTriagePort.triage(
 				new AiTriageInput(question, session.procedure(), session.elapsedDay()));
-		return switch (triageResult.route()) {
+		return switch (routeOf(triageResult)) {
 			case "ACTION" -> handleAction(sessionId, session, request, triageResult);
 			case "CONNECT" -> save(sessionId, question, InteractionStatus.CONNECT, null, null, null,
 					request.photoRecordIds(), null, null, "이 질문은 의료진 확인이 필요해요.", null);
@@ -70,12 +75,12 @@ public class AskService {
 
 	private AskResponse handleAction(UUID sessionId, SessionSnapshot session, AskRequest request,
 			AiTriageResult triageResult) {
-		ActionType action = ActionType.valueOf(triageResult.action());
+		ActionType action = actionOf(triageResult);
 
-		return switch (triageResult.actionState()) {
-			case "COMPLETE" -> handleCompleteAction(sessionId, session, request, action, triageResult.context());
+		return switch (actionStateOf(triageResult)) {
+			case "COMPLETE" -> handleCompleteAction(sessionId, session, request, action, completeContextOf(triageResult));
 			case "MISSING_CONTEXT" -> save(sessionId, request.question(), InteractionStatus.CLARIFY, action, null, null,
-					request.photoRecordIds(), null, null, clarifyMessage(triageResult.clarificationCode()), null);
+					request.photoRecordIds(), null, null, clarifyMessage(clarificationCodeOf(triageResult)), null);
 			default -> throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
 		};
 	}
@@ -108,6 +113,58 @@ public class AskService {
 
 	private boolean containsAny(String question, Set<String> keywords) {
 		return keywords.stream().anyMatch(question::contains);
+	}
+
+	private boolean isHighRisk(String question) {
+		return containsAny(question, SYMPTOM_KEYWORDS)
+				|| containsAny(question, MEDICATION_TREATMENT_KEYWORDS)
+				|| containsAny(question, DIAGNOSIS_KEYWORDS);
+	}
+
+	private String routeOf(AiTriageResult triageResult) {
+		if (triageResult == null || triageResult.route() == null) {
+			throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		}
+		return switch (triageResult.route()) {
+			case "ACTION", "CONNECT", "GENERAL", "UNSUPPORTED" -> triageResult.route();
+			default -> throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		};
+	}
+
+	private String actionStateOf(AiTriageResult triageResult) {
+		if (triageResult.actionState() == null) {
+			throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		}
+		return switch (triageResult.actionState()) {
+			case "COMPLETE", "MISSING_CONTEXT" -> triageResult.actionState();
+			default -> throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		};
+	}
+
+	private ActionType actionOf(AiTriageResult triageResult) {
+		if (triageResult.action() == null) {
+			throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		}
+		try {
+			return ActionType.valueOf(triageResult.action());
+		} catch (IllegalArgumentException exception) {
+			throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		}
+	}
+
+	private Map<String, String> completeContextOf(AiTriageResult triageResult) {
+		if (triageResult.context() == null) {
+			throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		}
+		return triageResult.context();
+	}
+
+	private String clarificationCodeOf(AiTriageResult triageResult) {
+		if (triageResult.context() == null || !triageResult.context().isEmpty()
+				|| triageResult.clarificationCode() == null) {
+			throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
+		}
+		return triageResult.clarificationCode();
 	}
 
 	private String clarifyMessage(String clarificationCode) {

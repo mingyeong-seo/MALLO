@@ -1,5 +1,6 @@
 package com.mallo.backend.domain.interaction.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,7 +18,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.mallo.backend.domain.interaction.exception.InteractionErrorCode;
 import com.mallo.backend.domain.journey.entity.ActionType;
 import com.mallo.backend.domain.journey.entity.DecisionType;
 import com.mallo.backend.domain.journey.entity.Protocol;
@@ -29,6 +32,7 @@ import com.mallo.backend.domain.journey.port.SessionSnapshot;
 import com.mallo.backend.domain.journey.repository.ProtocolRepository;
 import com.mallo.backend.domain.sessionInfo.entity.SessionInfo;
 import com.mallo.backend.domain.sessionInfo.repository.SessionInfoRepository;
+import com.mallo.backend.global.exception.CustomException;
 
 /**
  * X-Session-Id 헤더 인가는 sessionInfo.SessionAuthenticationFilter가 DB에 실제로 있는
@@ -160,6 +164,59 @@ class AskControllerTest {
 				.andExpect(jsonPath("$.data.action").value("EXERCISE"))
 				.andExpect(jsonPath("$.data.message")
 						.value("운동 강도가 어느 정도인가요? (가벼운 활동 / 땀나는 활동 / 고강도 활동)"));
+	}
+
+	@Test
+	void AI_결과가_잘못되면_502를_반환한다() throws Exception {
+		UUID sessionId = persistSession();
+		when(sessionQueryPort.getSession(sessionId)).thenReturn(new SessionSnapshot("REJURAN", 2));
+		when(aiTriagePort.triage(new AiTriageInput("오늘 가능한가요?", "REJURAN", 2)))
+				.thenReturn(new AiTriageResult(UUID.randomUUID(), null, null, null, null, List.of(), null, List.of()));
+
+		mockMvc.perform(post("/v1/ask")
+						.header(SESSION_HEADER, sessionId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"question":"오늘 가능한가요?"}
+								"""))
+				.andExpect(status().isBadGateway());
+	}
+
+	@Test
+	void AI_CustomException은_502를_반환한다() throws Exception {
+		UUID sessionId = persistSession();
+		when(sessionQueryPort.getSession(sessionId)).thenReturn(new SessionSnapshot("REJURAN", 2));
+		when(aiTriagePort.triage(new AiTriageInput("오늘 가능한가요?", "REJURAN", 2)))
+				.thenThrow(new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE));
+
+		mockMvc.perform(post("/v1/ask")
+						.header(SESSION_HEADER, sessionId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"question":"오늘 가능한가요?"}
+								"""))
+				.andExpect(status().isBadGateway());
+	}
+
+	@Test
+	void AI_호출은_AskService_트랜잭션_밖에서_실행된다() throws Exception {
+		UUID sessionId = persistSession();
+		when(sessionQueryPort.getSession(sessionId)).thenReturn(new SessionSnapshot("REJURAN", 2));
+		when(aiTriagePort.triage(new AiTriageInput("붓기는 언제쯤 빠지나요?", "REJURAN", 2)))
+				.then(invocation -> {
+					assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+					return new AiTriageResult(UUID.randomUUID(), "GENERAL", null, null, null,
+							List.of(), null, List.of());
+				});
+
+		mockMvc.perform(post("/v1/ask")
+						.header(SESSION_HEADER, sessionId)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"question":"붓기는 언제쯤 빠지나요?"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.status").value("GENERAL"));
 	}
 
 	@Test

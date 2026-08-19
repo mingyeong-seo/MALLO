@@ -87,6 +87,27 @@ class AskServiceTest {
 		verify(protocolRepository, never()).findCandidates(any(), any(), anyInt());
 	}
 
+	@ParameterizedTest
+	@MethodSource("medicationTreatmentCases")
+	void 약물과_치료_판단_질문은_CONNECT로_저장하고_AI를_호출하지_않는다(String question) {
+		AskResponse response = askService.ask(sessionId, session, new AskRequest(question, null));
+
+		assertThat(response.status()).isEqualTo(InteractionStatus.CONNECT);
+		assertThat(response.message()).isEqualTo("이 질문은 의료진 확인이 필요해요.");
+		assertThat(aiTriagePort.callCount()).isZero();
+		verify(protocolRepository, never()).findCandidates(any(), any(), anyInt());
+	}
+
+	@ParameterizedTest
+	@MethodSource("diagnosisCases")
+	void 진단_판단_질문은_CONNECT로_저장하고_AI를_호출하지_않는다(String question) {
+		AskResponse response = askService.ask(sessionId, session, new AskRequest(question, null));
+
+		assertThat(response.status()).isEqualTo(InteractionStatus.CONNECT);
+		assertThat(response.message()).isEqualTo("이 질문은 의료진 확인이 필요해요.");
+		assertThat(aiTriagePort.callCount()).isZero();
+	}
+
 	@Test
 	void AI가_GENERAL로_분류하면_고정_백엔드_문구로_저장한다() {
 		aiTriagePort.willReturn(general());
@@ -287,6 +308,30 @@ class AskServiceTest {
 	}
 
 	@Test
+	void 병풀처럼_일반_스킨케어_표현의_병은_의료_precheck로_오탐하지_않는다() {
+		aiTriagePort.willReturn(general());
+		AskRequest request = new AskRequest("병풀 크림 써도 되나요?", null);
+
+		AskResponse response = askService.ask(sessionId, session, request);
+
+		assertThat(response.status()).isEqualTo(InteractionStatus.GENERAL);
+		assertThat(aiTriagePort.callCount()).isOne();
+	}
+
+	@ParameterizedTest
+	@MethodSource("invalidAiResults")
+	void 잘못된_AI_결과는_AI_INVALID_RESPONSE로_매핑하고_저장하지_않는다(AiTriageResult result) {
+		aiTriagePort.willReturn(result);
+
+		assertThatThrownBy(() -> askService.ask(sessionId, session, new AskRequest("오늘 가능한가요?", null)))
+				.isInstanceOfSatisfying(CustomException.class,
+						exception -> assertThat(exception.getErrorCode())
+								.isEqualTo(InteractionErrorCode.AI_INVALID_RESPONSE));
+
+		verify(interactionRepository, never()).save(any(Interaction.class));
+	}
+
+	@Test
 	void 질문에_행동_키워드가_없어도_AI가_ACTION이면_Protocol을_조회한다() {
 		aiTriagePort.willReturn(complete(ActionType.HEAT, Map.of("heat_type", "SAUNA_STEAM")));
 		when(protocolRepository.findCandidates("REJURAN", ActionType.HEAT, 2)).thenReturn(List.of());
@@ -303,6 +348,36 @@ class AskServiceTest {
 				List.of(), null, List.of());
 	}
 
+	private static Stream<String> medicationTreatmentCases() {
+		return Stream.of(
+				"약 먹어도 되나요?",
+				"약먹고 운동해도 되나요?",
+				"약을 발라도 되나요?",
+				"약 추천해주세요",
+				"약추천 가능해요?",
+				"복용 중인데 괜찮나요?",
+				"연고 발라도 되나요?",
+				"항생제 먹어도 되나요?",
+				"진통제 복용해도 되나요?",
+				"스테로이드 연고 써도 되나요?",
+				"처방이 필요한가요?",
+				"용량은 얼마나 해야 하나요?",
+				"투약해도 되나요?",
+				"치료를 받아야 하나요?",
+				"진료가 필요할까요?"
+		);
+	}
+
+	private static Stream<String> diagnosisCases() {
+		return Stream.of(
+				"피부 질환인가요?",
+				"이거 병인가요?",
+				"감염인가요?",
+				"의사처럼 진단해주세요",
+				"전문가처럼 봐주세요"
+		);
+	}
+
 	private static Stream<Arguments> clarificationCases() {
 		return Stream.of(
 				Arguments.of(ActionType.EXERCISE, "ASK_EXERCISE_INTENSITY",
@@ -313,6 +388,26 @@ class AskServiceTest {
 						"어떤 제품을 쓰시나요? (보습 / 선크림 / 레티놀 / 필링·스크럽)"),
 				Arguments.of(ActionType.HEAT, "ASK_HEAT_TYPE",
 						"사우나/찜질방인가요, 반신욕/목욕인가요?")
+		);
+	}
+
+	private static Stream<AiTriageResult> invalidAiResults() {
+		return Stream.of(
+				null,
+				new AiTriageResult(UUID.randomUUID(), null, null, null, null, List.of(), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "UNKNOWN", null, null, null, List.of(), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "ACTION", null, "EXERCISE", Map.of("intensity", "INTENSE_ACTIVITY"),
+						List.of(), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "ACTION", "COMPLETE", null, Map.of("intensity", "INTENSE_ACTIVITY"),
+						List.of(), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "ACTION", "COMPLETE", "UNKNOWN", Map.of("intensity", "INTENSE_ACTIVITY"),
+						List.of(), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "ACTION", "COMPLETE", "EXERCISE", null,
+						List.of(), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "ACTION", "MISSING_CONTEXT", "EXERCISE", Map.of(),
+						List.of("intensity"), null, List.of()),
+				new AiTriageResult(UUID.randomUUID(), "ACTION", "MISSING_CONTEXT", "EXERCISE", null,
+						List.of("intensity"), "ASK_EXERCISE_INTENSITY", List.of())
 		);
 	}
 
