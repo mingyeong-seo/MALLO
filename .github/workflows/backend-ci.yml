@@ -1,0 +1,42 @@
+name: Backend CI
+
+# backend/ 변경분에 대해서만 테스트를 돌린다. 프론트 변경만 있는 push/PR엔 안 걸리게 paths로 제한.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle 캐시
+        uses: actions/setup-gradle@v4
+
+      # 테스트는 src/test/resources/application.yml의 H2 인메모리 DB로 돈다 — 별도 MySQL 컨테이너 불필요
+      - name: 테스트 실행
+        run: ./gradlew test
+
+      - name: 테스트 리포트 업로드 (실패 시 확인용)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: backend/build/reports/tests/test
+          retention-days: 7
