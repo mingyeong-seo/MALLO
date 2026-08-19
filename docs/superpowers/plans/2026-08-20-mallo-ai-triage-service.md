@@ -378,7 +378,9 @@ OPENROUTER_APP_TITLE=MALLO AI
 
 - [ ] **Step 4: Implement the provider with native structured output**
 
-Use the current Pydantic AI 2.32 API:
+Use the current Pydantic AI 2.32 API. The installed runtime wraps a root union
+for native output and otherwise expects a `result` property, so expose that
+wrapper explicitly instead of passing `ProviderDecision` directly:
 
 ```python
 model_settings = OpenRouterModelSettings(
@@ -392,6 +394,10 @@ model_settings = OpenRouterModelSettings(
     },
     openrouter_usage={"include": True},
 )
+class ProviderDecisionOutput(StrictModel):
+    result: ProviderDecision
+
+
 model = OpenRouterModel(
     settings.mallo_ai_model,
     provider=OpenRouterProvider(
@@ -403,11 +409,15 @@ model = OpenRouterModel(
 )
 agent = Agent(
     model,
-    output_type=NativeOutput(ProviderDecision),
+    output_type=NativeOutput(ProviderDecisionOutput),
     model_settings=model_settings,
     retries=0,
 )
 ```
+
+`OpenRouterTriageProvider.decide()` returns `run_result.output.result`. Tests must
+lock this envelope so a schema-valid root object cannot fail at runtime with an
+implicit wrapper mismatch.
 
 Wrap `agent.run()` with `anyio.fail_after(8.0)`. Translate only documented Pydantic AI/OpenRouter errors into the typed exceptions from Task 2. Never include the raw prompt or raw model response in exception strings or logs.
 
