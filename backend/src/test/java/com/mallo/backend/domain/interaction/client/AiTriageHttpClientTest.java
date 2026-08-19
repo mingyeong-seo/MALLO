@@ -11,9 +11,11 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +30,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.mock.http.client.MockClientHttpRequest;
+import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -154,6 +159,37 @@ class AiTriageHttpClientTest {
 	}
 
 	@ParameterizedTest
+	@MethodSource("invalidContractResponses")
+	void rejectsResponsesOutsidePythonUnionContract(String responseBody) {
+		server.expect(requestTo("http://ai.test/internal/v1/triage"))
+				.andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
+
+		assertErrorCode(() -> client.triage(INPUT), InteractionErrorCode.AI_INVALID_RESPONSE);
+	}
+
+	@Test
+	void closesClientHttpResponseAfterExchange() {
+		AtomicBoolean closed = new AtomicBoolean(false);
+		ClientHttpRequestFactory factory = (uri, method) -> {
+			MockClientHttpRequest request = new MockClientHttpRequest(method, uri);
+			request.setResponse(new TrackingClientHttpResponse("""
+					{"request_id":"00000000-0000-0000-0000-000000000001",
+					 "route":"GENERAL","action":null,"context":null,
+					 "missing_fields":[],"clarification_code":null,"safety_reason_codes":[]}
+					""", closed));
+			return request;
+		};
+		AiTriageHttpClient trackingClient = new AiTriageHttpClient(
+				RestClient.builder().requestFactory(factory),
+				new AiTriageHttpConfig("http://ai.test", "test-secret", Duration.ofMillis(1000), Duration.ofMillis(8000)),
+				() -> UUID.fromString(RESPONSE_ID));
+
+		trackingClient.triage(INPUT);
+
+		assertThat(closed).isTrue();
+	}
+
+	@ParameterizedTest
 	@MethodSource("statusMappings")
 	void mapsAiErrorStatuses(HttpStatus status, InteractionErrorCode expected) {
 		server.expect(requestTo("http://ai.test/internal/v1/triage"))
@@ -186,6 +222,40 @@ class AiTriageHttpClientTest {
 				Arguments.of(HttpStatus.SERVICE_UNAVAILABLE, InteractionErrorCode.AI_UNAVAILABLE));
 	}
 
+	private static Stream<String> invalidContractResponses() {
+		return Stream.of(
+				"""
+				{"request_id":"00000000-0000-0000-0000-000000000001",
+				 "route":"ACTION","action_state":"COMPLETE","action":"EXERCISE",
+				 "context":{"method":"GENTLE"},
+				 "missing_fields":[],"clarification_code":null,"safety_reason_codes":[]}
+				""",
+				"""
+				{"request_id":"00000000-0000-0000-0000-000000000001",
+				 "route":"ACTION","action_state":"COMPLETE","action":"EXERCISE",
+				 "context":{"intensity":"RUNNING"},
+				 "missing_fields":[],"clarification_code":null,"safety_reason_codes":[]}
+				""",
+				"""
+				{"request_id":"00000000-0000-0000-0000-000000000001",
+				 "route":"ACTION","action_state":"MISSING_CONTEXT","action":"MAKEUP",
+				 "context":{},"missing_fields":["friction"],
+				 "clarification_code":"ASK_MAKEUP_FRICTION","safety_reason_codes":[]}
+				""",
+				"""
+				{"request_id":"00000000-0000-0000-0000-000000000001",
+				 "route":"ACTION","action_state":"MISSING_CONTEXT","action":"EXERCISE",
+				 "context":{},"missing_fields":["method"],
+				 "clarification_code":"ASK_CLEANSING_METHOD","safety_reason_codes":[]}
+				""",
+				"""
+				{"request_id":"00000000-0000-0000-0000-000000000001",
+				 "route":"CONNECT","action":null,"context":null,
+				 "missing_fields":[],"clarification_code":null,
+				 "safety_reason_codes":["DIAGNOSIS"]}
+				""");
+	}
+
 	private void assertErrorCode(Runnable runnable, InteractionErrorCode expected) {
 		assertThatThrownBy(runnable::run)
 				.isInstanceOfSatisfying(CustomException.class,
@@ -195,5 +265,22 @@ class AiTriageHttpClientTest {
 	@Configuration
 	@EnableConfigurationProperties(AiTriageHttpConfig.class)
 	static class TestConfig {
+	}
+
+	private static class TrackingClientHttpResponse extends MockClientHttpResponse {
+
+		private final AtomicBoolean closed;
+
+		TrackingClientHttpResponse(String body, AtomicBoolean closed) {
+			super(body.getBytes(StandardCharsets.UTF_8), HttpStatus.OK);
+			getHeaders().setContentType(MediaType.APPLICATION_JSON);
+			this.closed = closed;
+		}
+
+		@Override
+		public void close() {
+			closed.set(true);
+			super.close();
+		}
 	}
 }

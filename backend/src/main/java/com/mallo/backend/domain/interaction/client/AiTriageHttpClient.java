@@ -71,7 +71,7 @@ public class AiTriageHttpClient implements AiTriagePort {
 					.header("Authorization", "Bearer " + config.sharedSecret())
 					.header("X-Request-Id", requestId.toString())
 					.body(body)
-					.exchange((request, response) -> parseResponse(response.getStatusCode(), response.bodyTo(String.class), requestId), false);
+					.exchange((request, response) -> parseResponse(response.getStatusCode(), response.bodyTo(String.class), requestId));
 		} catch (CustomException exception) {
 			throw exception;
 		} catch (ResourceAccessException exception) {
