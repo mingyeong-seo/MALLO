@@ -1,5 +1,6 @@
 """Deterministic, fail-closed routing for medically high-risk questions."""
 
+import re
 from typing import Final
 
 from mallo_ai.provider_contracts import ConnectDecision
@@ -52,17 +53,19 @@ DIAGNOSIS_REQUEST_PHRASES: Final[tuple[str, ...]] = (
     "의사처럼",
     "전문가처럼",
 )
-PROMPT_INJECTION_PHRASES: Final[tuple[str, ...]] = (
-    "이전지시무시",
-    "시스템프롬프트무시",
-    "규칙무시",
-    "안전규칙무시",
+PROMPT_INJECTION_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
+    re.compile(r"이전지시(?:를|을)?무시"),
+    re.compile(r"시스템프롬프트(?:를|을)?무시"),
+    re.compile(r"규칙(?:을|를)?무시"),
+    re.compile(r"안전규칙(?:을|를)?무시"),
 )
 
 
 def route_high_risk(question: str) -> ConnectDecision | None:
     """Return CONNECT for a deterministic high-risk question, otherwise None."""
-    normalized = "".join(question.casefold().split())
+    normalized = "".join(
+        character for character in question.casefold() if character.isalnum()
+    )
     reason = first_safety_reason(normalized)
     if reason is None:
         return None
@@ -71,7 +74,10 @@ def route_high_risk(question: str) -> ConnectDecision | None:
 
 def first_safety_reason(normalized_question: str) -> SafetyReason | None:
     """Return the highest-precedence safety reason matching normalized text."""
-    if _contains_phrase(normalized_question, PROMPT_INJECTION_PHRASES):
+    if any(
+        pattern.search(normalized_question) is not None
+        for pattern in PROMPT_INJECTION_PATTERNS
+    ):
         return SafetyReason.SYMPTOM_JUDGMENT
     if _contains_phrase(normalized_question, DIAGNOSIS_REQUEST_PHRASES):
         return SafetyReason.SYMPTOM_JUDGMENT
