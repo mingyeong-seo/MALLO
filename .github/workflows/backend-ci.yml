@@ -27,7 +27,7 @@ jobs:
           java-version: "21"
 
       - name: Gradle 캐시
-        uses: actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v4
 
       # 테스트는 src/test/resources/application.yml의 H2 인메모리 DB로 돈다 — 별도 MySQL 컨테이너 불필요
       - name: 테스트 실행
