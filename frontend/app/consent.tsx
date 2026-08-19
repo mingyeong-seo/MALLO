@@ -87,11 +87,7 @@ export default function ConsentScreen() {
         <View style={styles.consentList}>
           {/* 1. [필수] 서비스 이용 동의 */}
           <View style={styles.cardItem}>
-            <TouchableOpacity
-              style={styles.consentLeft}
-              onPress={() => setServiceConsent(!serviceConsent)}
-              activeOpacity={0.7}
-            >
+            <View style={styles.consentLeft}>
               <View style={styles.textColumn}>
                 <Text style={styles.consentLabel}>
                   <Text style={styles.consentTag}>[필수]</Text> 서비스 이용 동의
@@ -99,11 +95,12 @@ export default function ConsentScreen() {
                 <TouchableOpacity
                   onPress={() => handleOpenDetail('서비스 이용 동의')}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={styles.detailButton}
                 >
                   <Text style={styles.detailLink}>자세히 보기</Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               onPress={() => setServiceConsent(!serviceConsent)}
@@ -117,11 +114,7 @@ export default function ConsentScreen() {
 
           {/* 2. [필수] 데이터 처리 동의 */}
           <View style={styles.cardItem}>
-            <TouchableOpacity
-              style={styles.consentLeft}
-              onPress={() => setDataConsent(!dataConsent)}
-              activeOpacity={0.7}
-            >
+            <View style={styles.consentLeft}>
               <View style={styles.textColumn}>
                 <Text style={styles.consentLabel}>
                   <Text style={styles.consentTag}>[필수]</Text> 데이터 처리 동의
@@ -129,11 +122,12 @@ export default function ConsentScreen() {
                 <TouchableOpacity
                   onPress={() => handleOpenDetail('데이터 처리 동의')}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={styles.detailButton}
                 >
                   <Text style={styles.detailLink}>자세히 보기</Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               onPress={() => setDataConsent(!dataConsent)}
@@ -147,11 +141,7 @@ export default function ConsentScreen() {
 
           {/* 3. [선택] 알림 수신 동의 */}
           <View style={styles.cardItem}>
-            <TouchableOpacity
-              style={styles.consentLeft}
-              onPress={() => setNotificationConsent(!notificationConsent)}
-              activeOpacity={0.7}
-            >
+            <View style={styles.consentLeft}>
               <View style={styles.textColumn}>
                 <Text style={styles.consentLabel}>
                   <Text style={styles.consentTag}>[선택]</Text> 알림 수신 동의
@@ -159,11 +149,12 @@ export default function ConsentScreen() {
                 <TouchableOpacity
                   onPress={() => handleOpenDetail('알림 수신 동의')}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={styles.detailButton}
                 >
                   <Text style={styles.detailLink}>자세히 보기</Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               onPress={() => setNotificationConsent(!notificationConsent)}
@@ -323,6 +314,9 @@ const styles = StyleSheet.create({
   },
   textColumn: {
     gap: 4,
+  },
+  detailButton: {
+    alignSelf: 'flex-start',
   },
   consentLabel: {
     fontSize: 15,

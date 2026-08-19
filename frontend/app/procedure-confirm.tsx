@@ -1,3 +1,4 @@
+import { CommonActions } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
   View,
@@ -9,29 +10,30 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { MALLO_COLORS } from '@/constants/colors';
 
 // ─── Mock Data (가이드 문서 스펙 일치) ──────────────────────────
 
 interface ProcedureData {
-  procedure: string;      // 시술 종류
-  procedure_at: string;   // 시술일
-  clinic_id: string;      // 시술 병원 ID
-  clinic_name: string;    // 시술 병원 표기명
+  procedure: string; // 시술 종류
+  procedure_at: string; // 시술일
+  clinic_id: string; // 시술 병원 ID
+  clinic_name: string; // 시술 병원 표기명
 }
 
 const MOCK_PROCEDURE: ProcedureData = {
   procedure: 'REJURAN',
   procedure_at: '2026.08.12 시술',
   clinic_id: 'clinic_001',
-  clinic_name: 'OO의원',
+  clinic_name: '더나의원',
 };
 
 // ─── Screen ───────────────────────────────────────────────────
 
 export default function ProcedureConfirmScreen() {
   const router = useRouter();
+  const rootNavigation = useNavigation('/');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Recovery Session 생성 및 S04 이동 핸들러
@@ -42,13 +44,34 @@ export default function ProcedureConfirmScreen() {
       // TODO: 추후 백엔드 Session 생성 API 연동
       // 1. API 호출 후 response로 { session_id, elapsed_day, status } 수신
       // 2. await SecureStore.setItemAsync('session_id', response.session_id);
-      
+
       // 현재는 mock 성공 딜레이 후 S04로 이동
       setTimeout(() => {
         setIsSubmitting(false);
-        router.push('/(tabs)/journey/home');
+        rootNavigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              {
+                name: '(tabs)',
+                state: {
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'journey',
+                      state: {
+                        index: 0,
+                        routes: [{ name: 'home' }],
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        );
       }, 500);
-    } catch (error) {
+    } catch {
       setIsSubmitting(false);
       Alert.alert('오류', '세션 생성에 실패했습니다. 다시 시도해주세요.');
     }
@@ -85,17 +108,11 @@ export default function ProcedureConfirmScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>DERNA에서 불러온 시술 정보</Text>
           <Text style={styles.procedureName}>{MOCK_PROCEDURE.procedure}</Text>
-          <Text style={styles.procedureDetail}>{MOCK_PROCEDURE.procedure_at}</Text>
-          <Text style={styles.procedureDetail}>{MOCK_PROCEDURE.clinic_name}</Text>
-        </View>
-
-        {/* ─── 안내 캡션 ────────────────────────────── */}
-        <View style={styles.captionContainer}>
-          <Text style={styles.captionText}>
-            시술명·시술일·병원 직접 입력 없음
+          <Text style={styles.procedureDetail}>
+            {MOCK_PROCEDURE.procedure_at}
           </Text>
-          <Text style={styles.captionText}>
-            DAY는 시술일 기준 자동 계산 (시술 당일=DAY 0)
+          <Text style={styles.procedureDetail}>
+            {MOCK_PROCEDURE.clinic_name}
           </Text>
         </View>
       </ScrollView>
@@ -113,14 +130,6 @@ export default function ProcedureConfirmScreen() {
           ) : (
             <Text style={styles.primaryButtonText}>이 시술로 시작하기</Text>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          activeOpacity={0.6}
-          disabled={isSubmitting}
-        >
-          <Text style={styles.secondaryButtonText}>DERNA에서 확인하기</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -203,18 +212,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Caption
-  captionContainer: {
-    paddingHorizontal: 4,
-    alignItems: 'center',
-  },
-  captionText: {
-    fontSize: 12,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-
   // Bottom Buttons
   bottomContainer: {
     paddingHorizontal: 20,
@@ -230,7 +227,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: MALLO_COLORS.core.ink,
-    marginBottom: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -239,16 +235,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: MALLO_COLORS.core.white,
-  },
-  secondaryButton: {
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: MALLO_COLORS.support.secondaryTextGray,
-    textDecorationLine: 'underline',
   },
 });
