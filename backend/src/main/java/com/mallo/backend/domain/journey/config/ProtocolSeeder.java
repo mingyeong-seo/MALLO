@@ -25,9 +25,11 @@ import lombok.extern.slf4j.Slf4j;
  * HEAT.heat_type)에 맞춰 conditions 키·값 체계를 갱신했다.
  *
  * 각 규칙 옆 주석 표기:
- *  - [문서 근거]  : Appendix D 원문 또는 FE 협의 내용에 직접 명시된 값 (그대로 반영)
- *  - [추론, 확인 필요] : RECOVERY_PROTOCOL_DECISION_MATRIX_DERNA_FINAL 원문이 아직 공유되지 않아
- *    Appendix D의 취지에 맞춰 백엔드가 임시로 채워 넣은 값. 실제 매트릭스 문서 받으면 교체할 것.
+ *  - [문서 근거] : Appendix D 원문 또는 FE 협의 내용에 직접 명시된 값 (그대로 반영)
+ *  - [백엔드 판단] : RECOVERY_PROTOCOL_DECISION_MATRIX_DERNA_FINAL 원문이 따로 없어서, 시술 후
+ *    스킨케어에서 통용되는 일반 상식(자극 성분·마찰·발한 활동 회피 등) 선에서 백엔드가 정한 값.
+ *    MVP 단계라 의학적 근거 수준까지는 요구되지 않는다고 팀 확인받음(2026-08-19) — 실제 병원 검수를
+ *    받는 단계가 오면 그때 교체.
  */
 @Slf4j
 @Component
@@ -36,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProtocolSeeder implements ApplicationRunner {
 
 	private static final String REJURAN = "REJURAN";
-	private static final String VERSION = "rejuran-v2";
+	private static final String VERSION = "rejuran-v3";
 
 	private final ProtocolRepository protocolRepository;
 
@@ -78,8 +80,8 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("가벼운 터치의 화장은 가능합니다. 시술 부위는 두드리듯 부드럽게 발라주세요.")
 						.version(VERSION)
 						.build(),
-				// [추론, 확인 필요] 마찰이 있는 화장(파운데이션 브러시/스펀지 등)은 문지름 자체를 줄이라는
-				// 취지에 맞춰 ADJUST로 임시 설정. 실제 매트릭스 확정되면 교체.
+				// [백엔드 판단] 마찰이 있는 화장(파운데이션 브러시/스펀지 등)은 문지름 자체를 줄이라는
+				// 취지에 맞춰 ADJUST. 완전 금지할 정도는 아니고 도구/압력만 조절하면 되는 수준으로 판단.
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(null)
 						.action(ActionType.MAKEUP)
@@ -115,7 +117,7 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("손으로 부드럽게 세안하는 정도는 가능합니다.")
 						.version(VERSION)
 						.build(),
-				// [추론, 확인 필요] 문지르는 세안(클렌징 브러시 등)은 강도 조절 권고로 임시 설정.
+				// [백엔드 판단] 문지르는 세안(클렌징 브러시 등)은 강도 조절 권고 — MAKEUP.friction과 동일 논리.
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(null)
 						.action(ActionType.CLEANSING)
@@ -170,7 +172,8 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("스크럽 제품 사용은 최소 1주일 피해주세요.")
 						.version(VERSION)
 						.build(),
-				// [추론, 확인 필요] AHA/BHA 화학적 각질제거도 스크럽과 같은 각질제거 계열로 보고 동일 규칙 적용.
+				// [백엔드 판단] AHA/BHA 화학적 각질제거도 스크럽과 같은 각질제거 계열로 보고 동일 규칙 적용
+				// (시술 후 화학적 필링 계열 자극 성분을 1~2주 피하라는 건 일반적인 시술 후 스킨케어 상식).
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.SKINCARE)
@@ -179,7 +182,8 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("AHA/BHA 등 각질 제거 성분은 최소 1주일 피해주세요.")
 						.version(VERSION)
 						.build(),
-				// [추론, 확인 필요] 레티노이드는 자극이 강한 활성 성분이라 스크럽과 동일하게 1주일 보류로 임시 설정.
+				// [백엔드 판단] 레티노이드는 자극·광과민성이 있는 활성 성분이라 스크럽과 동일하게 1주일 보류
+				// (시술 후 레티노이드 중단 권고는 일반적인 시술 후 스킨케어 상식).
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.SKINCARE)
@@ -188,7 +192,8 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("레티노이드 성분은 자극이 있을 수 있어 최소 1주일 피해주세요.")
 						.version(VERSION)
 						.build(),
-				// [추론, 확인 필요] 기타 활성 성분은 구체적 성분을 알 수 없어 보수적으로 ADJUST(주의 사용)로 임시 설정.
+				// [백엔드 판단] 기타 활성 성분은 니아신아마이드처럼 순한 것부터 고농도 비타민C처럼 자극적인 것까지
+				// 다양해서 일괄 POSSIBLE/POSTPONE 대신 ADJUST(소량 시험 사용)로 보수적으로 처리.
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(0).dayEnd(7)
 						.action(ActionType.SKINCARE)
@@ -222,9 +227,8 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.nextAction("{\"type\":\"VIEW_ALTERNATIVE\",\"label\":\"저강도 대안 보기\"}")
 						.version(VERSION)
 						.build(),
-				// [추론, 확인 필요] LIGHT_ACTIVITY와 INTENSE_ACTIVITY 사이 중간 단계. 땀이 나는 정도라
-				// 강도 조절(ADJUST)로 임시 설정 — 기존 LIGHT 안내문의 "땀이 많이 나면 바로 씻어달라"는
-				// 문구를 그대로 가져왔다.
+				// [백엔드 판단] LIGHT_ACTIVITY와 INTENSE_ACTIVITY 사이 중간 단계. 땀이 나는 활동은
+				// 시술 부위 위생·자극 관리가 필요하다는 게 일반적인 시술 후 상식이라 ADJUST로 판단.
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.EXERCISE)

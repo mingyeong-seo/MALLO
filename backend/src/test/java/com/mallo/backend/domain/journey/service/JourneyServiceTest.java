@@ -229,4 +229,22 @@ class JourneyServiceTest {
 		ReflectionTestUtils.setField(journey, "id", UUID.randomUUID());
 		return journey;
 	}
+
+	@Test
+	void existsForSession은_같은_세션이면_true를_반환한다() {
+		UUID sessionId = UUID.randomUUID();
+		UUID checkId = UUID.randomUUID();
+		when(journeyRepository.existsByIdAndSessionId(checkId, sessionId)).thenReturn(true);
+
+		assertThat(journeyService.existsForSession(checkId, sessionId)).isTrue();
+	}
+
+	@Test
+	void existsForSession은_존재하지_않거나_다른_세션이면_false를_반환한다() {
+		UUID sessionId = UUID.randomUUID();
+		UUID checkId = UUID.randomUUID();
+		when(journeyRepository.existsByIdAndSessionId(checkId, sessionId)).thenReturn(false);
+
+		assertThat(journeyService.existsForSession(checkId, sessionId)).isFalse();
+	}
 }

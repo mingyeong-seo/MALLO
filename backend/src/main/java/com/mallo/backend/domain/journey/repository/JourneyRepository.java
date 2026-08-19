@@ -14,4 +14,10 @@ public interface JourneyRepository extends JpaRepository<Journey, UUID> {
 	 * 상위 N개만 보여주는 건 프론트 책임(slice).
 	 */
 	List<Journey> findBySessionIdAndElapsedDayOrderByCreatedAtDesc(UUID sessionId, int elapsedDay);
+
+	/**
+	 * record 도메인의 CheckQueryPort용 — 다른 도메인엔 존재 여부/세션 소유 여부만 필요하고
+	 * Journey 엔티티 전체를 넘겨줄 이유는 없어서 boolean으로만 응답한다.
+	 */
+	boolean existsByIdAndSessionId(UUID id, UUID sessionId);
 }

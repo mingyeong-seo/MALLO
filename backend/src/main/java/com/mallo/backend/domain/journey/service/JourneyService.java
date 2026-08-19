@@ -77,6 +77,16 @@ public class JourneyService {
 	}
 
 	/**
+	 * record 도메인이 actions[]를 check_id로 저장하기 전에 "이 check_id가 실제로 존재하고
+	 * 같은 세션 것인지" 검증할 때 쓴다 (record.port.CheckQueryPort의 실제 구현체가 호출).
+	 * getCheck()과 달리 예외를 던지지 않고 boolean만 반환한다 — 검증 실패를 어떻게 다룰지는
+	 * 호출하는 도메인(record)의 책임으로 남겨둔다.
+	 */
+	public boolean existsForSession(UUID checkId, UUID sessionId) {
+		return journeyRepository.existsByIdAndSessionId(checkId, sessionId);
+	}
+
+	/**
 	 * conditions를 만족하는 후보 중, 조건 키가 가장 많은(=가장 구체적인) 규칙을 우선한다.
 	 * conditions가 비어있는 규칙은 해당 DAY/action에 항상 매칭되는 "기본 규칙" 취급.
 	 */

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -72,5 +73,14 @@ public class SessionInfoController {
 			@RequestHeader(SessionAuthenticationFilter.SESSION_HEADER) UUID sessionId) {
 		sessionInfoService.deleteSession(sessionId);
 		return ResponseEntity.noContent().build();
+	}
+
+	@Operation(summary = "세션 종료(ACTIVE → COMPLETED)", description = "X-Session-Id 헤더의 세션을 완료 처리한다. "
+			+ "DAY 기준 자동 전환은 없고 FE가 명시적으로 호출할 때만 상태가 바뀐다(수동 트리거).")
+	@PatchMapping("/complete")
+	public ApiResponse<SessionResponse> completeSession(
+			@RequestHeader(SessionAuthenticationFilter.SESSION_HEADER) UUID sessionId) {
+		SessionInfo sessionInfo = sessionInfoService.completeSession(sessionId);
+		return ApiResponse.success(SessionResponse.from(sessionInfo));
 	}
 }
