@@ -37,17 +37,29 @@ jobs:
       # EC2에 새 jar를 app.jar.new로 올려두기만 하고, 실제 교체/재시작은 remote-deploy.sh가
       # 서버 안에서 수행한다 (전송 중간에 끊겨도 기존 app.jar는 안 건드려지게 하려는 목적).
       # remote-deploy.sh도 매번 같이 올려서 스크립트가 항상 저장소 최신 버전과 일치하게 유지.
-      - name: EC2로 jar + 배포 스크립트 전송
+      #
+      # uses: 스텝(Docker 액션)은 잡의 defaults.run.working-directory(backend)를 안 타서
+      # 저장소 루트 기준 경로를 써야 한다 (run: 셸 스텝과 다름 — 실제로 겪은 버그, 재발 방지용 주석).
+      # source에 여러 줄(YAML 블록)로 넣으면 appleboy/scp-action이 통째로 하나의 패턴처럼 처리해서
+      # 아무 파일도 못 찾고 "tar: empty archive"로 실패하는 걸 겪어서, 파일마다 스텝을 분리함.
+      - name: EC2로 jar 전송
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # uses: 스텝(Docker 액션)은 잡의 defaults.run.working-directory(backend)를 안 타서
-          # 저장소 루트 기준 경로를 써야 한다 (run: 셸 스텝과 다름 — 실제로 겪은 버그, 재발 방지용 주석)
-          source: |
-            backend/${{ steps.jar.outputs.path }}
-            backend/scripts/deploy/remote-deploy.sh
+          source: "backend/${{ steps.jar.outputs.path }}"
+          target: /home/${{ secrets.EC2_USER }}/mallo
+          strip_components: 3
+          rm: false
+
+      - name: EC2로 배포 스크립트 전송
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "backend/scripts/deploy/remote-deploy.sh"
           target: /home/${{ secrets.EC2_USER }}/mallo
           strip_components: 3
           rm: false
