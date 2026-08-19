@@ -5,17 +5,19 @@ import java.util.List;
 
 import com.mallo.backend.global.entity.BaseTimeEntity;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -49,13 +51,12 @@ public class RecoveryRecord extends BaseTimeEntity {
 	@Column(name = "elapsed_day", nullable = false)
 	private Integer elapsedDay;
 
-	// Quick Check/Action Result에서 선택된 행동 코드. action enum이 아직 확정 전이라 문자열로 보관
-	@Column(nullable = false)
-	private String action;
-
-	@Enumerated(EnumType.STRING)
-	@Column(name = "performed_status", nullable = false)
-	private PerformedStatus performedStatus;
+	// 저장 버튼 한 번에 확인한 행동 여러 건(카테고리 5개/세부 행동 최대 12개, image 75/76 기준)을 순서대로 담는다.
+	// 독립 생명주기가 없는 값 객체 목록이라 별도 엔티티 대신 ElementCollection으로 관리 (RecordAction 참고)
+	@ElementCollection
+	@CollectionTable(name = "record_action", joinColumns = @JoinColumn(name = "recovery_record_id"))
+	@OrderColumn(name = "action_order")
+	private List<RecordAction> actions = new ArrayList<>();
 
 	@Column(length = 1000)
 	private String memo;
@@ -66,13 +67,17 @@ public class RecoveryRecord extends BaseTimeEntity {
 	private List<PhotoRecord> photoRecords = new ArrayList<>();
 
 	@Builder
-	private RecoveryRecord(String sessionId, Integer elapsedDay, String action,
-			PerformedStatus performedStatus, String memo) {
+	private RecoveryRecord(String sessionId, Integer elapsedDay, List<RecordAction> actions, String memo) {
 		this.sessionId = sessionId;
 		this.elapsedDay = elapsedDay;
-		this.action = action;
-		this.performedStatus = performedStatus;
+		this.actions = actions != null ? new ArrayList<>(actions) : new ArrayList<>();
 		this.memo = memo;
+	}
+
+	/** 기존 행동 목록을 통째로 지우고 새로 넘어온 목록으로 교체한다 (attachPhotos와 동일 패턴). */
+	public void replaceActions(List<RecordAction> actions) {
+		this.actions.clear();
+		this.actions.addAll(actions);
 	}
 
 	/** 기존에 붙어있던 사진은 전부 떼고(recoveryRecord=null), 새로 넘어온 목록으로 통째로 교체한다. */

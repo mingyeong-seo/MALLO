@@ -19,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.mallo.backend.domain.record.dto.RecordActionResponse;
 import com.mallo.backend.domain.record.dto.RecoveryRecordResponse;
 import com.mallo.backend.domain.record.entity.PerformedStatus;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
@@ -37,8 +38,9 @@ class RecoveryRecordControllerTest {
 	private RecoveryRecordService recoveryRecordService;
 
 	private RecoveryRecordResponse response() {
-		return new RecoveryRecordResponse(1L, SESSION_ID, 1, "EXERCISE",
-				PerformedStatus.DONE, "메모", List.of(), LocalDateTime.now());
+		return new RecoveryRecordResponse(1L, SESSION_ID, 1,
+				List.of(new RecordActionResponse("EXERCISE", PerformedStatus.DONE)),
+				"메모", List.of(), LocalDateTime.now());
 	}
 
 	@Test
@@ -48,11 +50,11 @@ class RecoveryRecordControllerTest {
 		mockMvc.perform(post("/v1/sessions/{sessionId}/records", SESSION_ID)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"elapsedDay":1,"action":"EXERCISE","performedStatus":"DONE","memo":"메모"}
+								{"elapsedDay":1,"actions":[{"action":"EXERCISE","performedStatus":"DONE"}],"memo":"메모"}
 								"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.action").value("EXERCISE"));
+				.andExpect(jsonPath("$.data.actions[0].action").value("EXERCISE"));
 	}
 
 	@Test
@@ -60,7 +62,18 @@ class RecoveryRecordControllerTest {
 		mockMvc.perform(post("/v1/sessions/{sessionId}/records", SESSION_ID)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"action":"EXERCISE","performedStatus":"DONE"}
+								{"actions":[{"action":"EXERCISE","performedStatus":"DONE"}]}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false));
+	}
+
+	@Test
+	void actions가_비어있으면_400을_반환한다() throws Exception {
+		mockMvc.perform(post("/v1/sessions/{sessionId}/records", SESSION_ID)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"elapsedDay":1,"actions":[]}
 								"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false));

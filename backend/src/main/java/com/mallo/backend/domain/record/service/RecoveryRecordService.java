@@ -12,6 +12,7 @@ import com.mallo.backend.domain.record.dto.RecoveryRecordCreateRequest;
 import com.mallo.backend.domain.record.dto.RecoveryRecordResponse;
 import com.mallo.backend.domain.record.dto.RecoveryRecordUpdateRequest;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
+import com.mallo.backend.domain.record.entity.RecordAction;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
 import com.mallo.backend.domain.record.repository.RecoveryRecordRepository;
@@ -34,8 +35,7 @@ public class RecoveryRecordService {
 		RecoveryRecord record = RecoveryRecord.builder()
 				.sessionId(sessionId)
 				.elapsedDay(request.elapsedDay())
-				.action(request.action())
-				.performedStatus(request.performedStatus())
+				.actions(toRecordActions(request.actions()))
 				.memo(request.memo())
 				.build();
 		record.attachPhotos(photoRecords);
@@ -80,11 +80,23 @@ public class RecoveryRecordService {
 		if (request.memo() != null) {
 			record.updateMemo(request.memo());
 		}
+		if (request.actions() != null) {
+			record.replaceActions(toRecordActions(request.actions()));
+		}
 		if (request.photoRecordIds() != null) {
 			record.attachPhotos(resolvePhotos(sessionId, request.photoRecordIds()));
 		}
 
 		return toResponse(record);
+	}
+
+	private List<RecordAction> toRecordActions(List<RecoveryRecordCreateRequest.ActionEntry> entries) {
+		return entries.stream()
+				.map(entry -> RecordAction.builder()
+						.action(entry.action())
+						.performedStatus(entry.performedStatus())
+						.build())
+				.toList();
 	}
 
 	/** photoRecordId 각각이 존재하고 같은 세션 것인지 검증한 뒤 엔티티 목록으로 바꾼다. */

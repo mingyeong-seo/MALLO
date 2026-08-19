@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Import;
 
 import com.mallo.backend.domain.record.entity.PerformedStatus;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
+import com.mallo.backend.domain.record.entity.RecordAction;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.global.config.JpaAuditingConfig;
 
@@ -63,7 +64,8 @@ class RecoveryRecordRepositoryTest {
 		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
 
 		assertThat(journal).hasSize(2);
-		assertThat(journal).extracting(RecoveryRecord::getAction).containsExactlyInAnyOrder("EXERCISE", "MEDICATION");
+		assertThat(journal).extracting(record -> record.getActions().get(0).getAction())
+				.containsExactlyInAnyOrder("EXERCISE", "MEDICATION");
 	}
 
 	@Test
@@ -72,8 +74,7 @@ class RecoveryRecordRepositoryTest {
 		RecoveryRecord otherSession = RecoveryRecord.builder()
 				.sessionId("22222222-2222-2222-2222-222222222222")
 				.elapsedDay(1)
-				.action("EXERCISE")
-				.performedStatus(PerformedStatus.DONE)
+				.actions(recordActions("EXERCISE"))
 				.build();
 		recoveryRecordRepository.save(otherSession);
 
@@ -104,8 +105,7 @@ class RecoveryRecordRepositoryTest {
 		RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
 				.sessionId(SESSION_ID)
 				.elapsedDay(1)
-				.action("WOUND_CARE")
-				.performedStatus(PerformedStatus.DONE)
+				.actions(recordActions("WOUND_CARE"))
 				.build());
 		record.attachPhotos(List.of(photo1, photo2));
 		testEntityManager.flush();
@@ -148,8 +148,7 @@ class RecoveryRecordRepositoryTest {
 			RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(day)
-					.action("WOUND_CARE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("WOUND_CARE"))
 					.build());
 			record.attachPhotos(List.of(photo));
 		}
@@ -163,9 +162,12 @@ class RecoveryRecordRepositoryTest {
 		statistics.clear();
 
 		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
-		// 서비스 코드(RecoveryRecordService.toResponse)처럼 실제로 photoRecords까지 읽어야
+		// 서비스 코드(RecoveryRecordService.toResponse)처럼 실제로 photoRecords/actions까지 읽어야
 		// lazy 컬렉션 초기화 여부가 드러난다
-		journal.forEach(record -> record.getPhotoRecords().forEach(PhotoRecord::getObservationJson));
+		journal.forEach(record -> {
+			record.getPhotoRecords().forEach(PhotoRecord::getObservationJson);
+			record.getActions().forEach(RecordAction::getAction);
+		});
 
 		assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
 	}
@@ -199,8 +201,11 @@ class RecoveryRecordRepositoryTest {
 		return RecoveryRecord.builder()
 				.sessionId(SESSION_ID)
 				.elapsedDay(elapsedDay)
-				.action(action)
-				.performedStatus(PerformedStatus.DONE)
+				.actions(recordActions(action))
 				.build();
+	}
+
+	private List<RecordAction> recordActions(String action) {
+		return List.of(RecordAction.builder().action(action).performedStatus(PerformedStatus.DONE).build());
 	}
 }
