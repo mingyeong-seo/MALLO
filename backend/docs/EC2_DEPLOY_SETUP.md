@@ -87,19 +87,11 @@ ssh ec2-user@<EC2_HOST> 'cd ~/mallo && bash remote-deploy.sh'
 | `EC2_USER` | `ec2-user` (또는 만든 배포 계정) |
 | `EC2_SSH_KEY` | 1번에서 만든 `.pem` 파일 내용 통째로 |
 
-## 5. 자동 배포로 전환
+## 5. 자동 배포로 전환 — 완료 (2026-08-19)
 
-여기까지 되면 `.github/workflows/backend-deploy.yml`의 `on:` 블록에 push 트리거를 추가한다 (지금은 의도적으로 `workflow_dispatch`만 있음 — 시크릿 등록 전까지 자동 실행되면 매번 실패만 하니까):
+시크릿 등록 끝나서 `backend-deploy.yml`에 `push: branches: [dev]` 트리거 추가함. 지금부턴 `backend/**` 변경분이 `dev`에 머지되면 자동 배포된다.
 
-```yaml
-on:
-  workflow_dispatch: {}
-  push:
-    branches: [dev]   # dev에 머지되는 시점에 배포
-    paths: ["backend/**"]
-```
-
-그 전까지는 Actions 탭에서 `Backend Deploy (EC2)` 워크플로를 수동으로(Run workflow) 실행해서 테스트하면 된다.
+**단, GitHub Actions가 워크플로를 인식하려면 그 워크플로 파일이 저장소 기본 브랜치(`main`)에 있어야 한다** — `workflow_dispatch` 수동 실행 버튼도, API 목록 조회도 전부 이 조건이 있어야 뜬다 (겪어본 이슈, `docs/EC2_DEPLOY_SETUP.md` 참고용으로 남김). `dev`에만 있고 `main`엔 아직 없으면 push 자동 트리거는 동작하지만 수동 실행 버튼은 안 보일 수 있음 — `main`까지 머지되면 완전히 해결됨.
 
 ---
 

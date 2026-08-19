@@ -1,13 +1,12 @@
 name: Backend Deploy (EC2)
 
-# EC2/RDS는 준비돼서 수동 배포(첫 배포)는 이미 성공했음 (2026-08-19).
-# GitHub Secrets(EC2_HOST/EC2_USER/EC2_SSH_KEY) 등록 전까지는 workflow_dispatch(수동 실행)만 열어둔다.
-# 등록되면 이 on: 블록에 아래를 추가해서 자동 배포로 전환하면 됨 — dev 머지 시 배포 (docs/EC2_DEPLOY_SETUP.md 참고).
-#   push:
-#     branches: [dev]
-#     paths: ["backend/**"]
+# EC2/RDS 준비 + 수동 첫 배포 성공 + GitHub Secrets(EC2_HOST/EC2_USER/EC2_SSH_KEY) 등록까지 완료 (2026-08-19).
+# 이제부터 dev에 머지(push)되면 자동 배포. 수동 실행(workflow_dispatch)도 계속 열어둠.
 on:
   workflow_dispatch: {}
+  push:
+    branches: [dev]
+    paths: ["backend/**"]
 
 jobs:
   deploy:
