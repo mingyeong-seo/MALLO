@@ -2,16 +2,19 @@
 
 `.github/workflows/backend-deploy.yml`이 자동으로 하는 건 "jar 빌드 → EC2로 전송 → 재시작"뿐이다.
 EC2 인스턴스 자체를 띄우고, 그 위에 Java/systemd 서비스를 준비하는 건 **1회성 수동 작업**이라 여기 정리한다.
-(2026-08-19 기준: 아직 실제 EC2를 만들지 않은 상태 — 이 문서는 만들 때 그대로 따라 하면 되는 체크리스트.)
+
+> **2026-08-19: 실제로 완료함.** EC2(`3.34.181.218`, t3.micro 추정 1GB RAM) + RDS(MySQL, `mallo.cpowmae00sqh.ap-northeast-2.rds.amazonaws.com`)로 첫 배포까지 성공.
+> **교훈**: 1GB짜리 인스턴스에 MySQL 컨테이너 + JVM 앱을 같이 돌리려다 메모리 부족으로 SSH까지 먹통되는 걸 겪었음(스왑 0이라 완충 없이 바로 죽음). 그래서 **DB는 RDS로 분리하는 걸 기본값으로 하고, EC2 로컬에 MySQL을 같이 띄우는 건 권장 안 함**(아래 2번에서 RDS 선택).
 
 ---
 
 ## 1. EC2 인스턴스 준비 (콘솔 또는 CLI로 직접)
 
 - AMI: Amazon Linux 2023 (또는 Ubuntu 22.04) 권장
-- 인스턴스 타입: 해커톤 스코프면 `t3.micro`로 충분
-- 보안 그룹 인바운드: `22`(SSH, 내 IP만), `8080`(API, 필요 범위만 — 프론트가 붙는 곳)
+- 인스턴스 타입: `t3.micro`(1GB RAM)는 앱 혼자 돌리기엔 빠듯하게 버티는 수준 — DB를 RDS로 분리하는 게 전제. 여유 있게 가려면 `t3.small`(2GB) 고려
+- 보안 그룹 인바운드: `22`(SSH, 내 IP만), `8080`(API, `0.0.0.0/0` — 프론트/누구든 접근해야 하는 공개 API라 SSH처럼 제한할 필요 없음)
 - 키페어 새로 생성하고 `.pem` 안전하게 보관 (GitHub Secret `EC2_SSH_KEY`에 들어갈 값)
+- **DB는 EC2에 같이 설치하지 말고 RDS로 분리할 것** (위 교훈 참고) — RDS 생성 시 "초기 데이터베이스 이름"에 `mallo`를 넣거나, 안 넣었으면 나중에 직접 `CREATE DATABASE mallo;` 실행해야 함 (안 하면 앱이 `Unknown database 'mallo'`로 계속 크래시함)
 
 ## 2. 서버 안에서 최초 1회 설정
 
@@ -29,14 +32,21 @@ mkdir -p ~/mallo-uploads/photos
 `~/mallo/.env` 파일을 만들고 운영 값 채우기 (git에 안 올라가는 파일, 서버에 직접 생성):
 
 ```bash
-DB_HOST=<RDS 또는 EC2 안 MySQL 주소>
+DB_HOST=<RDS 엔드포인트>
 DB_PORT=3306
 DB_NAME=mallo
-DB_USERNAME=mallo
-DB_PASSWORD=<운영용 비밀번호>
+DB_USERNAME=<RDS 마스터 유저명>
+DB_PASSWORD=<RDS 마스터 비밀번호>
 CORS_ALLOWED_ORIGINS=<실제 배포된 프론트 주소>
 PHOTO_STORAGE_DIR=/home/ec2-user/mallo-uploads/photos
 PHOTO_STORAGE_URL_PREFIX=/uploads/photos
+```
+
+`mallo` 스키마가 RDS에 없으면 앱이 계속 크래시하니, 없으면 먼저 만들어둔다 (mysql 클라이언트 안 깔려있으면 docker로 1회성 실행):
+
+```bash
+docker run --rm mysql:8.0 mysql -h <RDS 엔드포인트> -u <마스터유저> -p'<마스터비밀번호>' \
+  -e "CREATE DATABASE IF NOT EXISTS mallo CHARACTER SET utf8mb4;"
 ```
 
 systemd 유닛 등록 (템플릿: `backend/scripts/deploy/mallo-backend.service`):
@@ -79,13 +89,13 @@ ssh ec2-user@<EC2_HOST> 'cd ~/mallo && bash remote-deploy.sh'
 
 ## 5. 자동 배포로 전환
 
-여기까지 되면 `.github/workflows/backend-deploy.yml`의 `on:` 블록에 push 트리거를 추가한다 (지금은 의도적으로 `workflow_dispatch`만 있음 — EC2 없이 워크플로만 먼저 준비해둔 상태였기 때문):
+여기까지 되면 `.github/workflows/backend-deploy.yml`의 `on:` 블록에 push 트리거를 추가한다 (지금은 의도적으로 `workflow_dispatch`만 있음 — 시크릿 등록 전까지 자동 실행되면 매번 실패만 하니까):
 
 ```yaml
 on:
   workflow_dispatch: {}
   push:
-    branches: [main]
+    branches: [dev]   # dev에 머지되는 시점에 배포
     paths: ["backend/**"]
 ```
 
