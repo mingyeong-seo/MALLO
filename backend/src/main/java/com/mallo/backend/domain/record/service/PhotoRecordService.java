@@ -29,6 +29,8 @@ public class PhotoRecordService {
 
 	// 프론트가 한 장씩 업로드해서 photoRecordId를 모으는 방식으로 확정 — 여러 장 한 번에 받는 배치 업로드는 안 씀
 	// (몇 장까지 붙일 수 있는지는 RecoveryRecord.MAX_PHOTOS로 기록 저장 시점에 검증)
+	// PHOTO_ANALYSIS_READY 알림은 여기서 안 쏜다 — "n장 동시 분석 후 최종 결과 1번"으로 확정돼서,
+	// 사진이 기록에 실제로 붙는 시점(RecoveryRecordService.create/update)에 한 번만 호출한다.
 	@Transactional
 	public PhotoRecordResponse upload(String sessionId, MultipartFile photo) {
 		String storageKey = photoStorageAdapter.upload(sessionId, photo);

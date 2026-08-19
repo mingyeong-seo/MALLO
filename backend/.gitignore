@@ -42,3 +42,10 @@ out/
 
 ### 로컬 사진 업로드 저장소 (야매 — CI/CD 붙이면 리눅스 서버 경로로 교체 예정, docs 참고) ###
 /uploads/
+
+### Firebase 서비스 계정 키 — 절대 커밋 금지. 저장소 안 어디에 두든 걸리게 이름 패턴으로 방어 ###
+*firebase*.json
+*service-account*.json
+
+### PR 설명용 임시 문서 — GitHub PR 본문에 붙여넣기만 하면 되는 내용이라 저장소엔 안 남김 ###
+docs/PR_*.md

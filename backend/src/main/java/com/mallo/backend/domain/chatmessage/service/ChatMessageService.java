@@ -13,6 +13,7 @@ import com.mallo.backend.domain.chatmessage.entity.SenderType;
 import com.mallo.backend.domain.chatmessage.repository.ChatMessageRepository;
 import com.mallo.backend.domain.handoff.entity.Handoff;
 import com.mallo.backend.domain.handoff.repository.HandoffRepository;
+import com.mallo.backend.domain.notification.service.NotificationService;
 import com.mallo.backend.global.exception.CommonErrorCode;
 import com.mallo.backend.global.exception.CustomException;
 
@@ -24,6 +25,7 @@ public class ChatMessageService {
 
 	private final ChatMessageRepository chatMessageRepository;
 	private final HandoffRepository handoffRepository;
+	private final NotificationService notificationService;
 
 	@Transactional
 	public ChatMessageResponse sendMessage(UUID sessionId, Long handoffId, ChatMessageCreateRequest request) {
@@ -32,6 +34,9 @@ public class ChatMessageService {
 
 		if (request.senderType() == SenderType.STAFF) {
 			handoff.markAnswered(); //의료진이 첫 답장을 보내면 handoff 상태도 같이 바꿔준다
+			// HANDOFF_REPLY 알림 — 상담방 주인(환자)한테 보내야 하므로 sendMessage 호출자의 sessionId가
+			// 아니라 handoff.getSessionId()(=상담을 요청한 환자 세션)를 대상으로 한다.
+			notificationService.createHandoffReply(handoff.getSessionId().toString(), handoffId);
 		}
 
 		ChatMessage chatMessage = new ChatMessage(handoffId, sessionId, request.senderType(), request.content());
