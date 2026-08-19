@@ -1,6 +1,7 @@
 package com.mallo.backend.domain.notification.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,6 +71,45 @@ public class NotificationService {
 	}
 
 	/**
+	 * DAILY_ACTION_REMINDER 트리거. 매일 아침 elapsed_day가 넘어간 ACTIVE 세션들한테
+	 * "오늘도 체크리스트 확인하라"고 알려준다 ({@link com.mallo.backend.domain.notification.scheduler.DailyActionReminderScheduler}
+	 * 가 세션 목록을 뽑아서 세션마다 이걸 호출한다). 딥링크할 특정 대상이 없어서 referenceId는 안 채운다.
+	 */
+	@Transactional
+	public void createDailyActionReminder(String sessionId) {
+		Notification notification = Notification.builder()
+				.sessionId(sessionId)
+				.type(NotificationType.DAILY_ACTION_REMINDER)
+				.title("오늘의 회복 체크리스트를 확인해보세요")
+				.body("오늘 하루도 회복 관리 잘 챙겨봐요.")
+				.scheduledAt(LocalDateTime.now())
+				.build();
+		notificationRepository.save(notification);
+
+		dispatch(notification);
+	}
+
+	/**
+	 * HANDOFF_REPLY 트리거. 의료진(STAFF)이 상담 채팅에 답장을 보내는 시점에 호출한다
+	 * (chatmessage 도메인의 ChatMessageService가 STAFF 메시지를 저장할 때 호출하는 훅).
+	 * referenceId는 handoffId — 알림 탭하면 그 상담방으로 딥링크.
+	 */
+	@Transactional
+	public void createHandoffReply(String sessionId, Long handoffId) {
+		Notification notification = Notification.builder()
+				.sessionId(sessionId)
+				.type(NotificationType.HANDOFF_REPLY)
+				.title("의료진이 답장했어요")
+				.body("상담 채팅에서 답변을 확인해보세요.")
+				.referenceId(String.valueOf(handoffId))
+				.scheduledAt(LocalDateTime.now())
+				.build();
+		notificationRepository.save(notification);
+
+		dispatch(notification);
+	}
+
+	/**
 	 * 알림 인박스 row는 알림 설정과 무관하게 항상 남긴다(앱 안 인박스는 계속 보여야 하니까).
 	 * 실제 FCM 푸시는 "알림 수신 동의 + 디바이스 토큰 등록"이 둘 다 있을 때만 시도하고,
 	 * 그 결과(성공/실패/스킵)를 status에 그대로 반영한다 — SENT는 "진짜로 FCM에 전달 성공"만 의미한다.
@@ -86,13 +126,24 @@ public class NotificationService {
 				preference.get().getFcmToken(),
 				notification.getTitle(),
 				notification.getBody(),
-				Map.of("type", notification.getType().name(), "referenceId", notification.getReferenceId()));
+				dataPayload(notification));
 
 		if (sent) {
 			notification.markSent();
 		} else {
 			notification.markFailed();
 		}
+	}
+
+	// referenceId가 없는 타입(DAILY_ACTION_REMINDER)도 있어서 Map.of는 못 쓴다 — null 값이 들어오면
+	// Map.of가 NullPointerException을 던지기 때문에, referenceId가 있을 때만 채워 넣는다.
+	private Map<String, String> dataPayload(Notification notification) {
+		Map<String, String> data = new HashMap<>();
+		data.put("type", notification.getType().name());
+		if (notification.getReferenceId() != null) {
+			data.put("referenceId", notification.getReferenceId());
+		}
+		return data;
 	}
 
 	@Transactional

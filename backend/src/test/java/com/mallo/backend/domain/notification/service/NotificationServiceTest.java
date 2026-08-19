@@ -151,6 +151,36 @@ class NotificationServiceTest {
 	}
 
 	@Test
+	void DAILY_ACTION_REMINDER는_referenceId_없이_발송된다() {
+		NotificationPreference preference = NotificationPreference.builder()
+				.sessionId(SESSION_ID).enabled(true).fcmToken("fcm-token-abc").build();
+		given(notificationPreferenceRepository.findById(SESSION_ID)).willReturn(Optional.of(preference));
+		given(notificationSender.send(eq("fcm-token-abc"), any(), any(), any())).willReturn(true);
+
+		// referenceId가 null인 알림도 Map.of()의 NPE 없이 정상 발송돼야 한다 (dataPayload 방어 로직 검증)
+		notificationService.createDailyActionReminder(SESSION_ID);
+
+		verify(notificationSender).send(eq("fcm-token-abc"), any(), any(),
+				argThat(data -> data.get("type").equals("DAILY_ACTION_REMINDER") && !data.containsKey("referenceId")));
+		verify(notificationRepository).save(argThat(n ->
+				n.getType() == NotificationType.DAILY_ACTION_REMINDER
+						&& n.getReferenceId() == null
+						&& n.getStatus() == NotificationStatus.SENT));
+	}
+
+	@Test
+	void HANDOFF_REPLY는_handoffId를_referenceId로_저장한다() {
+		given(notificationPreferenceRepository.findById(SESSION_ID)).willReturn(Optional.empty());
+
+		notificationService.createHandoffReply(SESSION_ID, 7L);
+
+		verify(notificationRepository).save(argThat(n ->
+				n.getType() == NotificationType.HANDOFF_REPLY
+						&& n.getReferenceId().equals("7")
+						&& n.getSessionId().equals(SESSION_ID)));
+	}
+
+	@Test
 	void 알림_설정이_없으면_기본값으로_생성해서_반환한다() {
 		given(notificationPreferenceRepository.findById(SESSION_ID)).willReturn(Optional.empty());
 		given(notificationPreferenceRepository.save(any())).willAnswer(invocation -> invocation.getArgument(0));
