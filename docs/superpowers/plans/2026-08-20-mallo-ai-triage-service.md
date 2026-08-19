@@ -536,6 +536,7 @@ git commit -m "feat: 인증된 AI triage API 추가"
 
 **Files:**
 - Create: `ai-service/Dockerfile`
+- Create: `ai-service/.dockerignore`
 - Create: `ai-service/compose.yaml`
 - Create: `ai-service/README.md`
 - Modify: `.gitignore`
@@ -562,6 +563,8 @@ Expected: FAIL because `ai-service/Dockerfile` does not exist.
 Use Python 3.13 slim, install from `uv.lock` with `--frozen --no-dev`, create an
 unprivileged `mallo` user, expose 8000, and configure a curl-free Python stdlib
 health check against `/healthz`. Bind the host port to `127.0.0.1` in Compose.
+The Docker build context must exclude `.env*`, `.venv`, caches, tests, and local
+artifacts so the OpenRouter key cannot enter an image layer.
 
 - [ ] **Step 4: Run the full Python gate**
 
@@ -588,7 +591,8 @@ Expected: no output. Confirm `git check-ignore -v ai-service/.env.local` succeed
 - [ ] **Step 6: Commit packaging**
 
 ```bash
-git add .gitignore ai-service/Dockerfile ai-service/compose.yaml ai-service/README.md
+git add .gitignore ai-service/.dockerignore ai-service/Dockerfile \
+  ai-service/compose.yaml ai-service/README.md
 git commit -m "build: AI 서비스 컨테이너 구성 추가"
 ```
 
