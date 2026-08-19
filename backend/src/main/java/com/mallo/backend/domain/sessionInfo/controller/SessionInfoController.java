@@ -22,6 +22,7 @@ import com.mallo.backend.domain.sessionInfo.service.SessionInfoService;
 import com.mallo.backend.global.response.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,9 @@ public class SessionInfoController {
 	private final SessionInfoService sessionInfoService;
 
 	@Operation(summary = "Recovery Session 생성", description = "새 Recovery Journey를 시작하며 새 session_id(UUID)를 발급한다.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
+	})
 	@PostMapping
 	public ResponseEntity<ApiResponse<SessionResponse>> createSession(@Valid @RequestBody SessionCreateRequest request) {
 		SessionInfo sessionInfo = sessionInfoService.createSession(
@@ -68,6 +72,9 @@ public class SessionInfoController {
 	}
 
 	@Operation(summary = "세션 삭제", description = "X-Session-Id 헤더의 세션을 삭제한다.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "삭제 성공")
+	})
 	@DeleteMapping
 	public ResponseEntity<Void> deleteSession(
 			@RequestHeader(SessionAuthenticationFilter.SESSION_HEADER) UUID sessionId) {

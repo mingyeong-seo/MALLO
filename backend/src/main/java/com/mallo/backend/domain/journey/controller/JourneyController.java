@@ -23,6 +23,7 @@ import com.mallo.backend.domain.sessionInfo.security.SessionAuthenticationFilter
 import com.mallo.backend.global.response.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,9 @@ public class JourneyController {
 
 	@Operation(summary = "Quick Check 판단 + 저장", description = "행동/조건을 Protocol과 매칭해 결과를 저장하고 그대로 반환한다. "
 			+ "같은 행동을 여러 번 확인해도 덮어쓰지 않고 매번 새 check_id로 저장한다.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
+	})
 	@PostMapping
 	public ResponseEntity<ApiResponse<QuickCheckResponse>> createCheck(
 			@RequestHeader(SESSION_HEADER) UUID sessionId,
