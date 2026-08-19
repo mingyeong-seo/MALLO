@@ -1,9 +1,13 @@
 name: Backend CI
 
 # backend/ 변경분에 대해서만 테스트를 돌린다. 프론트 변경만 있는 push/PR엔 안 걸리게 paths로 제한.
+#
+# push는 dev/main만 본다 (브랜치 전체를 보면, PR이 열려있는 브랜치에 push할 때
+# push 이벤트 + pull_request 이벤트가 동시에 떠서 같은 커밋이 두 번 실행되는 걸 겪었음).
+# 그 외 작업 브랜치는 PR을 통해서만 검증된다.
 on:
   push:
-    branches: ["**"]
+    branches: [dev, main]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
