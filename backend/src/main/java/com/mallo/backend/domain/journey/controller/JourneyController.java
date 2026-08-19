@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -18,6 +19,7 @@ import com.mallo.backend.domain.journey.entity.Journey;
 import com.mallo.backend.domain.journey.port.SessionQueryPort;
 import com.mallo.backend.domain.journey.port.SessionSnapshot;
 import com.mallo.backend.domain.journey.service.JourneyService;
+import com.mallo.backend.domain.sessionInfo.security.SessionAuthenticationFilter;
 import com.mallo.backend.global.response.ApiResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,18 +27,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/**
- * X-Session-Id 헤더 이름을 sessionInfo.SessionAuthenticationFilter.SESSION_HEADER 상수와
- * 공유하고 싶지만, 이 브랜치엔 그 클래스가 아직 없어서 문자열로 중복 정의했다.
- * sessionInfo와 머지되면 공통 상수 하나로 정리할 것.
- */
 @Tag(name = "Journey", description = "Quick Check 판단/저장/조회")
 @RestController
 @RequestMapping("/v1/checks")
 @RequiredArgsConstructor
 public class JourneyController {
 
-	private static final String SESSION_HEADER = "X-Session-Id";
+	private static final String SESSION_HEADER = SessionAuthenticationFilter.SESSION_HEADER;
 
 	private final JourneyService journeyService;
 	private final SessionQueryPort sessionQueryPort;
@@ -64,5 +61,15 @@ public class JourneyController {
 				.map(QuickCheckResponse::from)
 				.toList();
 		return ApiResponse.success(responses);
+	}
+
+	@Operation(summary = "저장된 Quick Check 결과 단건 조회", description = "check_id로 저장된 Quick Check 결과 한 건을 재조회한다. "
+			+ "S05 등에서 저장된 결과의 S08 화면을 다시 보여줄 때 사용. 다른 세션의 check_id면 404.")
+	@GetMapping("/{checkId}")
+	public ApiResponse<QuickCheckResponse> getCheck(
+			@RequestHeader(SESSION_HEADER) UUID sessionId,
+			@PathVariable UUID checkId) {
+		Journey journey = journeyService.getCheck(sessionId, checkId);
+		return ApiResponse.success(QuickCheckResponse.from(journey));
 	}
 }

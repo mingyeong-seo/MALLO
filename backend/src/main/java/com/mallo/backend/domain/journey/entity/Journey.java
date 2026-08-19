@@ -58,18 +58,34 @@ public class Journey {
 	// 판단 근거로 쓰인 Protocol 참조. NO_PROTOCOL이면 null
 	private String protocolRef;
 
+	// 매칭된 Protocol.guidance를 저장 시점에 스냅샷으로 고정한 값 (elapsedDay와 동일한 이유 —
+	// 나중에 Protocol 내용이 바뀌어도 그때 사용자에게 실제로 보여준 안내는 그대로 남아야 한다).
+	@Column(columnDefinition = "TEXT")
+	private String guidance;
+
+	// 매칭된 Protocol.nextAction 스냅샷. 없을 수 있음.
+	@Column(columnDefinition = "TEXT")
+	private String nextAction;
+
 	@CreationTimestamp
 	@Column(nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
 	@Builder
 	private Journey(UUID sessionId, int elapsedDay, ActionType action, String context,
-			DecisionType decision, String protocolRef) {
+			DecisionType decision, String protocolRef, String guidance, String nextAction) {
 		this.sessionId = sessionId;
 		this.elapsedDay = elapsedDay;
 		this.action = action;
 		this.context = context;
 		this.decision = decision;
 		this.protocolRef = protocolRef;
+		this.guidance = guidance;
+		this.nextAction = nextAction;
+	}
+
+	/** decision/protocolRef가 둘 다 null이면 매칭된 Protocol이 없었다는 뜻 (NO_PROTOCOL). */
+	public QuickCheckStatus getStatus() {
+		return protocolRef == null ? QuickCheckStatus.NO_PROTOCOL : QuickCheckStatus.MATCHED;
 	}
 }

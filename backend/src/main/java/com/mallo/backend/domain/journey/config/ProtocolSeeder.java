@@ -19,6 +19,15 @@ import lombok.extern.slf4j.Slf4j;
  * REJURAN 초기 집중 관리(DAY 1~7)/경과 관리(DAY 8~) Protocol seed.
  * PRD Appendix D(DERNA 리쥬란 주의사항), Appendix A(샘플 스키마) 기준.
  * 병원이 검수한 실제 데이터가 아니라 해커톤 데모용 fixture이며, protocol 테이블이 비어있을 때만 채운다.
+ *
+ * 2026-08-19 전면 재작성: FE·BE 공통 연동 기준 문서(섹션 4)가 확정한 Action/Context 값
+ * (EXERCISE.intensity / MAKEUP.friction / CLEANSING.method / SKINCARE.product_type /
+ * HEAT.heat_type)에 맞춰 conditions 키·값 체계를 갱신했다.
+ *
+ * 각 규칙 옆 주석 표기:
+ *  - [문서 근거]  : Appendix D 원문 또는 FE 협의 내용에 직접 명시된 값 (그대로 반영)
+ *  - [추론, 확인 필요] : RECOVERY_PROTOCOL_DECISION_MATRIX_DERNA_FINAL 원문이 아직 공유되지 않아
+ *    Appendix D의 취지에 맞춰 백엔드가 임시로 채워 넣은 값. 실제 매트릭스 문서 받으면 교체할 것.
  */
 @Slf4j
 @Component
@@ -27,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProtocolSeeder implements ApplicationRunner {
 
 	private static final String REJURAN = "REJURAN";
-	private static final String VERSION = "rejuran-v1";
+	private static final String VERSION = "rejuran-v2";
 
 	private final ProtocolRepository protocolRepository;
 
@@ -37,13 +46,15 @@ public class ProtocolSeeder implements ApplicationRunner {
 			log.info("Protocol 테이블에 이미 데이터가 있어 seed를 건너뜁니다.");
 			return;
 		}
-		protocolRepository.saveAll(seedData());
-		log.info("REJURAN Protocol seed {}건 저장 완료", seedData().size());
+		List<Protocol> data = seedData();
+		protocolRepository.saveAll(data);
+		log.info("REJURAN Protocol seed {}건 저장 완료", data.size());
 	}
 
 	private List<Protocol> seedData() {
 		return List.of(
-				// 화장: 시술 당일은 피하고 다음날부터 가능
+				// ===== 화장 (MAKEUP) =====
+				// [문서 근거] "가벼운 세안과 화장은 다음날부터 가능" → 당일은 friction 조건과 무관하게 보류
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(0).dayEnd(0)
 						.action(ActionType.MAKEUP)
@@ -51,6 +62,7 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("시술 당일은 화장을 피하고 다음날부터 가볍게 시작하세요.")
 						.version(VERSION)
 						.build(),
+				// [문서 근거] 기본값(friction 조건 없음) — "시술 부위를 강하게 문지르지 않도록"
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(null)
 						.action(ActionType.MAKEUP)
@@ -58,15 +70,36 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("가벼운 화장이 가능합니다. 시술 부위를 강하게 문지르지 마세요.")
 						.version(VERSION)
 						.build(),
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(null)
+						.action(ActionType.MAKEUP)
+						.conditions("{\"friction\":\"GENTLE\"}")
+						.decision(DecisionType.POSSIBLE)
+						.guidance("가벼운 터치의 화장은 가능합니다. 시술 부위는 두드리듯 부드럽게 발라주세요.")
+						.version(VERSION)
+						.build(),
+				// [추론, 확인 필요] 마찰이 있는 화장(파운데이션 브러시/스펀지 등)은 문지름 자체를 줄이라는
+				// 취지에 맞춰 ADJUST로 임시 설정. 실제 매트릭스 확정되면 교체.
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(null)
+						.action(ActionType.MAKEUP)
+						.conditions("{\"friction\":\"FRICTION\"}")
+						.decision(DecisionType.ADJUST)
+						.guidance("문지르는 힘이 강한 화장(파운데이션 브러시/스펀지 등)은 최소화하고, 시술 부위는 가볍게 두드리듯 발라주세요.")
+						.version(VERSION)
+						.build(),
 
-				// 세안: 시술 당일은 미온수로 가볍게, 다음날부터 일반 세안 가능
+				// ===== 세안 (CLEANSING) =====
+				// [문서 근거] "가벼운 세안과 화장은 다음날부터 가능" → 당일은 보류로 정정
+				// (이전 seed의 ADJUST는 팀 검토에서 지적된 오류, POSTPONE으로 수정)
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(0).dayEnd(0)
 						.action(ActionType.CLEANSING)
-						.decision(DecisionType.ADJUST)
-						.guidance("미온수로 가볍게 세안하고 시술 부위를 문지르지 마세요.")
+						.decision(DecisionType.POSTPONE)
+						.guidance("시술 당일 세안은 피하고 다음날부터 미온수로 가볍게 시작하세요.")
 						.version(VERSION)
 						.build(),
+				// [문서 근거] 기본값(method 조건 없음)
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(null)
 						.action(ActionType.CLEANSING)
@@ -74,8 +107,35 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("가벼운 세안이 가능합니다. 시술 부위를 강하게 문지르지 마세요.")
 						.version(VERSION)
 						.build(),
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(null)
+						.action(ActionType.CLEANSING)
+						.conditions("{\"method\":\"GENTLE\"}")
+						.decision(DecisionType.POSSIBLE)
+						.guidance("손으로 부드럽게 세안하는 정도는 가능합니다.")
+						.version(VERSION)
+						.build(),
+				// [추론, 확인 필요] 문지르는 세안(클렌징 브러시 등)은 강도 조절 권고로 임시 설정.
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(null)
+						.action(ActionType.CLEANSING)
+						.conditions("{\"method\":\"FRICTION\"}")
+						.decision(DecisionType.ADJUST)
+						.guidance("클렌징 브러시 등 문지르는 세안 도구 사용은 자제하고 손으로 부드럽게 세안하세요.")
+						.version(VERSION)
+						.build(),
+				// [문서 근거] 각질 제거(스크럽) 성격이라 SKINCARE.SCRUB과 동일하게 "최소 1주일 피하도록" 적용
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(7)
+						.action(ActionType.CLEANSING)
+						.conditions("{\"method\":\"EXFOLIATING\"}")
+						.decision(DecisionType.POSTPONE)
+						.guidance("각질 제거(스크럽) 세안은 최소 1주일 피해주세요.")
+						.version(VERSION)
+						.build(),
 
-				// 스킨케어: 보습/재생 크림 + 자외선 차단은 항상 권장, 스크럽 제품만 1주일 제외
+				// ===== 스킨케어 (SKINCARE) =====
+				// [문서 근거] 기본값(product_type 조건 없음) — "수분 크림과 재생 크림을 충분히"
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(0).dayEnd(null)
 						.action(ActionType.SKINCARE)
@@ -83,16 +143,64 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("수분 크림과 재생 크림을 충분히 사용하고, 외출 시 SPF 30 이상 자외선 차단제를 꼼꼼히 발라주세요.")
 						.version(VERSION)
 						.build(),
+				// [문서 근거] "보습·재생: ... 충분히 사용하도록"
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(0).dayEnd(null)
+						.action(ActionType.SKINCARE)
+						.conditions("{\"product_type\":\"MOISTURIZING\"}")
+						.decision(DecisionType.POSSIBLE)
+						.guidance("수분 크림과 재생 크림은 충분히 사용해주세요.")
+						.version(VERSION)
+						.build(),
+				// [문서 근거] "외출 시 SPF 30 이상의 자외선 차단제를 꼼꼼히"
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(0).dayEnd(null)
+						.action(ActionType.SKINCARE)
+						.conditions("{\"product_type\":\"SUNSCREEN\"}")
+						.decision(DecisionType.POSSIBLE)
+						.guidance("외출 시 SPF 30 이상 자외선 차단제를 꼼꼼히 발라주세요.")
+						.version(VERSION)
+						.build(),
+				// [문서 근거] 필드명 productType → product_type 정정, 값은 기존 유지("스크럽 제품... 최소 1주일")
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.SKINCARE)
-						.conditions("{\"productType\":\"SCRUB\"}")
+						.conditions("{\"product_type\":\"SCRUB\"}")
 						.decision(DecisionType.POSTPONE)
 						.guidance("스크럽 제품 사용은 최소 1주일 피해주세요.")
 						.version(VERSION)
 						.build(),
+				// [추론, 확인 필요] AHA/BHA 화학적 각질제거도 스크럽과 같은 각질제거 계열로 보고 동일 규칙 적용.
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(7)
+						.action(ActionType.SKINCARE)
+						.conditions("{\"product_type\":\"AHA_BHA\"}")
+						.decision(DecisionType.POSTPONE)
+						.guidance("AHA/BHA 등 각질 제거 성분은 최소 1주일 피해주세요.")
+						.version(VERSION)
+						.build(),
+				// [추론, 확인 필요] 레티노이드는 자극이 강한 활성 성분이라 스크럽과 동일하게 1주일 보류로 임시 설정.
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(7)
+						.action(ActionType.SKINCARE)
+						.conditions("{\"product_type\":\"RETINOID\"}")
+						.decision(DecisionType.POSTPONE)
+						.guidance("레티노이드 성분은 자극이 있을 수 있어 최소 1주일 피해주세요.")
+						.version(VERSION)
+						.build(),
+				// [추론, 확인 필요] 기타 활성 성분은 구체적 성분을 알 수 없어 보수적으로 ADJUST(주의 사용)로 임시 설정.
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(0).dayEnd(7)
+						.action(ActionType.SKINCARE)
+						.conditions("{\"product_type\":\"OTHER_ACTIVE\"}")
+						.decision(DecisionType.ADJUST)
+						.guidance("활성 성분이 포함된 제품은 소량만 시험 사용하고, 자극이 느껴지면 바로 중단하세요.")
+						.version(VERSION)
+						.build(),
 
-				// 열 자극(사우나/찜질방): DAY1~7 금지, DAY8부터 가능
+				// ===== 열 자극 (HEAT) =====
+				// [문서 근거] "사우나, 찜질방 등 열을 발생시키는 활동... 최소 1주일 피하도록"
+				// — 사우나(SAUNA_STEAM)/찜질방·반신욕(HOT_BATH_SHOWER) 구분 없이 동일 규칙이라 조건 없이 적용.
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.HEAT)
@@ -100,39 +208,42 @@ public class ProtocolSeeder implements ApplicationRunner {
 						.guidance("사우나, 찜질방 등 열을 발생시키는 활동은 최소 1주일 피해주세요.")
 						.version(VERSION)
 						.build(),
-				Protocol.builder()
-						.procedure(REJURAN).dayStart(8).dayEnd(null)
-						.action(ActionType.HEAT)
-						.decision(DecisionType.POSSIBLE)
-						.guidance("이제 사우나, 찜질방 등 열 자극 활동을 다시 시작하셔도 됩니다.")
-						.version(VERSION)
-						.build(),
+				// DAY8 이후는 팀 협의 결과 TBD(=결론 없음) → 규칙을 두지 않아 NO_PROTOCOL로 응답한다.
+				// (이전 seed엔 무조건 POSSIBLE로 있었으나, FE·BE 공통 연동 기준 문서에서 TBD로 확인되어 제거)
 
-				// 운동: 강도(High/Light)로 갈리고, DAY8 이후엔 제한 없음
+				// ===== 운동 (EXERCISE) =====
+				// [문서 근거] 이평강님이 Figma에서 확인: 고강도 = 오늘 미루기(POSTPONE)
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.EXERCISE)
-						.conditions("{\"intensity\":\"HIGH\"}")
-						.decision(DecisionType.ADJUST)
-						.guidance("격한 운동과 과도한 열 자극을 피하고 가벼운 강도로 진행하세요.")
+						.conditions("{\"intensity\":\"INTENSE_ACTIVITY\"}")
+						.decision(DecisionType.POSTPONE)
+						.guidance("고강도 운동은 최소 1주일 피해주세요.")
 						.nextAction("{\"type\":\"VIEW_ALTERNATIVE\",\"label\":\"저강도 대안 보기\"}")
 						.version(VERSION)
 						.build(),
+				// [추론, 확인 필요] LIGHT_ACTIVITY와 INTENSE_ACTIVITY 사이 중간 단계. 땀이 나는 정도라
+				// 강도 조절(ADJUST)로 임시 설정 — 기존 LIGHT 안내문의 "땀이 많이 나면 바로 씻어달라"는
+				// 문구를 그대로 가져왔다.
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
 						.action(ActionType.EXERCISE)
-						.conditions("{\"intensity\":\"LIGHT\"}")
+						.conditions("{\"intensity\":\"SWEAT_ACTIVITY\"}")
+						.decision(DecisionType.ADJUST)
+						.guidance("땀이 나는 정도의 운동은 강도를 조절하고, 땀이 많이 나면 시술 부위를 바로 씻어주세요.")
+						.version(VERSION)
+						.build(),
+				// [문서 근거] 기존 LIGHT 안내 유지, 값만 LIGHT → LIGHT_ACTIVITY로 정정
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(1).dayEnd(7)
+						.action(ActionType.EXERCISE)
+						.conditions("{\"intensity\":\"LIGHT_ACTIVITY\"}")
 						.decision(DecisionType.POSSIBLE)
 						.guidance("가벼운 강도의 운동은 가능합니다. 땀이 많이 나면 시술 부위를 바로 씻어주세요.")
 						.version(VERSION)
-						.build(),
-				Protocol.builder()
-						.procedure(REJURAN).dayStart(8).dayEnd(null)
-						.action(ActionType.EXERCISE)
-						.decision(DecisionType.POSSIBLE)
-						.guidance("이제 운동 강도 제한 없이 진행하셔도 됩니다.")
-						.version(VERSION)
 						.build()
+				// DAY8 이후는 HEAT와 동일하게 TBD → 규칙 없음(NO_PROTOCOL).
+				// (이전 seed엔 무조건 POSSIBLE로 있었으나 제거)
 		);
 	}
 }

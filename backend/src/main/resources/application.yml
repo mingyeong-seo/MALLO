@@ -1,3 +1,10 @@
+server:
+  # nginx가 443(HTTPS)을 받아서 앱한테는 내부적으로 http://127.0.0.1:8080으로 전달하는데,
+  # 이 설정이 없으면 Spring이 X-Forwarded-Proto 헤더를 무시해서 요청 scheme을 항상 http로 인식한다.
+  # 그러면 springdoc이 Swagger 서버 URL을 http://...로 잘못 생성해서, HTTPS로 접속한 페이지에서
+  # http로 fetch를 시도하다가 브라우저 mixed-content 차단으로 "Failed to fetch"가 남 (실제 겪은 문제).
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: backend
@@ -16,8 +23,30 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+  servlet:
+    multipart:
+      # 사진은 한 장씩만 업로드받는다 (여러 장은 프론트가 여러 번 호출해서 photoRecordId를 모음)
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 cors:
   # 콤마로 구분해서 여러 개 등록 가능. Expo 개발 서버 기본 포트 위주로 넣어뒀으니
   # 각자 웹/시뮬레이터 접속 주소가 다르면 .env 에 CORS_ALLOWED_ORIGINS 로 덮어쓰세요.
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081,http://localhost:19006}
+
+photo:
+  storage:
+    # 사진 원본을 로컬 디스크에 저장하는 임시(야매) 방식. 서버 배포(CI/CD) 붙으면
+    # PHOTO_STORAGE_DIR을 리눅스 서버의 실제 경로로 덮어써야 한다. 지금은 프로젝트 루트 기준 상대경로.
+    dir: ${PHOTO_STORAGE_DIR:./uploads/photos}
+    # 위 dir을 정적 리소스로 서빙할 URL prefix (PhotoStorageConfig 참고)
+    url-prefix: ${PHOTO_STORAGE_URL_PREFIX:/uploads/photos}
+
+fcm:
+  # Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > "새 비공개 키 생성"으로 받은 JSON. 둘 중 하나만 채우면 됨.
+  # - credentials-json: JSON 내용을 통째로 환경변수에 붙여넣기 (파일 필요 없음, 배포 플랫폼에 편함)
+  # - credentials-path: JSON 파일을 로컬 어딘가에 두고 그 경로만 지정
+  # 둘 다 안 채우면 FCM 없이 그냥 기동하고 실제 푸시는 발송되지 않는다
+  # (FirebaseConfig가 경고 로그만 남기고 넘어감 — 다른 기능 개발하는 팀원이 FCM 키 없다고 앱을 못 띄우면 안 되니까).
+  credentials-json: ${FCM_CREDENTIALS_JSON:}
+  credentials-path: ${FCM_CREDENTIALS_PATH:}

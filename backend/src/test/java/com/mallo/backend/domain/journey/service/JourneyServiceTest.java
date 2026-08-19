@@ -1,12 +1,14 @@
 package com.mallo.backend.domain.journey.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -20,8 +22,11 @@ import com.mallo.backend.domain.journey.entity.ActionType;
 import com.mallo.backend.domain.journey.entity.DecisionType;
 import com.mallo.backend.domain.journey.entity.Journey;
 import com.mallo.backend.domain.journey.entity.Protocol;
+import com.mallo.backend.domain.journey.entity.QuickCheckStatus;
+import com.mallo.backend.domain.journey.exception.JourneyErrorCode;
 import com.mallo.backend.domain.journey.repository.JourneyRepository;
 import com.mallo.backend.domain.journey.repository.ProtocolRepository;
+import com.mallo.backend.global.exception.CustomException;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -64,6 +69,9 @@ class JourneyServiceTest {
 		assertThat(result.getDecision()).isNull();
 		assertThat(result.getProtocolRef()).isNull();
 		assertThat(result.getContext()).contains("HIGH");
+		assertThat(result.getGuidance()).isNull();
+		assertThat(result.getNextAction()).isNull();
+		assertThat(result.getStatus()).isEqualTo(QuickCheckStatus.NO_PROTOCOL);
 	}
 
 	@Test
@@ -88,6 +96,8 @@ class JourneyServiceTest {
 
 		assertThat(result.getDecision()).isEqualTo(DecisionType.POSSIBLE);
 		assertThat(result.getProtocolRef()).isEqualTo(generic.getId().toString());
+		assertThat(result.getGuidance()).isEqualTo("가볍게 진행하세요");
+		assertThat(result.getStatus()).isEqualTo(QuickCheckStatus.MATCHED);
 	}
 
 	@Test
@@ -164,5 +174,59 @@ class JourneyServiceTest {
 
 		assertThat(result).containsExactly(journey);
 		verify(journeyRepository).findBySessionIdAndElapsedDayOrderByCreatedAtDesc(sessionId, 2);
+	}
+
+	@Test
+	void getCheck은_같은_세션의_check_id면_그대로_반환한다() {
+		UUID sessionId = UUID.randomUUID();
+		UUID checkId = UUID.randomUUID();
+		Journey journey = withRandomId(Journey.builder()
+				.sessionId(sessionId)
+				.elapsedDay(2)
+				.action(ActionType.EXERCISE)
+				.context("{}")
+				.build());
+		when(journeyRepository.findById(checkId)).thenReturn(Optional.of(journey));
+
+		Journey result = journeyService.getCheck(sessionId, checkId);
+
+		assertThat(result).isEqualTo(journey);
+	}
+
+	@Test
+	void getCheck은_존재하지_않는_check_id면_CHECK_NOT_FOUND를_던진다() {
+		UUID sessionId = UUID.randomUUID();
+		UUID checkId = UUID.randomUUID();
+		when(journeyRepository.findById(checkId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> journeyService.getCheck(sessionId, checkId))
+				.isInstanceOf(CustomException.class)
+				.extracting(e -> ((CustomException) e).getErrorCode())
+				.isEqualTo(JourneyErrorCode.CHECK_NOT_FOUND);
+	}
+
+	@Test
+	void getCheck은_다른_세션의_check_id면_CHECK_NOT_FOUND를_던진다() {
+		UUID ownerSessionId = UUID.randomUUID();
+		UUID checkId = UUID.randomUUID();
+		Journey journey = withRandomId(Journey.builder()
+				.sessionId(ownerSessionId)
+				.elapsedDay(2)
+				.action(ActionType.EXERCISE)
+				.context("{}")
+				.build());
+		when(journeyRepository.findById(checkId)).thenReturn(Optional.of(journey));
+
+		UUID otherSessionId = UUID.randomUUID();
+		assertThatThrownBy(() -> journeyService.getCheck(otherSessionId, checkId))
+				.isInstanceOf(CustomException.class)
+				.extracting(e -> ((CustomException) e).getErrorCode())
+				.isEqualTo(JourneyErrorCode.CHECK_NOT_FOUND);
+	}
+
+	// Journey는 @GeneratedValue(id)라 build() 직후엔 id가 null이라, 실제 저장된 것처럼 테스트용 id를 채워준다.
+	private Journey withRandomId(Journey journey) {
+		ReflectionTestUtils.setField(journey, "id", UUID.randomUUID());
+		return journey;
 	}
 }

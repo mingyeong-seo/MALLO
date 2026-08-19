@@ -1,0 +1,27 @@
+#
+# systemd 유닛 템플릿. EC2 최초 셋업 시 1회만 아래 위치에 복사해서 등록.
+#   sudo cp mallo-backend.service /etc/systemd/system/mallo-backend.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable mallo-backend
+#
+# 자세한 순서는 docs/EC2_DEPLOY_SETUP.md 참고.
+#
+[Unit]
+Description=MALLO Backend (Spring Boot)
+After=network.target
+
+[Service]
+Type=simple
+# ec2-user는 예시 — 실제 EC2에 만든 배포용 계정 이름으로 바꿔서 쓸 것
+User=ec2-user
+WorkingDirectory=/home/ec2-user/mallo
+# DB_HOST/DB_PORT/.../PHOTO_STORAGE_DIR 등 운영 환경변수는 여기 파일에 저장 (git에 안 올라감)
+EnvironmentFile=/home/ec2-user/mallo/.env
+ExecStart=/usr/bin/java -jar /home/ec2-user/mallo/app.jar
+# Spring Boot는 SIGTERM으로 정상 종료 시 exit code 143을 반환하는 게 정상이라 실패로 안 보게 처리
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

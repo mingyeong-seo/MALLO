@@ -12,8 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.mallo.backend.domain.journey.entity.ActionType;
 import com.mallo.backend.domain.journey.entity.Journey;
 import com.mallo.backend.domain.journey.entity.Protocol;
+import com.mallo.backend.domain.journey.exception.JourneyErrorCode;
 import com.mallo.backend.domain.journey.repository.JourneyRepository;
 import com.mallo.backend.domain.journey.repository.ProtocolRepository;
+import com.mallo.backend.global.exception.CustomException;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.type.TypeReference;
@@ -46,9 +48,24 @@ public class JourneyService {
 				.context(writeJson(context))
 				.decision(matched != null ? matched.getDecision() : null)
 				.protocolRef(matched != null ? matched.getId().toString() : null)
+				.guidance(matched != null ? matched.getGuidance() : null)
+				.nextAction(matched != null ? matched.getNextAction() : null)
 				.build();
 
 		return journeyRepository.save(journey);
+	}
+
+	/**
+	 * GET /v1/checks/{checkId} — 저장된 Quick Check 결과 단건 조회.
+	 * 다른 세션의 check_id를 조회하려는 시도는 존재 여부를 흘리지 않도록 NOT_FOUND로 동일하게 처리한다.
+	 */
+	public Journey getCheck(UUID sessionId, UUID checkId) {
+		Journey journey = journeyRepository.findById(checkId)
+				.orElseThrow(() -> new CustomException(JourneyErrorCode.CHECK_NOT_FOUND));
+		if (!journey.getSessionId().equals(sessionId)) {
+			throw new CustomException(JourneyErrorCode.CHECK_NOT_FOUND);
+		}
+		return journey;
 	}
 
 	/**
