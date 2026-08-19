@@ -4,7 +4,7 @@ import inspect
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Annotated, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Annotated, Protocol, cast, runtime_checkable
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, Request
@@ -22,6 +22,9 @@ from mallo_ai.logging import log_handled_5xx
 from mallo_ai.provider_contracts import RequestId, StrictModel, TriageInput
 from mallo_ai.service import TriageProvider, TriageService
 from mallo_ai.settings import Settings
+
+if TYPE_CHECKING:
+    from pydantic_core import ErrorDetails
 
 __all__ = ("ErrorBody", "create_app")
 
@@ -128,6 +131,12 @@ def create_app(settings: Settings, provider: TriageProvider) -> FastAPI:
     async def _request_validation_handler(
         _request: Request, _exc: RequestValidationError
     ) -> JSONResponse:
+        if _is_unsupported_contract_version_error(_exc):
+            return _error_response(
+                status_code=409,
+                code="CONTRACT_VERSION_UNSUPPORTED",
+                message="unsupported contract version",
+            )
         return _error_response(
             status_code=422,
             code="INVALID_REQUEST",
@@ -167,6 +176,19 @@ def _provider_failure_body(
     if isinstance(exc, ModelResponseInvalidError):
         return 502, "MODEL_RESPONSE_INVALID", "model provider returned invalid response"
     return 503, "MODEL_UNAVAILABLE", "model provider unavailable"
+
+
+def _is_unsupported_contract_version_error(exc: RequestValidationError) -> bool:
+    errors = cast("list[ErrorDetails]", exc.errors())
+    return (
+        len(errors) == 1
+        and errors[0]["loc"]
+        == (
+            "body",
+            "contract_version",
+        )
+        and errors[0]["type"] == "literal_error"
+    )
 
 
 def _error_response(*, status_code: int, code: str, message: str) -> JSONResponse:

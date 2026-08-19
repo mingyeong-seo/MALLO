@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from uuid import UUID
 
 import pytest
@@ -19,10 +18,15 @@ from mallo_ai.vocabulary import (
 pytestmark = pytest.mark.live
 
 
-@dataclass(slots=True)
 class CountingProvider:
+    __slots__: tuple[str, str] = ("calls", "provider")
+
     provider: TriageProvider
-    calls: int = 0
+    calls: int
+
+    def __init__(self, provider: TriageProvider) -> None:
+        self.provider = provider
+        self.calls = 0
 
     async def decide(self, triage_input: TriageInput, /) -> ProviderDecision:
         self.calls += 1

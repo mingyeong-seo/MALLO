@@ -20,6 +20,11 @@ def _auth_headers(request_id: UUID = TEST_REQUEST_ID) -> dict[str, str]:
     return {"Authorization": f"Bearer {TEST_SECRET}", "X-Request-Id": str(request_id)}
 
 
+def _assert_error(res: httpx2.Response, status: int, code: str, msg: str) -> None:
+    assert res.status_code == status
+    assert res.json() == {"code": code, "message": msg}
+
+
 def test_settings_reject_missing_openrouter_api_key() -> None:
     with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
         _ = Settings(
@@ -36,34 +41,24 @@ def test_settings_reject_missing_shared_secret() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"X-Request-Id": str(TEST_REQUEST_ID)},
+        {"Authorization": "Bearer wrong", "X-Request-Id": str(TEST_REQUEST_ID)},
+    ],
+)
 @pytest.mark.anyio
-async def test_missing_bearer_token_is_rejected(app_client: httpx2.AsyncClient) -> None:
+async def test_invalid_bearer_token_is_rejected(
+    app_client: httpx2.AsyncClient, headers: dict[str, str]
+) -> None:
     response = await app_client.post(
         "/internal/v1/triage",
-        headers={"X-Request-Id": str(TEST_REQUEST_ID)},
+        headers=headers,
         json=VALID_REQUEST,
     )
 
-    assert response.status_code == 401
-    assert response.json() == {
-        "code": "UNAUTHORIZED",
-        "message": "invalid service credential",
-    }
-
-
-@pytest.mark.anyio
-async def test_invalid_bearer_token_is_rejected(app_client: httpx2.AsyncClient) -> None:
-    response = await app_client.post(
-        "/internal/v1/triage",
-        headers={"Authorization": "Bearer wrong", "X-Request-Id": str(TEST_REQUEST_ID)},
-        json=VALID_REQUEST,
-    )
-
-    assert response.status_code == 401
-    assert response.json() == {
-        "code": "UNAUTHORIZED",
-        "message": "invalid service credential",
-    }
+    _assert_error(response, 401, "UNAUTHORIZED", "invalid service credential")
 
 
 @pytest.mark.anyio
@@ -89,34 +84,24 @@ async def test_valid_action_result_round_trips_request_id(
     }
 
 
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Authorization": f"Bearer {TEST_SECRET}"},
+        {"Authorization": f"Bearer {TEST_SECRET}", "X-Request-Id": "not-uuid"},
+    ],
+)
 @pytest.mark.anyio
-async def test_missing_request_id_is_rejected(app_client: httpx2.AsyncClient) -> None:
+async def test_invalid_request_id_is_rejected(
+    app_client: httpx2.AsyncClient, headers: dict[str, str]
+) -> None:
     response = await app_client.post(
         "/internal/v1/triage",
-        headers={"Authorization": f"Bearer {TEST_SECRET}"},
+        headers=headers,
         json=VALID_REQUEST,
     )
 
-    assert response.status_code == 400
-    assert response.json() == {
-        "code": "INVALID_REQUEST_ID",
-        "message": "valid X-Request-Id required",
-    }
-
-
-@pytest.mark.anyio
-async def test_malformed_request_id_is_rejected(app_client: httpx2.AsyncClient) -> None:
-    response = await app_client.post(
-        "/internal/v1/triage",
-        headers={"Authorization": f"Bearer {TEST_SECRET}", "X-Request-Id": "not-uuid"},
-        json=VALID_REQUEST,
-    )
-
-    assert response.status_code == 400
-    assert response.json() == {
-        "code": "INVALID_REQUEST_ID",
-        "message": "valid X-Request-Id required",
-    }
+    _assert_error(response, 400, "INVALID_REQUEST_ID", "valid X-Request-Id required")
 
 
 @pytest.mark.anyio
@@ -129,11 +114,46 @@ async def test_unknown_request_field_is_rejected(
         json={**VALID_REQUEST, "unexpected": True},
     )
 
-    assert response.status_code == 422
-    assert response.json() == {
-        "code": "INVALID_REQUEST",
-        "message": "invalid request",
-    }
+    _assert_error(response, 422, "INVALID_REQUEST", "invalid request")
+
+
+@pytest.mark.parametrize(
+    ("request_body", "status_code", "code", "message"),
+    [
+        (
+            {**VALID_REQUEST, "contract_version": "2.0"},
+            409,
+            "CONTRACT_VERSION_UNSUPPORTED",
+            "unsupported contract version",
+        ),
+        (
+            {
+                "question": VALID_REQUEST["question"],
+                "procedure": VALID_REQUEST["procedure"],
+                "elapsed_day": VALID_REQUEST["elapsed_day"],
+            },
+            422,
+            "INVALID_REQUEST",
+            "invalid request",
+        ),
+    ],
+    ids=["unsupported", "missing"],
+)
+@pytest.mark.anyio
+async def test_contract_version_validation_returns_stable_error(
+    app_client: httpx2.AsyncClient,
+    request_body: dict[str, str | int],
+    status_code: int,
+    code: str,
+    message: str,
+) -> None:
+    response = await app_client.post(
+        "/internal/v1/triage",
+        headers=_auth_headers(),
+        json=request_body,
+    )
+
+    _assert_error(response, status_code, code, message)
 
 
 @pytest.mark.anyio
@@ -175,11 +195,7 @@ async def test_provider_timeout_maps_to_stable_503(
             json=VALID_REQUEST,
         )
 
-    assert response.status_code == 503
-    assert response.json() == {
-        "code": "MODEL_UNAVAILABLE",
-        "message": "model provider unavailable",
-    }
+    _assert_error(response, 503, "MODEL_UNAVAILABLE", "model provider unavailable")
     records = [
         record
         for record in caplog.records
@@ -208,11 +224,7 @@ async def test_provider_budget_maps_to_stable_503(settings: Settings) -> None:
             json=VALID_REQUEST,
         )
 
-    assert response.status_code == 503
-    assert response.json() == {
-        "code": "MODEL_BUDGET_EXHAUSTED",
-        "message": "model budget exhausted",
-    }
+    _assert_error(response, 503, "MODEL_BUDGET_EXHAUSTED", "model budget exhausted")
 
 
 @pytest.mark.anyio
@@ -231,11 +243,12 @@ async def test_invalid_provider_response_maps_to_stable_502(
             json=VALID_REQUEST,
         )
 
-    assert response.status_code == 502
-    assert response.json() == {
-        "code": "MODEL_RESPONSE_INVALID",
-        "message": "model provider returned invalid response",
-    }
+    _assert_error(
+        response,
+        502,
+        "MODEL_RESPONSE_INVALID",
+        "model provider returned invalid response",
+    )
     records = [
         record
         for record in caplog.records
