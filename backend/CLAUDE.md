@@ -6,6 +6,7 @@
 
 ## Record / Photo (담당: 이평강)
 
+- 2026-08-19: 응답 식별자 필드명을 `{도메인}_id` 관례에 맞춤 — FE·BE 공통 기준 문서 대조하다가 다른 도메인(session_id, check_id)과 다르게 Record/Photo만 자기 PK를 범용 `id`로 응답하고 있던 걸 발견. `RecoveryRecordResponse.id`→`recordId`(JSON `record_id`), `PhotoRecordResponse.id`→`photoId`(JSON `photo_id`)로 변경. (참고: `NotificationResponse.id`는 아직 미반영 — Notification 섹션 참고)
 - 2026-08-19: `POST`/`PATCH /records`의 행동 필드를 리스트로 변경 — `action`(String 1개)+`performedStatus` 단일 구조를 `actions: List<{action, performedStatus}>`(최소 1개)로 바꿔서 저장 버튼 한 번에 여러 행동(image 75/76 기준 카테고리 5개/세부 행동 최대 12개)을 저장 가능하게 함. 엔티티는 `RecordAction`(`@Embeddable`) 신설 + `RecoveryRecord`가 `@ElementCollection`으로 순서대로 보관(`record_action` 테이블). `PATCH`는 `actions`를 안 보내면 기존 유지, 보내면(최소 1개) 전체 교체 — `photoRecordIds`와 동일 정책. 저널 조회 `@EntityGraph`에 `actions`도 추가해서 N+1 재발 방지. `action` 필드 자체는 여전히 자유 문자열(enum 미확정) — Journey `ActionType`(PR #14)과의 값 매핑은 별도 확인 필요(CLAUDE.md TODO 참고). 테스트 38개
 - 2026-08-19: `GET /v1/sessions/{sessionId}/records/today` 추가 — 오늘 기록이 있으면 그 record_id 포함해서 반환, 없으면 data:null. 프론트가 전체 목록 필터링 안 해도 되게. 실제 MySQL로 확인. 테스트 42개
 - 2026-08-19: 당일 작성한 기록만 수정 가능 정책 구현 — `PATCH /records/{id}`에서 `createdAt` 날짜가 오늘이 아니면 403(`RECORD_NOT_EDITABLE`). 조회는 과거 DAY도 그대로 가능. 실제 MySQL로 (오늘 수정 성공 / DB에서 생성일 어제로 바꿔서 수정 거부 / 조회는 정상) 확인. 테스트 36개
@@ -19,6 +20,8 @@
 
 ## Notification (담당: 이평강)
 
+- 2026-08-19: `DAILY_ACTION_REMINDER`/`HANDOFF_REPLY` 트리거 실제 구현 완료 — 둘 다 막고 있던 의존 도메인(SessionInfo, Handoff/ChatMessage)이 오늘 `dev`에 머지되면서 풀림. `DAILY_ACTION_REMINDER`는 `DailyActionReminderScheduler`(`@Scheduled(cron = "0 0 9 * * *")`)가 매일 09:00에 `SessionInfoRepository.findByStatus(ACTIVE)`로 대상 뽑아서 세션마다 발송 — elapsed_day가 저장값이 아니라 매번 계산되는 값이라 "바뀐 세션 감지" 대신 하루 1회 전체 발송 방식으로 설계. `HANDOFF_REPLY`는 `ChatMessageService.sendMessage()`가 STAFF 메시지 저장할 때 `handoff.getSessionId()`(=발신자가 아니라 상담방 소유자인 환자) 기준으로 발송. 겸사겸사 `NotificationService.dispatch()`의 `Map.of()` NPE 버그 발견·수정(referenceId 없는 알림 타입 추가하면서 드러남, `HashMap`으로 교체). 실제 배포 서버(`https://mallo-api.site`)에서 HANDOFF_REPLY end-to-end 재현 확인. 테스트 9개 추가(Notification 도메인 26개, 전체 93개)
+- 2026-08-19: `backend-noti`를 최신 `dev`(SessionInfo/Record/Journey stray/medical 전부 반영) 기준으로 업데이트 — SecurityConfig 전역 적용으로 `NotificationControllerTest`가 인증 컨텍스트 로드 실패하던 것, snake_case 전역 적용으로 `fcmToken`/`hasFcmToken` 등 필드명 실제로는 `fcm_token`/`has_fcm_token`인 것 반영해서 테스트 수정
 - 2026-08-19: `PHOTO_ANALYSIS_READY` 트리거 완전히 제거 — Record 저장 로직에 사진 분석 알림을 끼워 넣는 게 억지스러웠고(저장은 사진과 무관한 범용 액션), 지금은 사진 분석이 동기·Mock이라 유저가 이미 화면에서 결과를 본 상태라 알림 자체가 무의미했음. `RecoveryRecordService`에서 `NotificationService` 의존성 제거. `NotificationService.createPhotoAnalysisReady()` 메서드/테스트는 나중에 실제 비동기 AI 분석 붙을 때 다시 연결할 수 있게 코드는 남겨둠(지금은 아무도 호출 안 함). 지금 당장은 알림 트리거 전부 보류 — `DAILY_ACTION_REMINDER`(DAY 전환)는 세션 도메인 조회 연동 필요, `HANDOFF_REPLY`는 AI 챗 도메인 붙을 때 진행 예정
 - 2026-08-18: 서비스/컨트롤러 구현 — 인박스 조회, 읽음 처리, 알림 설정 조회/수정
 - 2026-08-18: API 4개 — `GET /v1/sessions/{sessionId}/notifications`, `PATCH /v1/sessions/{sessionId}/notifications/{notificationId}/read`, `GET /v1/sessions/{sessionId}/notification-preference`, `PATCH /v1/sessions/{sessionId}/notification-preference`
