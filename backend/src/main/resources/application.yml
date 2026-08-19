@@ -1,3 +1,10 @@
+server:
+  # nginx가 443(HTTPS)을 받아서 앱한테는 내부적으로 http://127.0.0.1:8080으로 전달하는데,
+  # 이 설정이 없으면 Spring이 X-Forwarded-Proto 헤더를 무시해서 요청 scheme을 항상 http로 인식한다.
+  # 그러면 springdoc이 Swagger 서버 URL을 http://...로 잘못 생성해서, HTTPS로 접속한 페이지에서
+  # http로 fetch를 시도하다가 브라우저 mixed-content 차단으로 "Failed to fetch"가 남 (실제 겪은 문제).
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: backend
