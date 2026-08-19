@@ -125,7 +125,7 @@ class AskServiceTest {
 	}
 
 	@Test
-	void 매칭되는_Protocol이_있으면_ANSWERABLE로_저장하고_decision과_안내를_채운다() {
+	void 매칭되는_Protocol이_있으면_MATCHED로_저장하고_decision과_guidance를_채운다() {
 		Protocol protocol = withRandomId(Protocol.builder()
 				.procedure("REJURAN")
 				.dayStart(1)
@@ -143,9 +143,10 @@ class AskServiceTest {
 
 		AskResponse response = askService.ask(sessionId, session, request);
 
-		assertThat(response.status()).isEqualTo(InteractionStatus.ANSWERABLE);
+		assertThat(response.status()).isEqualTo(InteractionStatus.MATCHED);
 		assertThat(response.decision()).isEqualTo(DecisionType.POSTPONE);
-		assertThat(response.message()).isEqualTo("고강도 운동은 피해주세요");
+		assertThat(response.guidance()).isEqualTo("고강도 운동은 피해주세요");
+		assertThat(response.message()).isNull();
 		assertThat(response.protocolRef()).isEqualTo(protocol.getId().toString());
 		assertThat(response.nextAction()).isEqualTo("{\"type\":\"VIEW_ALTERNATIVE\",\"label\":\"저강도 대안 보기\"}");
 	}

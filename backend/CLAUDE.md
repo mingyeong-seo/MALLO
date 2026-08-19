@@ -38,7 +38,8 @@
 
 ## Interaction / ASK MALLO (담당: jiung)
 
-- 2026-08-19: `POST /v1/ask` 테스트 작성 — 서비스 9개(6가지 status 분기, MAKEUP의 UNKNOWN friction 처리, Protocol 매칭/우선순위, photoRecordIds 통과), 컨트롤러 5개(401/400, CONNECT/ANSWERABLE 응답, photoRecordIds 응답 포함). 전체 133개 테스트 통과 확인
+- 2026-08-19: FE/BE 공통 연동 기준 FINAL 대조 후 `POST /v1/ask` 응답을 Quick Check(S08)와 맞춤 — `InteractionStatus.ANSWERABLE` → `MATCHED`로 개명(Quick Check의 `QuickCheckStatus.MATCHED`와 동일 이름), `AskResponse`에 `guidance` 필드 신설(매칭된 Protocol 안내 문구는 `guidance`로, 그 외 상태의 안내 문구는 기존 `message`로 분리). `AskController`/`AskRequest`/`AskResponse`에 Swagger 문서화(`@Tag`/`@Operation`/`@ApiResponses`/`@Schema`) 추가 — 기존엔 전혀 없었음. Record 도메인 `RecordAction`이 아직 `action`(자유 문자열)이고 `check_id` 참조 구조(FINAL 5번)로 안 바뀐 것 확인함 — 우리 도메인 밖이라 안 건드림, 담당자 공유 필요
+- 2026-08-19: `POST /v1/ask` 테스트 작성 — 서비스 9개(6가지 status 분기, MAKEUP의 UNKNOWN friction 처리, Protocol 매칭/우선순위, photoRecordIds 통과), 컨트롤러 5개(401/400, CONNECT/MATCHED 응답, photoRecordIds 응답 포함). 전체 133개 테스트 통과 확인
 
 ## Handoff / Chat (담당: )
 

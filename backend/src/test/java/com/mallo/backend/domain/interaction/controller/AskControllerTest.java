@@ -102,7 +102,7 @@ class AskControllerTest {
 	}
 
 	@Test
-	void 매칭되는_Protocol이_있으면_ANSWERABLE_상태와_decision_next_action을_반환한다() throws Exception {
+	void 매칭되는_Protocol이_있으면_MATCHED_상태와_decision_next_action을_반환한다() throws Exception {
 		UUID sessionId = persistSession();
 		when(sessionQueryPort.getSession(sessionId)).thenReturn(new SessionSnapshot("REJURAN", 2));
 		Protocol protocol = protocolRepository.save(Protocol.builder()
@@ -123,11 +123,12 @@ class AskControllerTest {
 								{"question":"사우나 가도 되나요?"}
 								"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.status").value("ANSWERABLE"))
+				.andExpect(jsonPath("$.data.status").value("MATCHED"))
 				.andExpect(jsonPath("$.data.decision").value("POSTPONE"))
 				.andExpect(jsonPath("$.data.protocol_ref").value(protocol.getId().toString()))
 				.andExpect(jsonPath("$.data.next_action.type").value("VIEW_ALTERNATIVE"))
-				.andExpect(jsonPath("$.data.message").value("사우나, 찜질방 등 열을 발생시키는 활동은 최소 1주일 피해주세요."));
+				.andExpect(jsonPath("$.data.guidance").value("사우나, 찜질방 등 열을 발생시키는 활동은 최소 1주일 피해주세요."))
+				.andExpect(jsonPath("$.data.message").doesNotExist());
 	}
 
 	@Test

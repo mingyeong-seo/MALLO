@@ -25,7 +25,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * ASK MALLO 질문을 6가지 상태(ANSWERABLE/CLARIFY/CONNECT/NO_PROTOCOL/GENERAL/UNSUPPORTED)로 분류한
+ * ASK MALLO 질문을 6가지 상태(MATCHED/CLARIFY/CONNECT/NO_PROTOCOL/GENERAL/UNSUPPORTED)로 분류한
  * 실제 AI 분류/생성 대신 키워드 기반 규칙으로 판단하는 MVP 버전. Protocol 매칭은 journey 도메인 것을 재사용
  */
 @Service
@@ -56,7 +56,7 @@ public class AskService {
 
 		if (containsAny(question, MEDICAL_KEYWORDS)) {
 			return save(sessionId, question, InteractionStatus.CONNECT, null, null, null,
-					request.photoRecordIds(), null, "이 질문은 의료진 확인이 필요해요.", null);
+					request.photoRecordIds(), null, null, "이 질문은 의료진 확인이 필요해요.", null);
 		}
 
 		ActionType action = extractAction(question);
@@ -68,13 +68,13 @@ public class AskService {
 					? "일반적인 회복 정보 질문으로 확인했어요. (MVP 안내 문구)"
 					: "이 질문은 회복 관리 범위 밖이라 답변드리기 어려워요.";
 			return save(sessionId, question, status, null, null, null,
-					request.photoRecordIds(), null, message, null);
+					request.photoRecordIds(), null, null, message, null);
 		}
 
 		Map<String, Object> context = extractContext(action, question);
 		if (context == null) {
 			return save(sessionId, question, InteractionStatus.CLARIFY, action, null, null,
-					request.photoRecordIds(), null, clarifyMessage(action), null);
+					request.photoRecordIds(), null, null, clarifyMessage(action), null);
 		}
 
 		List<Protocol> candidates = protocolRepository.findCandidates(session.procedure(), action, session.elapsedDay());
@@ -83,21 +83,22 @@ public class AskService {
 		String contextJson = writeJson(context);
 		if (matched == null) {
 			return save(sessionId, question, InteractionStatus.NO_PROTOCOL, action, contextJson, null,
-					request.photoRecordIds(), null, "아직 확인하기 어려운 질문이에요.", null);
+					request.photoRecordIds(), null, null, "아직 확인하기 어려운 질문이에요.", null);
 		}
 
-		return save(sessionId, question, InteractionStatus.ANSWERABLE, action, contextJson,
+		// status가 MATCHED일 때는 message가 아니라 guidance로 내려서 Quick Check(S08) 응답과 같은 구조를 재사용한다.
+		return save(sessionId, question, InteractionStatus.MATCHED, action, contextJson,
 				matched.getId().toString(), request.photoRecordIds(),
-				matched.getDecision().name(), matched.getGuidance(), matched.getNextAction());
+				matched.getDecision().name(), matched.getGuidance(), null, matched.getNextAction());
 	}
 
 	private AskResponse save(UUID sessionId, String question, InteractionStatus status, ActionType action,
 			String context, String protocolRef, List<Long> photoRecordIds,
-			String decisionName, String message, String nextAction) {
+			String decisionName, String guidance, String message, String nextAction) {
 		Interaction interaction = new Interaction(sessionId, question, status, action, context, protocolRef, photoRecordIds);
 		Interaction saved = interactionRepository.save(interaction);
 		var decision = decisionName != null ? com.mallo.backend.domain.journey.entity.DecisionType.valueOf(decisionName) : null;
-		return AskResponse.of(saved, decision, message, nextAction);
+		return AskResponse.of(saved, decision, guidance, message, nextAction);
 	}
 
 	private boolean containsAny(String question, Set<String> keywords) {
