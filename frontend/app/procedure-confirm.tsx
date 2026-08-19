@@ -1,4 +1,3 @@
-import { CommonActions } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
   View,
@@ -8,18 +7,26 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRouter } from 'expo-router';
-import { MALLO_COLORS } from '@/constants/colors';
+import { useRouter } from 'expo-router';
 
-// ─── Mock Data (가이드 문서 스펙 일치) ──────────────────────────
+import { MALLO_COLORS } from '@/constants/colors';
+import {
+  MALLO_RADIUS,
+  MALLO_SPACING,
+  MALLO_TYPOGRAPHY,
+} from '@/constants/theme';
+
+// ─── Mock Data ────────────────────────────────────────────────
 
 interface ProcedureData {
-  procedure: string; // 시술 종류
-  procedure_at: string; // 시술일
-  clinic_id: string; // 시술 병원 ID
-  clinic_name: string; // 시술 병원 표기명
+  procedure: string;
+  procedure_at: string;
+  clinic_id: string;
+  clinic_name: string;
 }
 
 const MOCK_PROCEDURE: ProcedureData = {
@@ -33,91 +40,87 @@ const MOCK_PROCEDURE: ProcedureData = {
 
 export default function ProcedureConfirmScreen() {
   const router = useRouter();
-  const rootNavigation = useNavigation('/');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Recovery Session 생성 및 S04 이동 핸들러
+  // Recovery Session 생성 및 S04 이동
   const handleStart = async () => {
     try {
       setIsSubmitting(true);
 
       // TODO: 추후 백엔드 Session 생성 API 연동
-      // 1. API 호출 후 response로 { session_id, elapsed_day, status } 수신
-      // 2. await SecureStore.setItemAsync('session_id', response.session_id);
+      // 1. API 호출 후 response로
+      //    { session_id, elapsed_day, status } 수신
+      // 2. await SecureStore.setItemAsync(
+      //      'session_id',
+      //      response.session_id,
+      //    );
 
-      // 현재는 mock 성공 딜레이 후 S04로 이동
+      // 현재는 Mock 성공 딜레이 후 S04로 이동
       setTimeout(() => {
         setIsSubmitting(false);
-        rootNavigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [
-              {
-                name: '(tabs)',
-                state: {
-                  index: 0,
-                  routes: [
-                    {
-                      name: 'journey',
-                      state: {
-                        index: 0,
-                        routes: [{ name: 'home' }],
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          }),
-        );
+        router.dismissTo('/');
+        router.push('/(tabs)/journey/home');
       }, 500);
     } catch {
       setIsSubmitting(false);
+
       Alert.alert('오류', '세션 생성에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* ─── 상단 네비게이션 ────────────────────────── */}
-      <View style={styles.navigation}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          disabled={isSubmitting}
-        >
-          <Text style={styles.backText}>← 이전</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── 헤더 ──────────────────────────────────── */}
+        {/* ─── Header ───────────────────────────────── */}
         <View style={styles.header}>
           <Text style={styles.title}>시술 정보 확인</Text>
+
           <Text style={styles.subtitle}>
-            DERNA에서 확인된 최근 시술 정보입니다.{'\n'}내용을 확인해주세요.
+            DERNA에서 확인된 최근 시술 정보입니다.
           </Text>
         </View>
 
-        {/* ─── 시술 정보 카드 ────────────────────────── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>DERNA에서 불러온 시술 정보</Text>
-          <Text style={styles.procedureName}>{MOCK_PROCEDURE.procedure}</Text>
-          <Text style={styles.procedureDetail}>
-            {MOCK_PROCEDURE.procedure_at}
-          </Text>
-          <Text style={styles.procedureDetail}>
-            {MOCK_PROCEDURE.clinic_name}
-          </Text>
+        {/* ─── Main Content ─────────────────────────── */}
+        <View style={styles.content}>
+          {/* 시술 정보 카드 */}
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>DERNA에서 확인된 시술 정보</Text>
+
+            <Text style={styles.procedureName}>{MOCK_PROCEDURE.procedure}</Text>
+
+            <View style={styles.procedureDetails}>
+              <Text style={styles.procedureDetail}>
+                {MOCK_PROCEDURE.procedure_at}
+              </Text>
+
+              <Text style={styles.procedureDetail}>
+                {MOCK_PROCEDURE.clinic_name}
+              </Text>
+            </View>
+          </View>
+
+          {/* 안내 문구 + MALLO 캐릭터 */}
+          <View style={styles.guideSection}>
+            <Text style={styles.guideMessageText}>
+              이 시술로 Recovery Journey를 시작해 볼까요?
+            </Text>
+
+            <Image
+              accessible
+              accessibilityLabel="Recovery Journey를 안내하는 MALLO 캐릭터"
+              source={require('../assets/images/mallo-record-empty.png')}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
+          </View>
         </View>
       </ScrollView>
 
-      {/* ─── 하단 CTA 버튼 ─────────────────────────── */}
+      {/* ─── Bottom CTA ────────────────────────────── */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
@@ -143,94 +146,150 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: MALLO_COLORS.core.white,
   },
-  navigation: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontSize: 16,
-    color: MALLO_COLORS.core.ink,
-    fontWeight: '500',
-  },
+
   scrollView: {
     flex: 1,
   },
+
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
+    flexGrow: 1,
+    paddingHorizontal: MALLO_SPACING.xl,
+    paddingBottom: MALLO_SPACING.xl,
   },
 
-  // Header
+  // ─── Header ────────────────────────────────────────
+
   header: {
-    marginBottom: 28,
     alignItems: 'center',
+    paddingTop: MALLO_SPACING.xxl,
   },
+
   title: {
-    fontSize: 22,
+    ...MALLO_TYPOGRAPHY.screenTitle,
+    fontSize: 27,
+    lineHeight: 31,
     fontWeight: '700',
     color: MALLO_COLORS.core.ink,
     textAlign: 'center',
-    marginBottom: 10,
-    lineHeight: 30,
+    marginBottom: MALLO_SPACING.md,
   },
+
   subtitle: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    alignSelf: 'stretch',
     fontSize: 14,
+    lineHeight: 20,
     color: MALLO_COLORS.support.secondaryTextGray,
     textAlign: 'center',
-    lineHeight: 20,
   },
 
-  // Card
+  // ─── Main Content ──────────────────────────────────
+
+  content: {
+    flexGrow: 1,
+    paddingTop: MALLO_SPACING.xl,
+  },
+
+  // ─── Procedure Card ────────────────────────────────
+
   card: {
-    borderWidth: 1.5,
+    width: '100%',
+    borderWidth: 1,
     borderColor: MALLO_COLORS.support.mistGray,
-    borderRadius: 16,
-    backgroundColor: MALLO_COLORS.core.white,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    marginBottom: 20,
-  },
-  cardLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: MALLO_COLORS.support.secondaryTextGray,
-    marginBottom: 14,
-  },
-  procedureName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: MALLO_COLORS.core.ink,
-    marginBottom: 8,
-  },
-  procedureDetail: {
-    fontSize: 14,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    lineHeight: 22,
+    borderRadius: MALLO_RADIUS.lg,
+    backgroundColor: MALLO_COLORS.support.warmGray,
+    paddingVertical: MALLO_SPACING.xl,
+    paddingHorizontal: MALLO_SPACING.xl,
   },
 
-  // Bottom Buttons
+  cardLabel: {
+    ...MALLO_TYPOGRAPHY.statusLabel,
+    color: MALLO_COLORS.core.red,
+    marginBottom: MALLO_SPACING.lg,
+    letterSpacing: 0.4,
+  },
+
+  procedureName: {
+    ...MALLO_TYPOGRAPHY.screenTitle,
+    fontSize: 24,
+    lineHeight: 31,
+    color: MALLO_COLORS.core.ink,
+  },
+
+  procedureDetails: {
+    gap: MALLO_SPACING.xs,
+    marginTop: MALLO_SPACING.md,
+  },
+
+  procedureDetail: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    fontSize: 14,
+    lineHeight: 20,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+
+  // ─── Guide / Character ─────────────────────────────
+
+  guideSection: {
+    alignItems: 'center',
+    marginTop: MALLO_SPACING.lg,
+  },
+  guideMessageText: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    lineHeight: 22,
+    color: MALLO_COLORS.support.charcoal,
+    textAlign: 'center',
+    marginTop: MALLO_SPACING.lg,
+
+    ...Platform.select({
+      web: {
+        fontSize: 18,
+      },
+      default: {
+        fontSize: 15,
+      },
+    }),
+  },
+
+  illustration: {
+    aspectRatio: 1,
+
+    ...Platform.select({
+      web: {
+        width: 250,
+        maxWidth: 250,
+        marginTop: -MALLO_SPACING.xxl,
+      },
+      default: {
+        width: '42%',
+        maxWidth: 300,
+        marginTop: -(MALLO_SPACING.xxl * 2),
+      },
+    }),
+  },
+  // ─── Bottom CTA ────────────────────────────────────
+
   bottomContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingHorizontal: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.md,
+    paddingBottom: MALLO_SPACING.xl,
     borderTopWidth: 1,
     borderTopColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
   },
+
   primaryButton: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: MALLO_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: MALLO_COLORS.core.ink,
+    backgroundColor: MALLO_COLORS.core.red,
   },
+
   buttonDisabled: {
     opacity: 0.6,
   },
+
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',

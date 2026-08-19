@@ -26,7 +26,7 @@ type RecoverySession = {
 };
 
 // true: 시술 정보 있음 / false: 시술 정보 없음
-const DEV_HAS_RECOVERY_SESSION = true;
+const DEV_HAS_RECOVERY_SESSION = false;
 
 const MOCK_RECOVERY_SESSION: RecoverySession = {
   procedureName: 'REJURAN',
@@ -75,14 +75,6 @@ function MalloBrandHeader({ isConnected }: { isConnected: boolean }) {
         </View>
 
         <Text style={styles.brandTitle}>MALLO</Text>
-      </View>
-
-      <View style={styles.profileIcon}>
-        <Ionicons
-          name="person"
-          size={17}
-          color={MALLO_COLORS.support.charcoal}
-        />
       </View>
     </View>
   );
@@ -302,9 +294,7 @@ const styles = StyleSheet.create({
     paddingBottom: MALLO_SPACING.xxl,
   },
   brandHeader: {
-    flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
   },
   eyebrow: {
     ...MALLO_TYPOGRAPHY.caption,
@@ -331,16 +321,6 @@ const styles = StyleSheet.create({
     ...MALLO_TYPOGRAPHY.brand,
     color: MALLO_COLORS.core.red,
     letterSpacing: -0.6,
-  },
-  profileIcon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: MALLO_COLORS.support.mistGray,
-    borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.support.warmGray,
   },
   stateContent: {
     gap: MALLO_SPACING.xl,
