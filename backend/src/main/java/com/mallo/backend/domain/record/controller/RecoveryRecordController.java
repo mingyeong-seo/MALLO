@@ -33,7 +33,8 @@ public class RecoveryRecordController {
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
-					description = "요청 검증 실패, 또는 다른 세션의 photoRecordId를 연결하려 함")
+					description = "요청 검증 실패, 다른 세션의 photoRecordId를 연결하려 함, "
+							+ "또는 존재하지 않거나 다른 세션의 check_id를 연결하려 함")
 	})
 	@PostMapping("/v1/sessions/{sessionId}/records")
 	public ApiResponse<RecoveryRecordResponse> create(
@@ -64,7 +65,7 @@ public class RecoveryRecordController {
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
-					description = "요청 검증 실패, 다른 세션의 기록/사진을 건드리려 함"),
+					description = "요청 검증 실패, 다른 세션의 기록/사진/check_id를 건드리려 함"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403",
 					description = "오늘 작성한 기록이 아니라서 수정 불가"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "기록을 찾을 수 없음")

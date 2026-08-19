@@ -3,6 +3,7 @@ package com.mallo.backend.domain.record.service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import com.mallo.backend.domain.record.entity.PhotoRecord;
 import com.mallo.backend.domain.record.entity.RecordAction;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
+import com.mallo.backend.domain.record.port.CheckQueryPort;
 import com.mallo.backend.domain.record.repository.RecoveryRecordRepository;
 import com.mallo.backend.global.exception.CustomException;
 
@@ -27,10 +29,12 @@ public class RecoveryRecordService {
 
 	private final RecoveryRecordRepository recoveryRecordRepository;
 	private final PhotoRecordService photoRecordService;
+	private final CheckQueryPort checkQueryPort;
 
 	@Transactional
 	public RecoveryRecordResponse create(String sessionId, RecoveryRecordCreateRequest request) {
 		List<PhotoRecord> photoRecords = resolvePhotos(sessionId, request.photoRecordIds());
+		validateChecks(sessionId, request.actions());
 
 		RecoveryRecord record = RecoveryRecord.builder()
 				.sessionId(sessionId)
@@ -81,6 +85,7 @@ public class RecoveryRecordService {
 			record.updateMemo(request.memo());
 		}
 		if (request.actions() != null) {
+			validateChecks(sessionId, request.actions());
 			record.replaceActions(toRecordActions(request.actions()));
 		}
 		if (request.photoRecordIds() != null) {
@@ -93,10 +98,20 @@ public class RecoveryRecordService {
 	private List<RecordAction> toRecordActions(List<RecoveryRecordCreateRequest.ActionEntry> entries) {
 		return entries.stream()
 				.map(entry -> RecordAction.builder()
-						.action(entry.action())
+						.checkId(entry.checkId())
 						.performedStatus(entry.performedStatus())
 						.build())
 				.toList();
+	}
+
+	/** actions[]의 checkId 각각이 실제로 존재하고 같은 세션 것인지 검증한다 (resolvePhotos와 동일 패턴). */
+	private void validateChecks(String sessionId, List<RecoveryRecordCreateRequest.ActionEntry> entries) {
+		UUID sessionUuid = UUID.fromString(sessionId);
+		for (RecoveryRecordCreateRequest.ActionEntry entry : entries) {
+			if (!checkQueryPort.existsForSession(entry.checkId(), sessionUuid)) {
+				throw new CustomException(RecordErrorCode.CHECK_SESSION_MISMATCH);
+			}
+		}
 	}
 
 	/** photoRecordId 각각이 존재하고 같은 세션 것인지 검증한 뒤 엔티티 목록으로 바꾼다. */
