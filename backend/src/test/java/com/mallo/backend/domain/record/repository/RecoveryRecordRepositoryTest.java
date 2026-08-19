@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -32,6 +33,9 @@ import jakarta.persistence.EntityManagerFactory;
 class RecoveryRecordRepositoryTest {
 
 	private static final String SESSION_ID = "11111111-1111-1111-1111-111111111111";
+	private static final UUID CHECK_EXERCISE = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+	private static final UUID CHECK_MEDICATION = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+	private static final UUID CHECK_WOUND_CARE = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
 
 	@Autowired
 	private RecoveryRecordRepository recoveryRecordRepository;
@@ -47,9 +51,9 @@ class RecoveryRecordRepositoryTest {
 
 	@Test
 	void 세션의_기록을_DAY_오름차순으로_조회한다() {
-		recoveryRecordRepository.save(record(3, "WOUND_CARE"));
-		recoveryRecordRepository.save(record(1, "EXERCISE"));
-		recoveryRecordRepository.save(record(2, "MEDICATION"));
+		recoveryRecordRepository.save(record(3, CHECK_WOUND_CARE));
+		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
+		recoveryRecordRepository.save(record(2, CHECK_MEDICATION));
 
 		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
 
@@ -58,23 +62,23 @@ class RecoveryRecordRepositoryTest {
 
 	@Test
 	void 같은_DAY에_행동별로_여러_기록을_저장할_수_있다() {
-		recoveryRecordRepository.save(record(1, "EXERCISE"));
-		recoveryRecordRepository.save(record(1, "MEDICATION"));
+		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
+		recoveryRecordRepository.save(record(1, CHECK_MEDICATION));
 
 		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
 
 		assertThat(journal).hasSize(2);
-		assertThat(journal).extracting(record -> record.getActions().get(0).getAction())
-				.containsExactlyInAnyOrder("EXERCISE", "MEDICATION");
+		assertThat(journal).extracting(record -> record.getActions().get(0).getCheckId())
+				.containsExactlyInAnyOrder(CHECK_EXERCISE, CHECK_MEDICATION);
 	}
 
 	@Test
 	void 다른_세션의_기록은_조회되지_않는다() {
-		recoveryRecordRepository.save(record(1, "EXERCISE"));
+		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
 		RecoveryRecord otherSession = RecoveryRecord.builder()
 				.sessionId("22222222-2222-2222-2222-222222222222")
 				.elapsedDay(1)
-				.actions(recordActions("EXERCISE"))
+				.actions(recordActions(CHECK_EXERCISE))
 				.build();
 		recoveryRecordRepository.save(otherSession);
 
@@ -85,7 +89,7 @@ class RecoveryRecordRepositoryTest {
 
 	@Test
 	void 저장하면_생성시각이_자동으로_채워진다() {
-		RecoveryRecord saved = recoveryRecordRepository.save(record(1, "EXERCISE"));
+		RecoveryRecord saved = recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
 
 		assertThat(saved.getId()).isNotNull();
 		assertThat(saved.getCreatedAt()).isNotNull();
@@ -105,7 +109,7 @@ class RecoveryRecordRepositoryTest {
 		RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
 				.sessionId(SESSION_ID)
 				.elapsedDay(1)
-				.actions(recordActions("WOUND_CARE"))
+				.actions(recordActions(CHECK_WOUND_CARE))
 				.build());
 		record.attachPhotos(List.of(photo1, photo2));
 		testEntityManager.flush();
@@ -123,7 +127,7 @@ class RecoveryRecordRepositoryTest {
 		PhotoRecord photo2 = photoRecordRepository.save(PhotoRecord.builder()
 				.sessionId(SESSION_ID).observationJson("{}").build());
 
-		RecoveryRecord record = recoveryRecordRepository.save(record(1, "WOUND_CARE"));
+		RecoveryRecord record = recoveryRecordRepository.save(record(1, CHECK_WOUND_CARE));
 		record.attachPhotos(List.of(photo1));
 		testEntityManager.flush();
 
@@ -148,7 +152,7 @@ class RecoveryRecordRepositoryTest {
 			RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(day)
-					.actions(recordActions("WOUND_CARE"))
+					.actions(recordActions(CHECK_WOUND_CARE))
 					.build());
 			record.attachPhotos(List.of(photo));
 		}
@@ -166,7 +170,7 @@ class RecoveryRecordRepositoryTest {
 		// lazy 컬렉션 초기화 여부가 드러난다
 		journal.forEach(record -> {
 			record.getPhotoRecords().forEach(PhotoRecord::getObservationJson);
-			record.getActions().forEach(RecordAction::getAction);
+			record.getActions().forEach(RecordAction::getCheckId);
 		});
 
 		assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
@@ -174,7 +178,7 @@ class RecoveryRecordRepositoryTest {
 
 	@Test
 	void 생성일_범위_안의_기록을_찾는다() {
-		RecoveryRecord record = recoveryRecordRepository.save(record(1, "EXERCISE"));
+		RecoveryRecord record = recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
 
 		LocalDate today = LocalDate.now();
 		Optional<RecoveryRecord> found = recoveryRecordRepository
@@ -187,7 +191,7 @@ class RecoveryRecordRepositoryTest {
 
 	@Test
 	void 생성일_범위_밖이면_찾지_못한다() {
-		recoveryRecordRepository.save(record(1, "EXERCISE"));
+		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
 
 		LocalDate yesterday = LocalDate.now().minusDays(1);
 		Optional<RecoveryRecord> found = recoveryRecordRepository
@@ -197,15 +201,15 @@ class RecoveryRecordRepositoryTest {
 		assertThat(found).isEmpty();
 	}
 
-	private RecoveryRecord record(int elapsedDay, String action) {
+	private RecoveryRecord record(int elapsedDay, UUID checkId) {
 		return RecoveryRecord.builder()
 				.sessionId(SESSION_ID)
 				.elapsedDay(elapsedDay)
-				.actions(recordActions(action))
+				.actions(recordActions(checkId))
 				.build();
 	}
 
-	private List<RecordAction> recordActions(String action) {
-		return List.of(RecordAction.builder().action(action).performedStatus(PerformedStatus.DONE).build());
+	private List<RecordAction> recordActions(UUID checkId) {
+		return List.of(RecordAction.builder().checkId(checkId).performedStatus(PerformedStatus.DONE).build());
 	}
 }

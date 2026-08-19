@@ -38,6 +38,7 @@ import com.mallo.backend.global.exception.CustomException;
 class RecoveryRecordControllerTest {
 
 	private static final String SESSION_ID = "11111111-1111-1111-1111-111111111111";
+	private static final String CHECK_ID = "33333333-3333-3333-3333-333333333333";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -64,7 +65,7 @@ class RecoveryRecordControllerTest {
 
 	private RecoveryRecordResponse response() {
 		return new RecoveryRecordResponse(1L, SESSION_ID, 1,
-				List.of(new RecordActionResponse("EXERCISE", PerformedStatus.DONE)),
+				List.of(new RecordActionResponse(UUID.fromString(CHECK_ID), PerformedStatus.DONE)),
 				"메모", List.of(), LocalDateTime.now());
 	}
 
@@ -75,11 +76,11 @@ class RecoveryRecordControllerTest {
 		mockMvc.perform(withAuth(post("/v1/sessions/{sessionId}/records", SESSION_ID)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"elapsed_day":1,"actions":[{"action":"EXERCISE","performed_status":"DONE"}],"memo":"메모"}
-								""")))
+								{"elapsed_day":1,"actions":[{"check_id":"%s","performed_status":"DONE"}],"memo":"메모"}
+								""".formatted(CHECK_ID))))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.actions[0].action").value("EXERCISE"));
+				.andExpect(jsonPath("$.data.actions[0].check_id").value(CHECK_ID));
 	}
 
 	@Test
@@ -87,8 +88,8 @@ class RecoveryRecordControllerTest {
 		mockMvc.perform(withAuth(post("/v1/sessions/{sessionId}/records", SESSION_ID)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"actions":[{"action":"EXERCISE","performed_status":"DONE"}]}
-								""")))
+								{"actions":[{"check_id":"%s","performed_status":"DONE"}]}
+								""".formatted(CHECK_ID))))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.success").value(false));
 	}

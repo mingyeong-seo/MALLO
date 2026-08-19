@@ -1,13 +1,13 @@
 package com.mallo.backend.domain.record.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.mallo.backend.domain.record.entity.PerformedStatus;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -40,12 +40,13 @@ public record RecoveryRecordCreateRequest(
 		List<Long> photoRecordIds
 ) {
 
-	@Schema(description = "행동 코드 + 실제 수행 여부 1건")
+	@Schema(description = "근거가 된 Quick Check + 실제 수행 여부 1건")
 	public record ActionEntry(
 
-			@Schema(description = "수행한 행동 코드 (action enum 미확정이라 지금은 자유 문자열)", example = "EXERCISE")
-			@NotBlank
-			String action,
+			@Schema(description = "행동의 근거가 된 Quick Check id (POST /v1/checks 응답의 check_id). "
+					+ "같은 세션의 check_id만 연결 가능")
+			@NotNull
+			UUID checkId,
 
 			@Schema(description = "실제로 했는지 여부")
 			@NotNull
