@@ -70,6 +70,8 @@ const QUICK_ENTRIES: QuickEntry[] = [
   },
 ];
 
+const CAROUSEL_NAVIGATION_BUTTON_SIZE = 36;
+
 export default function JourneyHomeScreen() {
   const { scrollToTop } = useLocalSearchParams<{ scrollToTop?: string }>();
   const { findRecoveryRecord, recoverySession } = useRecoveryFlow();
@@ -187,6 +189,14 @@ export default function JourneyHomeScreen() {
     cardWidth - MALLO_SPACING.xxl - MALLO_SPACING.sm,
     0,
   );
+  const handleCarouselNavigation = (targetIndex: 0 | 1) => {
+    carouselRef.current?.scrollTo({
+      animated: true,
+      x: targetIndex === 0 ? 0 : carouselMaxOffset,
+      y: 0,
+    });
+    setActiveCardIndex(targetIndex);
+  };
   const floatingTabClearance =
     MALLO_SPACING.xxl * 2 +
     Math.max(insets.bottom, MALLO_SPACING.md) +
@@ -246,7 +256,7 @@ export default function JourneyHomeScreen() {
                 onLayout={(event) =>
                   setMainCarouselCardHeight(event.nativeEvent.layout.height)
                 }
-                style={styles.recoveryCard}
+                style={[styles.recoveryCard, styles.mainCarouselCardShadow]}
               >
                 <View style={styles.recoveryCardTopRow}>
                   <Text style={styles.procedureName}>
@@ -303,6 +313,7 @@ export default function JourneyHomeScreen() {
               <View
                 style={[
                   styles.todayFaceCard,
+                  styles.mainCarouselCardShadow,
                   mainCarouselCardHeight > 0
                     ? { height: mainCarouselCardHeight }
                     : null,
@@ -366,6 +377,60 @@ export default function JourneyHomeScreen() {
               </View>
             </View>
           </ScrollView>
+
+          {Platform.OS === 'web' && mainCarouselCardHeight > 0 ? (
+            <>
+              {activeCardIndex === 1 ? (
+                <Pressable
+                  accessibilityLabel="이전 카드 보기"
+                  accessibilityRole="button"
+                  onPress={() => handleCarouselNavigation(0)}
+                  style={({ pressed }) => [
+                    styles.carouselNavigationButton,
+                    styles.carouselNavigationButtonPrevious,
+                    {
+                      top:
+                        MALLO_SPACING.xs +
+                        mainCarouselCardHeight / 2 -
+                        CAROUSEL_NAVIGATION_BUTTON_SIZE / 2,
+                    },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons
+                    color={MALLO_COLORS.support.charcoal}
+                    name="chevron-back"
+                    size={18}
+                  />
+                </Pressable>
+              ) : null}
+
+              {activeCardIndex === 0 ? (
+                <Pressable
+                  accessibilityLabel="다음 카드 보기"
+                  accessibilityRole="button"
+                  onPress={() => handleCarouselNavigation(1)}
+                  style={({ pressed }) => [
+                    styles.carouselNavigationButton,
+                    styles.carouselNavigationButtonNext,
+                    {
+                      top:
+                        MALLO_SPACING.xs +
+                        mainCarouselCardHeight / 2 -
+                        CAROUSEL_NAVIGATION_BUTTON_SIZE / 2,
+                    },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons
+                    color={MALLO_COLORS.support.charcoal}
+                    name="chevron-forward"
+                    size={18}
+                  />
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
 
           {showPhaseInfo ? (
             <View style={styles.phaseToastWrapper} pointerEvents="none">
@@ -854,6 +919,45 @@ const styles = StyleSheet.create({
     borderColor: MALLO_COLORS.support.mistGray,
     borderRadius: MALLO_RADIUS.lg,
     backgroundColor: MALLO_COLORS.support.redTint,
+  },
+
+  mainCarouselCardShadow: {
+    shadowColor: MALLO_COLORS.core.ink,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+
+    ...(Platform.OS === 'web'
+      ? {
+          boxShadow: '0 2px 6px rgba(26, 26, 26, 0.06)',
+        }
+      : {}),
+  },
+
+  carouselNavigationButton: {
+    position: 'absolute',
+    zIndex: 10,
+    width: CAROUSEL_NAVIGATION_BUTTON_SIZE,
+    height: CAROUSEL_NAVIGATION_BUTTON_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.core.white,
+    boxShadow: '0 2px 6px rgba(26, 26, 26, 0.06)',
+  },
+
+  carouselNavigationButtonPrevious: {
+    left: MALLO_SPACING.sm,
+  },
+
+  carouselNavigationButtonNext: {
+    right: MALLO_SPACING.xl + MALLO_SPACING.xs,
   },
 
   todayFaceTopRow: {

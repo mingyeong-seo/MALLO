@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, Tabs, usePathname } from 'expo-router';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { router, Tabs } from 'expo-router';
 import { Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,17 +11,19 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 
-const HIDDEN_TAB_PATHS = new Set([
-  '/check/quick',
-  '/check/condition',
-  '/journey/record',
-]);
+const HIDDEN_JOURNEY_ROUTES = new Set(['index', 'record']);
+const HIDDEN_CHECK_ROUTES = new Set(['quick', 'condition']);
 
 export default function TabLayout() {
-  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const floatingBottomOffset = Math.max(insets.bottom, MALLO_SPACING.md);
-  const shouldHideTabBar = HIDDEN_TAB_PATHS.has(pathname);
+  const visibleTabBarStyle = [
+    styles.tabBar,
+    Platform.OS === 'web'
+      ? styles.webTabBarShadow
+      : styles.nativeTabBarShadow,
+    { bottom: floatingBottomOffset },
+  ];
 
   return (
     <Tabs
@@ -34,15 +37,7 @@ export default function TabLayout() {
         sceneStyle: {
           backgroundColor: MALLO_COLORS.core.white,
         },
-        tabBarStyle: shouldHideTabBar
-          ? styles.hiddenTabBar
-          : [
-              styles.tabBar,
-              Platform.OS === 'web'
-                ? styles.webTabBarShadow
-                : styles.nativeTabBarShadow,
-              { bottom: floatingBottomOffset },
-            ],
+        tabBarStyle: visibleTabBarStyle,
       }}
     >
       <Tabs.Screen
@@ -56,15 +51,23 @@ export default function TabLayout() {
             });
           },
         }}
-        options={{
-          title: 'Journey',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'pulse' : 'pulse-outline'}
-              size={22}
-              color={color}
-            />
-          ),
+        options={({ route }) => {
+          const focusedRouteName =
+            getFocusedRouteNameFromRoute(route) ?? 'index';
+
+          return {
+            title: 'Journey',
+            tabBarStyle: HIDDEN_JOURNEY_ROUTES.has(focusedRouteName)
+              ? styles.hiddenTabBar
+              : visibleTabBarStyle,
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? 'pulse' : 'pulse-outline'}
+                size={22}
+                color={color}
+              />
+            ),
+          };
         }}
       />
 
@@ -76,15 +79,25 @@ export default function TabLayout() {
             router.replace('/(tabs)/check');
           },
         }}
-        options={{
-          title: 'Check',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'checkmark-circle' : 'checkmark-circle-outline'}
-              size={22}
-              color={color}
-            />
-          ),
+        options={({ route }) => {
+          const focusedRouteName =
+            getFocusedRouteNameFromRoute(route) ?? 'index';
+
+          return {
+            title: 'Check',
+            tabBarStyle: HIDDEN_CHECK_ROUTES.has(focusedRouteName)
+              ? styles.hiddenTabBar
+              : visibleTabBarStyle,
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={
+                  focused ? 'checkmark-circle' : 'checkmark-circle-outline'
+                }
+                size={22}
+                color={color}
+              />
+            ),
+          };
         }}
       />
 

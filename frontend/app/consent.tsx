@@ -10,6 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MALLO_COLORS } from '@/constants/colors';
+import {
+  MALLO_RADIUS,
+  MALLO_SPACING,
+  MALLO_TYPOGRAPHY,
+} from '@/constants/theme';
 
 // ─── Screen ───────────────────────────────────────────────────
 
@@ -23,13 +28,17 @@ export default function ConsentScreen() {
 
   // 모달(자세히 보기) 상태
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedDetail, setSelectedDetail] = useState<{ title: string; content: string }>({
+  const [selectedDetail, setSelectedDetail] = useState<{
+    title: string;
+    content: string;
+  }>({
     title: '',
     content: '',
   });
 
   // 전체 동의 여부
-  const isAllConsentComplete = serviceConsent && dataConsent && notificationConsent;
+  const isAllConsentComplete =
+    serviceConsent && dataConsent && notificationConsent;
 
   // 필수 항목 완료 여부 (CTA 활성화 판단)
   const isRequiredConsentComplete = serviceConsent && dataConsent;
@@ -59,17 +68,6 @@ export default function ConsentScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* ─── 상단 네비게이션 ────────────────────────── */}
-      <View style={styles.navigation}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Text style={styles.backText}>← 이전</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -79,112 +77,134 @@ export default function ConsentScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Recovery Journey{'\n'}시작하기</Text>
           <Text style={styles.subtitle}>
-            Recovery Journey 제공을 위해{'\n'}아래 내용을 확인해주세요.
+            Recovery Journey 제공을 위해 아래 내용을 확인해주세요.
           </Text>
         </View>
 
-        {/* ─── 개별 동의 리스트 ──────────────────────── */}
-        <View style={styles.consentList}>
-          {/* 1. [필수] 서비스 이용 동의 */}
-          <View style={styles.cardItem}>
-            <View style={styles.consentLeft}>
-              <View style={styles.textColumn}>
-                <Text style={styles.consentLabel}>
-                  <Text style={styles.consentTag}>[필수]</Text> 서비스 이용 동의
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleOpenDetail('서비스 이용 동의')}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={styles.detailButton}
-                >
-                  <Text style={styles.detailLink}>자세히 보기</Text>
-                </TouchableOpacity>
+        <View style={styles.consentSection}>
+          {/* ─── 개별 동의 리스트 ──────────────────────── */}
+          <View style={styles.consentList}>
+            {/* 1. [필수] 서비스 이용 동의 */}
+            <View style={styles.cardItem}>
+              <View style={styles.consentLeft}>
+                <View style={styles.textColumn}>
+                  <Text style={styles.consentLabel}>
+                    <Text style={styles.consentTag}>[필수]</Text> 서비스 이용
+                    동의
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleOpenDetail('서비스 이용 동의')}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailLink}>자세히 보기</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
+
+              <TouchableOpacity
+                onPress={() => setServiceConsent(!serviceConsent)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    serviceConsent && styles.checkboxChecked,
+                  ]}
+                >
+                  {serviceConsent ? (
+                    <Text style={styles.checkIcon}>✓</Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              onPress={() => setServiceConsent(!serviceConsent)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={[styles.checkbox, serviceConsent && styles.checkboxChecked]}>
-                {serviceConsent ? <Text style={styles.checkIcon}>✓</Text> : null}
+            {/* 2. [필수] 데이터 처리 동의 */}
+            <View style={styles.cardItem}>
+              <View style={styles.consentLeft}>
+                <View style={styles.textColumn}>
+                  <Text style={styles.consentLabel}>
+                    <Text style={styles.consentTag}>[필수]</Text> 데이터 처리
+                    동의
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleOpenDetail('데이터 처리 동의')}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailLink}>자세히 보기</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </TouchableOpacity>
-          </View>
 
-          {/* 2. [필수] 데이터 처리 동의 */}
-          <View style={styles.cardItem}>
-            <View style={styles.consentLeft}>
-              <View style={styles.textColumn}>
-                <Text style={styles.consentLabel}>
-                  <Text style={styles.consentTag}>[필수]</Text> 데이터 처리 동의
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleOpenDetail('데이터 처리 동의')}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={styles.detailButton}
+              <TouchableOpacity
+                onPress={() => setDataConsent(!dataConsent)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    dataConsent && styles.checkboxChecked,
+                  ]}
                 >
-                  <Text style={styles.detailLink}>자세히 보기</Text>
-                </TouchableOpacity>
-              </View>
+                  {dataConsent ? <Text style={styles.checkIcon}>✓</Text> : null}
+                </View>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              onPress={() => setDataConsent(!dataConsent)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={[styles.checkbox, dataConsent && styles.checkboxChecked]}>
-                {dataConsent ? <Text style={styles.checkIcon}>✓</Text> : null}
+            {/* 3. [선택] 알림 수신 동의 */}
+            <View style={styles.cardItem}>
+              <View style={styles.consentLeft}>
+                <View style={styles.textColumn}>
+                  <Text style={styles.consentLabel}>
+                    <Text style={styles.consentTag}>[선택]</Text> 알림 수신 동의
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleOpenDetail('알림 수신 동의')}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={styles.detailButton}
+                  >
+                    <Text style={styles.detailLink}>자세히 보기</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </TouchableOpacity>
-          </View>
 
-          {/* 3. [선택] 알림 수신 동의 */}
-          <View style={styles.cardItem}>
-            <View style={styles.consentLeft}>
-              <View style={styles.textColumn}>
-                <Text style={styles.consentLabel}>
-                  <Text style={styles.consentTag}>[선택]</Text> 알림 수신 동의
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleOpenDetail('알림 수신 동의')}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={styles.detailButton}
+              <TouchableOpacity
+                onPress={() => setNotificationConsent(!notificationConsent)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    notificationConsent && styles.checkboxChecked,
+                  ]}
                 >
-                  <Text style={styles.detailLink}>자세히 보기</Text>
-                </TouchableOpacity>
-              </View>
+                  {notificationConsent ? (
+                    <Text style={styles.checkIcon}>✓</Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
             </View>
+          </View>
 
-            <TouchableOpacity
-              onPress={() => setNotificationConsent(!notificationConsent)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          {/* ─── 전체 동의 카드 ────────────────────────── */}
+          <TouchableOpacity
+            style={[styles.cardItem, styles.allAgreeCard]}
+            onPress={handleToggleAll}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.allAgreeText}>전체 동의</Text>
+            <View
+              style={[
+                styles.checkbox,
+                isAllConsentComplete && styles.checkboxChecked,
+              ]}
             >
-              <View style={[styles.checkbox, notificationConsent && styles.checkboxChecked]}>
-                {notificationConsent ? <Text style={styles.checkIcon}>✓</Text> : null}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ─── 전체 동의 카드 ────────────────────────── */}
-        <TouchableOpacity
-          style={[styles.cardItem, styles.allAgreeCard]}
-          onPress={handleToggleAll}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.allAgreeText}>전체 동의</Text>
-          <View style={[styles.checkbox, isAllConsentComplete && styles.checkboxChecked]}>
-            {isAllConsentComplete ? <Text style={styles.checkIcon}>✓</Text> : null}
-          </View>
-        </TouchableOpacity>
-
-        {/* ─── 하단 안내 문구 ────────────────────────── */}
-        <View style={styles.noticeContainer}>
-          <Text style={styles.noticeText}>
-            사진/카메라/앨범 권한 및 사진 수집 동의는{'\n'}추후 Recovery Record에서
-            사진 추가 시 요청됩니다.
-          </Text>
+              {isAllConsentComplete ? (
+                <Text style={styles.checkIcon}>✓</Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -193,7 +213,9 @@ export default function ConsentScreen() {
         <TouchableOpacity
           style={[
             styles.ctaButton,
-            isRequiredConsentComplete ? styles.ctaButtonActive : styles.ctaButtonDisabled,
+            isRequiredConsentComplete
+              ? styles.ctaButtonActive
+              : styles.ctaButtonDisabled,
           ]}
           onPress={handleContinue}
           disabled={!isRequiredConsentComplete}
@@ -243,41 +265,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: MALLO_COLORS.core.white,
   },
-  navigation: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontSize: 16,
-    color: MALLO_COLORS.core.ink,
-    fontWeight: '500',
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
+    flexGrow: 1,
+    paddingHorizontal: MALLO_SPACING.xl,
+    paddingBottom: MALLO_SPACING.lg,
   },
 
   // Header
   header: {
-    marginBottom: 28,
     alignItems: 'center',
+    paddingTop: MALLO_SPACING.xxl + MALLO_SPACING.sm,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...MALLO_TYPOGRAPHY.screenTitle,
+    fontSize: 24,
+    lineHeight: 31,
     color: MALLO_COLORS.core.ink,
     textAlign: 'center',
-    marginBottom: 10,
-    lineHeight: 30,
+    marginBottom: MALLO_SPACING.md,
   },
   subtitle: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    alignSelf: 'stretch',
     fontSize: 14,
     color: MALLO_COLORS.support.secondaryTextGray,
     textAlign: 'center',
@@ -285,17 +297,22 @@ const styles = StyleSheet.create({
   },
 
   // Consent List
+  consentSection: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: MALLO_SPACING.xxl,
+  },
   consentList: {
-    gap: 12,
-    marginBottom: 12,
+    gap: MALLO_SPACING.lg,
+    marginBottom: MALLO_SPACING.md,
   },
   cardItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+    paddingVertical: MALLO_SPACING.lg,
+    paddingHorizontal: MALLO_SPACING.lg,
+    borderRadius: MALLO_RADIUS.lg,
     borderWidth: 1.5,
     borderColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
@@ -338,7 +355,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 6,
+    borderRadius: MALLO_RADIUS.sm,
     borderWidth: 1.5,
     borderColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
@@ -346,8 +363,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: MALLO_COLORS.core.ink,
-    borderColor: MALLO_COLORS.core.ink,
+    backgroundColor: MALLO_COLORS.core.red,
+    borderColor: MALLO_COLORS.core.red,
   },
   checkIcon: {
     fontSize: 13,
@@ -355,35 +372,23 @@ const styles = StyleSheet.create({
     color: MALLO_COLORS.core.white,
   },
 
-  // Notice
-  noticeContainer: {
-    marginTop: 20,
-    paddingHorizontal: 4,
-  },
-  noticeText: {
-    fontSize: 12,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-
   // Bottom CTA
   bottomContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingHorizontal: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.md,
+    paddingBottom: MALLO_SPACING.xl,
     borderTopWidth: 1,
     borderTopColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
   },
   ctaButton: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: MALLO_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaButtonActive: {
-    backgroundColor: MALLO_COLORS.core.ink,
+    backgroundColor: MALLO_COLORS.core.red,
   },
   ctaButtonDisabled: {
     backgroundColor: MALLO_COLORS.support.mistGray,
