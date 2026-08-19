@@ -36,9 +36,9 @@
 
 - (아직 없음)
 
-## Interaction / ASK MALLO (담당: )
+## Interaction / ASK MALLO (담당: jiung)
 
-- (아직 없음)
+- 2026-08-19: `POST /v1/ask` 테스트 작성 — 서비스 9개(6가지 status 분기, MAKEUP의 UNKNOWN friction 처리, Protocol 매칭/우선순위, photoRecordIds 통과), 컨트롤러 5개(401/400, CONNECT/ANSWERABLE 응답, photoRecordIds 응답 포함). 전체 133개 테스트 통과 확인
 
 ## Handoff / Chat (담당: )
 
