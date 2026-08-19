@@ -1,7 +1,8 @@
 """Strict structured output accepted from the AI classification provider."""
 
 from dataclasses import dataclass
-from typing import Annotated, ClassVar, Literal, NewType
+from typing import Annotated, Literal, NewType
+from typing import ClassVar as Cv
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,9 +35,7 @@ class TriageInput:
 class StrictModel(BaseModel):
     """Immutable Pydantic boundary model that rejects unknown or coercible data."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra="forbid", frozen=True, strict=True
-    )
+    model_config: Cv[ConfigDict] = ConfigDict(extra="forbid", frozen=True, strict=True)
 
 
 class ExerciseContext(StrictModel):
@@ -249,4 +248,3 @@ type ProviderDecision = Annotated[
     ActionDecision | ConnectDecision | GeneralDecision | UnsupportedDecision,
     Field(discriminator="route"),
 ]
-"""Strict structured output accepted from the AI classification provider."""
