@@ -221,6 +221,7 @@ The public endpoint remains `POST /v1/ask` with the existing request and respons
 | Condition | Status | Body code | Backend behavior |
 |---|---:|---|---|
 | invalid request | 422 | FastAPI validation details | return public 400 |
+| missing or malformed request ID | 400 | `INVALID_REQUEST_ID` | return public 400 |
 | invalid shared secret | 401 | `UNAUTHORIZED` | never retry |
 | unsupported contract version | 409 | `CONTRACT_VERSION_UNSUPPORTED` | deploy compatible versions |
 | OpenRouter timeout | 503 | `MODEL_UNAVAILABLE` | public retry message, no Interaction decision |

@@ -81,7 +81,11 @@ Python provider seam:
 
 ```python
 class TriageProvider(Protocol):
-    async def classify(self, triage_input: TriageInput) -> ProviderDecision: ...
+    async def decide(self, triage_input: TriageInput, /) -> ProviderDecision: ...
+
+
+@runtime_checkable
+class AsyncCloseable(Protocol):
     async def aclose(self) -> None: ...
 ```
 
@@ -461,7 +465,11 @@ git commit -m "feat: OpenRouter triage provider 추가"
 
 - [ ] **Step 1: Write RED API tests**
 
-Cover missing/invalid bearer token, valid action result, unknown request field, request-ID round trip, safety `CONNECT`, provider timeout `503 MODEL_UNAVAILABLE`, provider budget `503 MODEL_BUDGET_EXHAUSTED`, and health routes that expose no config.
+Cover missing/invalid bearer token, valid action result, unknown request field,
+request-ID round trip, missing/malformed `X-Request-Id`, safety `CONNECT`, provider
+timeout `503 MODEL_UNAVAILABLE`, provider budget `503 MODEL_BUDGET_EXHAUSTED`, and
+health routes that expose no config. A missing or malformed request ID returns
+`400` with `{"code":"INVALID_REQUEST_ID","message":"valid X-Request-Id required"}`.
 
 ```python
 @pytest.mark.anyio
@@ -497,7 +505,10 @@ def create_app(settings: Settings, provider: TriageProvider) -> FastAPI:
     return app
 ```
 
-`main.py` is the only module that loads real settings and constructs the real provider. Tests always call `create_app` with a fake provider.
+`main.py` is the only module that loads real settings and constructs the real
+provider. Tests always call `create_app` with a fake provider. Lifespan closes
+the provider only when it satisfies the runtime-checkable `AsyncCloseable`
+protocol, so simple test fakes need only implement `decide()`.
 
 - [ ] **Step 5: Run GREEN and manual local HTTP scenario**
 
@@ -548,7 +559,9 @@ Expected: FAIL because `ai-service/Dockerfile` does not exist.
 
 - [ ] **Step 3: Implement the non-root image and compose service**
 
-Use Python 3.13 slim, install from `uv.lock` with `--frozen --no-dev`, create an unprivileged `mallo` user, expose 8000, and configure a health check against `/healthz`. Bind the host port to `127.0.0.1` in Compose.
+Use Python 3.13 slim, install from `uv.lock` with `--frozen --no-dev`, create an
+unprivileged `mallo` user, expose 8000, and configure a curl-free Python stdlib
+health check against `/healthz`. Bind the host port to `127.0.0.1` in Compose.
 
 - [ ] **Step 4: Run the full Python gate**
 
@@ -640,13 +653,23 @@ public interface AiTriagePort {
 }
 ```
 
-`AiTriageResult` exposes route, optional action state/action, `Map<String, String>` context, missing-field codes, clarification code, and safety codes. Its factory validates the cross-field invariants before domain use.
+`AiTriageResult` exposes the echoed `UUID requestId`, route, optional action
+state/action, nullable `Map<String, String>` context, missing-field codes,
+clarification code, and safety codes. `AiTriageHttpResponse` mirrors every wire
+field, including `request_id` and nullable `context`. The result factory verifies
+that the response request ID equals the outbound header and validates all
+cross-field invariants before domain use.
 
 - [ ] **Step 4: Implement strict RestClient adapter**
 
 Use a dedicated Jackson 3 `JsonMapper` configured with `PropertyNamingStrategies.SNAKE_CASE` and `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES`. Serialize the request to a JSON string and deserialize the response string explicitly so the strict mapper is guaranteed to be used. Use a request factory with 1-second connect and 8-second read timeouts.
 
-Map `402` into `AI_BUDGET_EXHAUSTED` (503), malformed/extra-field responses into `AI_INVALID_RESPONSE` (502), and `401`, `408`, `429`, `502`, `503`, and resource-access failures into `AI_UNAVAILABLE` (503). Never log the secret or body.
+Map `402` into `AI_BUDGET_EXHAUSTED` (503), `422` into
+`AI_REQUEST_REJECTED` (public 400), `409` into `AI_CONTRACT_MISMATCH` (503),
+malformed/extra-field/mismatched-request-ID responses into
+`AI_INVALID_RESPONSE` (502), and `401`, `408`, `429`, `502`, `503`, and
+resource-access failures into `AI_UNAVAILABLE` (503). Never log the secret or
+body. Adapter tests cover both `422` and `409` explicitly.
 
 - [ ] **Step 5: Add configuration**
 
