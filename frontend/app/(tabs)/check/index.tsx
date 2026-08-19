@@ -21,11 +21,20 @@ import {
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
+import { ACTION_LABELS } from '@/features/check/data';
+import { formatElapsedDay } from '@/features/recovery/mock-data';
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import type {
+  QuickCheckDecision,
+  QuickCheckResult,
+} from '@/features/recovery/types';
 
 type ActionStatus = 'complete' | 'check';
 
 type ActionPlanItem = {
   action: string;
+  checkId?: string;
+  color?: string;
   description: string;
   detail?: string;
   label: string;
@@ -43,68 +52,31 @@ type RecoveryContext = {
   recoveryDay: number;
 };
 
-const MOCK_RECOVERY_CONTEXT: RecoveryContext = {
-  procedureName: 'REJURAN',
-  recoveryDay: 1,
+const DECISION_USER_LABELS: Record<QuickCheckDecision, string> = {
+  POSSIBLE: '가볍게 진행할 수 있어요',
+  ADJUST: '조절해서 진행해요',
+  POSTPONE: '오늘은 미루는 게 좋아요',
+  CONNECT: '의료진의 확인이 필요해요',
 };
 
-const ACTION_PLAN_GROUPS: ActionPlanGroup[] = [
-  {
-    title: '오늘 진행할 수 있어요',
-    color: MALLO_COLORS.semantic.possible,
-    items: [
-      {
-        action: '세안',
-        label: '가벼운 세안',
-        description: '확인했어요',
-        detail:
-          '오늘은 자극을 줄여 가볍게 세안할 수 있어요.\n미온수를 사용하고 피부를 강하게 문지르지 않는 것이 좋아요.',
-        status: 'complete',
-      },
-      {
-        action: '기초 보습',
-        label: '기초 보습',
-        description: '확인했어요',
-        detail:
-          '피부가 건조해지지 않도록 자극이 적은 보습제를 가볍게 사용해 주세요.',
-        status: 'complete',
-      },
-    ],
-  },
-  {
-    title: '확인이 필요한 행동',
-    color: MALLO_COLORS.semantic.adjust,
-    items: [
-      {
-        action: '운동',
-        label: '운동',
-        description: '강도 확인 필요',
-        status: 'check',
-      },
-      {
-        action: '스킨케어 제품 사용',
-        label: '스킨케어 제품 사용',
-        description: '성분 확인 필요',
-        status: 'check',
-      },
-      {
-        action: '화장',
-        label: '화장',
-        description: '제품과 방법 확인 필요',
-        status: 'check',
-      },
-      {
-        action: '열 자극',
-        label: '열 자극',
-        description: '노출 정도 확인 필요',
-        status: 'check',
-      },
-    ],
-  },
-];
+const DECISION_COLORS: Record<QuickCheckDecision, string> = {
+  POSSIBLE: MALLO_COLORS.semantic.possible,
+  ADJUST: MALLO_COLORS.semantic.adjust,
+  POSTPONE: MALLO_COLORS.semantic.postpone,
+  CONNECT: MALLO_COLORS.semantic.connect,
+};
 
 export default function TodayPlanScreen() {
-  const recovery = MOCK_RECOVERY_CONTEXT;
+  const { quickChecks, recoverySession } = useRecoveryFlow();
+  const [showAllResults, setShowAllResults] = useState(false);
+  const recovery: RecoveryContext = {
+    procedureName: recoverySession?.procedureName ?? 'REJURAN',
+    recoveryDay: recoverySession?.elapsedDay ?? 0,
+  };
+  const visibleResults = showAllResults ? quickChecks : quickChecks.slice(0, 3);
+  const actionPlanGroups = createActionPlanGroups(visibleResults);
+  const hasResults = quickChecks.length > 0;
+  const hasMore = quickChecks.length > 3;
 
   const handleActionPress = (action: string) => {
     router.push({
@@ -131,7 +103,7 @@ export default function TodayPlanScreen() {
 
           <View style={styles.contextChip}>
             <Text style={styles.contextText}>
-              {formatRecoveryDay(recovery.recoveryDay)}
+              {formatElapsedDay(recovery.recoveryDay)}
             </Text>
           </View>
         </View>
@@ -153,15 +125,36 @@ export default function TodayPlanScreen() {
           </Text>
         </View>
 
-        <View style={styles.planSection}>
-          {ACTION_PLAN_GROUPS.map((group) => (
-            <ActionGroup
-              key={group.title}
-              group={group}
-              onActionPress={handleActionPress}
-            />
-          ))}
-        </View>
+        {hasResults ? (
+          <View style={styles.planSection}>
+            {actionPlanGroups.map((group) => (
+              <ActionGroup
+                key={group.title}
+                group={group}
+                onActionPress={handleActionPress}
+              />
+            ))}
+
+            {hasMore ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowAllResults((current) => !current)}
+                style={({ pressed }) => [
+                  styles.moreResultsButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.moreResultsText}>
+                  {showAllResults
+                    ? '최근 3개만 보기'
+                    : '오늘 확인한 전체 기록 보기'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <EmptyActionPlan />
+        )}
 
         <View style={styles.actionSection}>
           <Pressable
@@ -288,7 +281,7 @@ function ActionGroup({
             if (item.status === 'complete') {
               return (
                 <CompletedActionRow
-                  key={item.action}
+                  key={item.checkId ?? item.action}
                   item={item}
                   showDivider={showDivider}
                 />
@@ -327,7 +320,17 @@ function CompletedActionRow({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${item.label} 설명 ${isOpen ? '닫기' : '보기'}`}
-        onPress={() => setIsOpen((prev) => !prev)}
+        onPress={() => {
+          if (item.checkId) {
+            router.push({
+              pathname: '/(tabs)/check/result',
+              params: { checkId: item.checkId },
+            });
+            return;
+          }
+
+          setIsOpen((prev) => !prev);
+        }}
         style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
       >
         <View style={styles.actionCopy}>
@@ -335,17 +338,30 @@ function CompletedActionRow({
             <Ionicons
               name="checkmark"
               size={12}
-              color={MALLO_COLORS.semantic.possible}
+              color={item.color ?? MALLO_COLORS.semantic.possible}
             />
 
-            <Text style={styles.completeTagText}>확인 완료</Text>
+            <Text
+              style={[
+                styles.completeTagText,
+                item.color ? { color: item.color } : null,
+              ]}
+            >
+              {item.description}
+            </Text>
           </View>
 
           <Text style={styles.actionLabel}>{item.label}</Text>
         </View>
 
         <Ionicons
-          name={isOpen ? 'chevron-up' : 'chevron-down'}
+          name={
+            item.checkId
+              ? 'chevron-forward'
+              : isOpen
+                ? 'chevron-up'
+                : 'chevron-down'
+          }
           size={17}
           color={MALLO_COLORS.support.secondaryTextGray}
         />
@@ -368,6 +384,66 @@ function CompletedActionRow({
       ) : null}
     </View>
   );
+}
+
+function EmptyActionPlan() {
+  return (
+    <View style={styles.emptyPlan}>
+      <Image
+        accessibilityLabel="Quick Check 결과 없음"
+        resizeMode="contain"
+        source={require('../../../assets/images/mallo-record-empty.png')}
+        style={styles.emptyPlanImage}
+      />
+      <Text style={styles.emptyPlanTitle}>아직 확인한 행동이 없어요</Text>
+      <Text style={styles.emptyPlanDescription}>
+        Quick Check에서 오늘 궁금한 행동을 하나씩 확인해보세요.
+      </Text>
+    </View>
+  );
+}
+
+function createActionPlanGroups(
+  results: QuickCheckResult[],
+): ActionPlanGroup[] {
+  const decisionOrder: QuickCheckDecision[] = [
+    'POSSIBLE',
+    'ADJUST',
+    'POSTPONE',
+    'CONNECT',
+  ];
+  const titles: Record<QuickCheckDecision, string> = {
+    POSSIBLE: '오늘 진행할 수 있어요',
+    ADJUST: '조절해서 진행해요',
+    POSTPONE: '오늘은 미루는 게 좋아요',
+    CONNECT: '의료진 확인이 필요해요',
+  };
+
+  return decisionOrder.flatMap((decision) => {
+    const matchingResults = results.filter(
+      (result) => result.decision === decision,
+    );
+
+    if (matchingResults.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        color: DECISION_COLORS[decision],
+        title: titles[decision],
+        items: matchingResults.map((result) => ({
+          action: result.action,
+          checkId: result.checkId,
+          color: DECISION_COLORS[decision],
+          description: DECISION_USER_LABELS[decision],
+          detail: result.reason,
+          label: `${ACTION_LABELS[result.action]} · ${result.contextLabel}`,
+          status: 'complete' as const,
+        })),
+      },
+    ];
+  });
 }
 
 function SwipeActionRow({
@@ -547,10 +623,6 @@ function shortenStatusLabel(description: string) {
   return statusMap[description] ?? description;
 }
 
-function formatRecoveryDay(day: number) {
-  return day <= 0 ? '시술 당일' : `DAY ${day}`;
-}
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -628,6 +700,42 @@ const styles = StyleSheet.create({
   planSection: {
     marginTop: MALLO_SPACING.xl,
     gap: MALLO_SPACING.xl,
+  },
+
+  moreResultsButton: {
+    alignSelf: 'center',
+    paddingHorizontal: MALLO_SPACING.md,
+    paddingVertical: MALLO_SPACING.sm,
+  },
+
+  moreResultsText: {
+    ...MALLO_TYPOGRAPHY.buttonLabel,
+    color: MALLO_COLORS.core.red,
+  },
+
+  emptyPlan: {
+    alignItems: 'center',
+    paddingHorizontal: MALLO_SPACING.lg,
+    paddingTop: 28,
+  },
+
+  emptyPlanImage: {
+    width: 205,
+    height: 177,
+  },
+
+  emptyPlanTitle: {
+    ...MALLO_TYPOGRAPHY.cardTitle,
+    marginTop: MALLO_SPACING.md,
+    color: MALLO_COLORS.core.ink,
+  },
+
+  emptyPlanDescription: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginTop: MALLO_SPACING.xs,
+    textAlign: 'center',
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
 
   group: {
@@ -884,10 +992,6 @@ const styles = StyleSheet.create({
 
   actionSection: {
     marginTop: MALLO_SPACING.xxl,
-    paddingTop: MALLO_SPACING.md,
-
-    paddingBottom:
-      Platform.OS === 'web' ? MALLO_SPACING.xxl : MALLO_SPACING.xxl * 4,
   },
 
   primaryButton: {

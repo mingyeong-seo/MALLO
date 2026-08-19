@@ -2,21 +2,28 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { MALLO_COLORS } from '@/constants/colors';
-import { EXERCISE_OPTIONS } from '@/features/ask/data';
 import { styles } from '@/features/ask/styles';
-import type { FollowUpOption, RecoveryContext } from '@/features/ask/types';
+import type { RecoveryContext } from '@/features/ask/types';
 import { formatRecoveryDay } from '@/features/ask/utils';
+import type { ConditionConfig, ConditionOption } from '@/features/check/types';
 
-export function AskHeader() {
+export function AskHeader({ onLogoPress }: { onLogoPress: () => void }) {
   return (
     <View style={styles.header}>
-      <Image
-        accessible
-        accessibilityLabel="MALLO"
-        source={require('../../../assets/images/mallo-logo-red.png')}
-        style={styles.headerLogo}
-        resizeMode="contain"
-      />
+      <Pressable
+        accessibilityLabel="Recovery Journey 홈으로 이동"
+        accessibilityRole="button"
+        hitSlop={12}
+        onPress={onLogoPress}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        <Image
+          accessible={false}
+          source={require('../../../assets/images/mallo-logo-red.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
+      </Pressable>
     </View>
   );
 }
@@ -65,7 +72,6 @@ export function QuestionInputState() {
         </Text>
       </View>
 
-      {/* 1. 그래픽 */}
       <View style={styles.illustrationContainer}>
         <Image
           accessible={false}
@@ -75,14 +81,11 @@ export function QuestionInputState() {
         />
       </View>
 
-      {/* 2. MALLO 안내 */}
       <View style={styles.askGuide}>
-        {/* 위 구분선 */}
         <View style={styles.askGuideDivider}>
           <View style={styles.askGuideLine} />
         </View>
 
-        {/* 안내 문구 */}
         <View style={styles.askGuideTextContainer}>
           <Text style={styles.askGuideTitle}>MALLO에게</Text>
 
@@ -95,7 +98,6 @@ export function QuestionInputState() {
           </Text>
         </View>
 
-        {/* 아래 구분선 */}
         <View style={styles.askGuideDivider}>
           <View style={styles.askGuideLine} />
         </View>
@@ -105,17 +107,18 @@ export function QuestionInputState() {
 }
 
 export function BehaviorFollowUpState({
+  config,
   onOptionPress,
   onReset,
   question,
 }: {
-  onOptionPress: (option: FollowUpOption) => void;
+  config: ConditionConfig;
+  onOptionPress: (option: ConditionOption) => void;
   onReset: () => void;
   question: string;
 }) {
   return (
     <View style={styles.stateContent}>
-      {/* 사용자가 입력한 질문 */}
       <View style={styles.questionRecall}>
         <Text style={styles.questionRecallLabel}>오늘 내가 궁금한 것</Text>
 
@@ -123,20 +126,13 @@ export function BehaviorFollowUpState({
       </View>
 
       <View style={styles.followUpSection}>
-        {/* 추가로 확인할 조건 영역 */}
         <View style={styles.followUpMainContent}>
-          <Text style={styles.followUpTitle}>
-            어떤 <Text style={styles.followUpKeyword}>운동</Text>을 하려고
-            하나요?
-          </Text>
+          <Text style={styles.followUpTitle}>{config.question}</Text>
 
-          <Text style={styles.followUpDescription}>
-            현재 회복 단계에 맞춰 확인할 수 있도록 운동 강도를 알려주세요.
-          </Text>
+          <Text style={styles.followUpDescription}>{config.guide}</Text>
 
-          {/* 운동 강도 선택 */}
           <View style={styles.optionList}>
-            {EXERCISE_OPTIONS.map((option) => (
+            {config.options.map((option) => (
               <Pressable
                 accessibilityRole="button"
                 key={option.label}
@@ -158,7 +154,6 @@ export function BehaviorFollowUpState({
             ))}
           </View>
 
-          {/* 조건 확인 일러스트 */}
           <View style={styles.followUpIllustrationContainer}>
             <Image
               accessible={false}
@@ -169,7 +164,6 @@ export function BehaviorFollowUpState({
           </View>
         </View>
 
-        {/* 질문 다시 입력 */}
         <Pressable
           accessibilityRole="button"
           onPress={onReset}

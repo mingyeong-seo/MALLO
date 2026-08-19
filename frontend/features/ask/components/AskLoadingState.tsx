@@ -18,6 +18,12 @@ const LOADING_IMAGES = [
  */
 const CHECKED_IMAGE = require('../../../assets/images/mallo-character-checked.png');
 
+/**
+ * THINK / SEARCH 각각을 약 1초씩 보여줍니다.
+ * 전체 반복 시간은 Ask index의 Loading delay가 결정합니다.
+ */
+const LOADING_IMAGE_INTERVAL_MS = 1000;
+
 export function AskLoadingState({
   question,
   isComplete,
@@ -27,37 +33,27 @@ export function AskLoadingState({
 }) {
   const [loadingStep, setLoadingStep] = useState(0);
 
-  /**
-   * 확인 중일 때만
-   * thinking ↔ searching 이미지를 900ms 간격으로 반복
-   *
-   * isComplete === true가 되면 반복 중단하고
-   * checked 이미지 표시
-   */
   useEffect(() => {
     if (isComplete) {
       return;
     }
 
     const interval = setInterval(() => {
-      setLoadingStep((prev) => (prev + 1) % LOADING_IMAGES.length);
-    }, 900);
+      setLoadingStep((previous) => (previous + 1) % LOADING_IMAGES.length);
+    }, LOADING_IMAGE_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [isComplete]);
 
   return (
     <View style={[styles.stateContent, styles.loadingStateContent]}>
-      {/* 사용자가 입력한 질문 */}
       <View style={styles.questionRecall}>
         <Text style={styles.questionRecallLabel}>오늘 내가 궁금한 것</Text>
 
         <Text style={styles.questionRecallText}>“{question}”</Text>
       </View>
 
-      {/* Loading / 완료 영역 */}
       <View style={styles.loadingBody}>
-        {/* MALLO 캐릭터 */}
         <View
           style={[
             styles.loadingCharacterContainer,
@@ -72,7 +68,6 @@ export function AskLoadingState({
           />
         </View>
 
-        {/* 메인 문구 */}
         <Text style={styles.loadingTitle}>
           {isComplete ? (
             <>
@@ -88,7 +83,6 @@ export function AskLoadingState({
           )}
         </Text>
 
-        {/* 보조 문구 */}
         <Text style={styles.loadingDescription}>
           {isComplete ? (
             <>
@@ -105,7 +99,6 @@ export function AskLoadingState({
           )}
         </Text>
 
-        {/* 확인 중에만 점 표시 */}
         {!isComplete ? (
           <View
             accessible

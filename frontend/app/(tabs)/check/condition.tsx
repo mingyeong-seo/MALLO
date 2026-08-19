@@ -6,199 +6,248 @@ import {
   StyleSheet,
   ScrollView,
   Image,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import {MALLO_COLORS} from '@/constants/colors';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-// ─── Types ──────────────────────────────────────────────────────────────────────
+import { MALLO_COLORS } from '@/constants/colors';
+import { CheckRequestState } from '@/features/check/components/CheckRequestState';
+import { CONDITION_CONFIGS, isQuickCheckAction } from '@/features/check/data';
+import { requestMockQuickCheck } from '@/features/check/mock-service';
+import { formatElapsedDay } from '@/features/recovery/mock-data';
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 
-interface ConditionOption {
-  label: string;
-  description: string;
-  value: string;
-}
-
-// ─── Data ───────────────────────────────────────────────────────────────────────
-
-const CONDITION_OPTIONS: ConditionOption[] = [
-  {
-    label: '가벼운 활동',
-    description: '산책, 스트레칭 — 땀이 나지 않는 수준',
-    value: 'LOW',
-  },
-  {
-    label: '중간 강도',
-    description: '조깅, 헬스 — 약간 숨이 찰 정도',
-    value: 'MEDIUM',
-  },
-  {
-    label: '고강도',
-    description: 'HIIT, PT — 온몸에 땀이 나는 수준',
-    value: 'HIGH',
-  },
-];
-
-// ─── Screen ─────────────────────────────────────────────────────────────────────
+type RequestState = 'idle' | 'loading' | 'error' | 'no-protocol';
 
 export default function ConditionCheckScreen() {
   const router = useRouter();
-  const { action, actionTitle } = useLocalSearchParams<{
-    action: string;
-    actionTitle: string;
+
+  const { action, actionTitle, simulate, source } = useLocalSearchParams<{
+    action?: string;
+    actionTitle?: string;
+    simulate?: string;
+    source?: string;
   }>();
+
+  const { recoverySession, saveQuickCheck } = useRecoveryFlow();
 
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
 
-  const displayTitle = actionTitle || '운동';
+  const [requestState, setRequestState] = useState<RequestState>('idle');
 
-  const handleResult = () => {
+  const [shouldSimulateError, setShouldSimulateError] = useState(
+    simulate === 'error',
+  );
+
+  const normalizedAction =
+    typeof action === 'string' && isQuickCheckAction(action)
+      ? action
+      : 'EXERCISE';
+
+  const config = CONDITION_CONFIGS[normalizedAction];
+
+  const displayTitle = actionTitle || config.actionLabel;
+
+  const elapsedDay = recoverySession?.elapsedDay ?? 0;
+
+  const handleLogoPress = () => {
+    router.replace('/(tabs)/journey/home');
+  };
+
+  const handleSelectAnotherAction = () => {
+    router.replace('/(tabs)/check/quick');
+  };
+
+  const handleResult = async () => {
     if (!selectedValue) return;
 
-    router.push({
-      pathname: '/(tabs)/check/result',
-      params: {
-        action: action || 'EXERCISE',
-        condition: selectedValue,
-      },
-    });
+    setRequestState('loading');
+
+    try {
+      const response = await requestMockQuickCheck({
+        action: normalizedAction,
+        context: {
+          [config.contextKey]: selectedValue,
+        },
+        elapsedDay,
+        simulateError: shouldSimulateError,
+      });
+
+      if (response.status === 'NO_PROTOCOL') {
+        setRequestState('no-protocol');
+        return;
+      }
+
+      saveQuickCheck(response.result);
+
+      router.replace({
+        pathname: '/(tabs)/check/result',
+        params: {
+          checkId: response.result.checkId,
+          question: config.question,
+          source: source || 'quick-check',
+        },
+      });
+    } catch {
+      setShouldSimulateError(false);
+      setRequestState('error');
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* ─── 상단 네비게이션 ─────────────────────────────────── */}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* 상단 MALLO Header */}
       <View style={styles.navigation}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Recovery Journey 홈으로 이동"
+          onPress={handleLogoPress}
+          hitSlop={12}
+          style={({ pressed }) => [
+            styles.logoButton,
+            pressed && styles.logoPressed,
+          ]}
         >
-          <Text style={styles.backText}>← Quick Check</Text>
-        </TouchableOpacity>
-        <View style={styles.logoContainer} pointerEvents="none">
           <Image
-            accessible
-            accessibilityLabel="MALLO"
+            accessible={false}
             source={require('../../../assets/images/mallo-logo-red.png')}
             style={styles.headerLogo}
             resizeMode="contain"
           />
-        </View>
+        </Pressable>
       </View>
-    
 
-      {/* ─── 스크롤 콘텐츠 ─────────────────────────────────── */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 뱃지 영역 */}
+        {/* Action / Recovery Context */}
         <View style={styles.badgeRow}>
           <View style={styles.badgeBlack}>
             <Text style={styles.badgeBlackText}>{displayTitle}</Text>
           </View>
+
           <View style={styles.badgeGray}>
-            <Text style={styles.badgeGrayText}>REJURAN · DAY 3</Text>
+            <Text style={styles.badgeGrayText}>
+              {recoverySession?.procedureName ?? 'REJURAN'} ·{' '}
+              {formatElapsedDay(elapsedDay)}
+            </Text>
           </View>
         </View>
 
-        {/* 헤더 영역 */}
-        <View style={styles.header}>
-          <Text style={styles.headerLabel}>필수 조건 1개 확인</Text>
-          <Text style={styles.headerQuestion}>
-            {'오늘 하려는 운동 강도는\n어느 정도인가요?'}
-          </Text>
-          <Text style={styles.headerGuide}>
-            {'Recovery Protocol은 운동 강도에 따라\n다른 기준을 적용합니다.'}
-          </Text>
-        </View>
+        {requestState === 'idle' ? (
+          <>
+            <View style={styles.header}>
+              <Text style={styles.headerLabel}>필수 조건 1개 확인</Text>
 
-        {/* 조건 선택 리스트 */}
-        <View style={styles.optionList}>
-          {CONDITION_OPTIONS.map((option) => {
-            const isSelected = selectedValue === option.value;
+              <Text style={styles.headerQuestion}>{config.question}</Text>
 
-            return (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.optionCard,
-                  isSelected && styles.optionCardSelected,
-                ]}
-                onPress={() => setSelectedValue(option.value)}
-                activeOpacity={0.7}
-              >
-                {/* 라디오 버튼 */}
-                <View
-                  style={[
-                    styles.radio,
-                    isSelected && styles.radioSelected,
-                  ]}
-                >
-                  {isSelected && <View style={styles.radioInner} />}
-                </View>
+              <Text style={styles.headerGuide}>{config.guide}</Text>
+            </View>
 
-                {/* 텍스트 영역 */}
-                <View style={styles.optionTextContainer}>
-                  <Text
+            <View style={styles.optionList}>
+              {config.options.map((option) => {
+                const isSelected = selectedValue === option.value;
+
+                return (
+                  <TouchableOpacity
+                    key={option.value}
                     style={[
-                      styles.optionLabel,
-                      isSelected && styles.optionLabelSelected,
+                      styles.optionCard,
+                      isSelected && styles.optionCardSelected,
                     ]}
+                    onPress={() => setSelectedValue(option.value)}
+                    activeOpacity={0.7}
                   >
-                    {option.label}
-                  </Text>
-                  <Text style={styles.optionDescription}>
-                    {option.description}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                    <View
+                      style={[styles.radio, isSelected && styles.radioSelected]}
+                    >
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+
+                    <View style={styles.optionTextContainer}>
+                      <Text
+                        style={[
+                          styles.optionLabel,
+                          isSelected && styles.optionLabelSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+
+                      <Text style={styles.optionDescription}>
+                        {option.description}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        ) : requestState === 'loading' ? (
+          <CheckRequestState
+            description="현재 회복 단계와 선택한 조건에 맞는 기준을 찾고 있어요."
+            title="Recovery Protocol을 확인하고 있어요"
+            tone="loading"
+          />
+        ) : requestState === 'error' ? (
+          <CheckRequestState
+            description="결과를 불러오지 못했어요. 선택한 조건을 유지한 채 다시 확인할 수 있어요."
+            onPrimaryPress={handleResult}
+            primaryLabel="다시 시도하기"
+            title="잠시 문제가 생겼어요"
+            tone="error"
+          />
+        ) : (
+          <CheckRequestState
+            description="현재 검수된 Recovery Protocol에서는 이 조건을 안내하기 어려워요."
+            onPrimaryPress={handleSelectAnotherAction}
+            primaryLabel="다른 행동 확인하기"
+            title="아직 안내할 수 없는 조건이에요"
+            tone="unsupported"
+          />
+        )}
       </ScrollView>
 
-      {/* ─── 하단 버튼 ─────────────────────────────────────── */}
-      <View style={styles.bottomContainer}>
-        {/* 결과 확인 버튼 */}
-        <TouchableOpacity
-          style={[
-            styles.primaryButton,
-            selectedValue
-              ? styles.primaryButtonActive
-              : styles.primaryButtonDisabled,
-          ]}
-          onPress={handleResult}
-          disabled={!selectedValue}
-          activeOpacity={0.8}
-        >
-          <Text
+      {requestState === 'idle' ? (
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
             style={[
-              styles.primaryButtonText,
+              styles.primaryButton,
               selectedValue
-                ? styles.primaryButtonTextActive
-                : styles.primaryButtonTextDisabled,
+                ? styles.primaryButtonActive
+                : styles.primaryButtonDisabled,
             ]}
+            onPress={handleResult}
+            disabled={!selectedValue}
+            activeOpacity={0.8}
           >
-            결과 확인 →
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.primaryButtonText,
+                selectedValue
+                  ? styles.primaryButtonTextActive
+                  : styles.primaryButtonTextDisabled,
+              ]}
+            >
+              결과 확인 →
+            </Text>
+          </TouchableOpacity>
 
-        {/* 행동 다시 선택 버튼 */}
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.secondaryButtonText}>← 행동 다시 선택</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleSelectAnotherAction}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.secondaryButtonText}>← 행동 다시 선택</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
-
-// ─── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -206,89 +255,82 @@ const styles = StyleSheet.create({
     backgroundColor: MALLO_COLORS.core.white,
   },
 
-  // Navigation
   navigation: {
-    flexDirection: 'row',
+    height: 48,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    justifyContent: 'center',
     borderBottomWidth: 1,
     borderBottomColor: MALLO_COLORS.support.mistGray,
-    position: 'relative',
   },
-  backButton: {
-    zIndex: 1,
-  },
-  logoContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
+
+  logoButton: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  backText: {
-    fontSize: 15,
-    color: MALLO_COLORS.core.ink,
-    fontWeight: '500',
+
+  logoPressed: {
+    opacity: 0.7,
   },
+
   headerLogo: {
     width: 112,
     height: 25,
   },
 
-  // Scroll
   scrollView: {
     flex: 1,
   },
+
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 24,
   },
 
-  // Badge
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 20,
   },
+
   badgeBlack: {
     backgroundColor: MALLO_COLORS.core.ink,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
   },
+
   badgeBlackText: {
     fontSize: 13,
     fontWeight: '600',
     color: MALLO_COLORS.core.white,
   },
+
   badgeGray: {
     backgroundColor: MALLO_COLORS.support.warmGray,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
   },
+
   badgeGrayText: {
     fontSize: 13,
     fontWeight: '500',
     color: MALLO_COLORS.support.secondaryTextGray,
   },
 
-  // Header
   header: {
     marginBottom: 28,
   },
+
   headerLabel: {
     fontSize: 13,
     fontWeight: '600',
     color: MALLO_COLORS.core.red,
     marginBottom: 8,
   },
+
   headerQuestion: {
     fontSize: 22,
     fontWeight: '700',
@@ -296,16 +338,17 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     marginBottom: 12,
   },
+
   headerGuide: {
     fontSize: 14,
     color: MALLO_COLORS.support.secondaryTextGray,
     lineHeight: 22,
   },
 
-  // Option List
   optionList: {
     gap: 12,
   },
+
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -315,12 +358,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
+
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
   },
+
   optionCardSelected: {
     borderColor: MALLO_COLORS.core.red,
     backgroundColor: MALLO_COLORS.support.redTint,
@@ -328,7 +376,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
   },
 
-  // Radio
   radio: {
     width: 22,
     height: 22,
@@ -339,9 +386,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 14,
   },
+
   radioSelected: {
     borderColor: MALLO_COLORS.core.red,
   },
+
   radioInner: {
     width: 12,
     height: 12,
@@ -349,36 +398,41 @@ const styles = StyleSheet.create({
     backgroundColor: MALLO_COLORS.core.red,
   },
 
-  // Option Text
   optionTextContainer: {
     flex: 1,
   },
+
   optionLabel: {
     fontSize: 16,
     fontWeight: '500',
     color: MALLO_COLORS.core.ink,
     marginBottom: 4,
   },
+
   optionLabelSelected: {
     fontWeight: '700',
     color: MALLO_COLORS.core.red,
   },
+
   optionDescription: {
     fontSize: 13,
     color: MALLO_COLORS.support.secondaryTextGray,
     lineHeight: 18,
   },
 
-  // Bottom Buttons
   bottomContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 100,
+
+    // S07에서는 Bottom Tab을 숨기므로 기존 100px 여백 제거
+    paddingBottom: 20,
+
     borderTopWidth: 1,
     borderTopColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
     gap: 10,
   },
+
   primaryButton: {
     width: '100%',
     height: 54,
@@ -386,22 +440,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   primaryButtonActive: {
     backgroundColor: MALLO_COLORS.core.red,
   },
+
   primaryButtonDisabled: {
     backgroundColor: MALLO_COLORS.support.mistGray,
   },
+
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
+
   primaryButtonTextActive: {
     color: MALLO_COLORS.core.white,
   },
+
   primaryButtonTextDisabled: {
     color: MALLO_COLORS.support.secondaryTextGray,
   },
+
   secondaryButton: {
     width: '100%',
     height: 48,
@@ -412,6 +472,7 @@ const styles = StyleSheet.create({
     borderColor: MALLO_COLORS.support.mistGray,
     backgroundColor: MALLO_COLORS.core.white,
   },
+
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '500',
