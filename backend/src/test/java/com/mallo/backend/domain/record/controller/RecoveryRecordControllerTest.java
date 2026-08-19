@@ -146,7 +146,7 @@ class RecoveryRecordControllerTest {
 		mockMvc.perform(withAuth(get("/v1/sessions/{sessionId}/records/today", SESSION_ID)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.id").value(1));
+				.andExpect(jsonPath("$.data.record_id").value(1));
 	}
 
 	@Test

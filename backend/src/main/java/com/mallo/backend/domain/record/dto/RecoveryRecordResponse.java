@@ -8,7 +8,7 @@ import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record RecoveryRecordResponse(
-		@Schema(description = "기록 id") Long id,
+		@Schema(description = "기록 id") Long recordId,
 		@Schema(description = "세션 id") String sessionId,
 		@Schema(description = "시술 당일=0 기준 경과일") Integer elapsedDay,
 		@Schema(description = "확인한 행동 목록 (저장된 순서 그대로)") List<RecordActionResponse> actions,
