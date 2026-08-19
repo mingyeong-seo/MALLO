@@ -33,11 +33,20 @@ class HttpFakeProvider:
         self.closed = True
 
 
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+def _reserved_socket() -> socket.socket:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
         sock.bind(("127.0.0.1", 0))
-        address = _SOCKET_ADDRESS_ADAPTER.validate_python(sock.getsockname())
-        return _port_from_socket_address(address)
+        sock.listen()
+    except Exception:
+        sock.close()
+        raise
+    return sock
+
+
+def _port_from_socket(sock: socket.socket) -> int:
+    address = _SOCKET_ADDRESS_ADAPTER.validate_python(sock.getsockname())
+    return _port_from_socket_address(address)
 
 
 def _port_from_socket_address(address: tuple[object, ...]) -> int:
@@ -59,7 +68,8 @@ async def _running_server(
         openrouter_api_key=SecretStr("test-openrouter-key"),
         ai_shared_secret=SecretStr(TEST_SECRET),
     )
-    port = _free_port()
+    server_socket = _reserved_socket()
+    port = _port_from_socket(server_socket)
     server = uvicorn.Server(
         uvicorn.Config(
             create_app(settings, provider),
@@ -68,27 +78,32 @@ async def _running_server(
             log_level="warning",
         )
     )
-    async with anyio.create_task_group() as task_group:
-        _ = task_group.start_soon(server.serve)
-        async with httpx2.AsyncClient(base_url=f"http://127.0.0.1:{port}") as client:
-            for _ in range(100):
-                try:
-                    response = await client.get("/healthz")
-                except httpx2.HTTPError:
-                    await anyio.sleep(0.05)
-                    continue
-                if response.status_code == 200:
-                    break
-            else:
-                message = "server did not start"
-                raise AssertionError(message)
-        try:
-            yield f"http://127.0.0.1:{port}", server
-        finally:
-            server.should_exit = True
-            with anyio.move_on_after(5, shield=True):
-                await server.shutdown()
-            task_group.cancel_scope.cancel()
+    try:
+        async with anyio.create_task_group() as task_group:
+            _ = task_group.start_soon(server.serve, [server_socket])
+            async with httpx2.AsyncClient(
+                base_url=f"http://127.0.0.1:{port}"
+            ) as client:
+                for _ in range(100):
+                    try:
+                        response = await client.get("/healthz")
+                    except httpx2.HTTPError:
+                        await anyio.sleep(0.05)
+                        continue
+                    if response.status_code == 200:
+                        break
+                else:
+                    message = "server did not start"
+                    raise AssertionError(message)
+            try:
+                yield f"http://127.0.0.1:{port}", server
+            finally:
+                server.should_exit = True
+                with anyio.move_on_after(5, shield=True):
+                    await server.shutdown()
+                task_group.cancel_scope.cancel()
+    finally:
+        server_socket.close()
 
 
 @pytest.mark.anyio
