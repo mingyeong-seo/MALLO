@@ -1,32 +1,53 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
+  View,
+} from 'react-native';
 
 import { MALLO_COLORS } from '@/constants/colors';
 import { styles } from '@/features/ask/styles';
 
 type QuestionComposerProps = {
+  attachments: string[];
   bottomClearance: number;
   notice: string;
   onChangeText: (value: string) => void;
   onSubmit: () => void;
   onFocusChange?: (focused: boolean) => void;
+  onAddAttachment: () => void;
+  onRemoveAttachment: (attachment: string) => void;
   suggestions: readonly string[];
   value: string;
 };
 
+type WebKeyPressNativeEvent = TextInputKeyPressEventData & {
+  shiftKey?: boolean;
+};
+
 export function QuestionComposer({
+  attachments,
   bottomClearance,
   notice,
   onChangeText,
   onSubmit,
   onFocusChange,
+  onAddAttachment,
+  onRemoveAttachment,
   suggestions,
   value,
 }: QuestionComposerProps) {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [selection, setSelection] = useState({
+    start: 0,
+    end: 0,
+  });
 
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +114,25 @@ export function QuestionComposer({
 
     inputRef.current?.blur();
     onSubmit();
+  };
+
+  const handleAddAttachment = () => {
+    onAddAttachment();
+  };
+
+  const handleKeyPress = (
+    event: NativeSyntheticEvent<TextInputKeyPressEventData>,
+  ) => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+
+    const nativeEvent = event.nativeEvent as WebKeyPressNativeEvent;
+
+    if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
+      event.preventDefault?.();
+      handleSubmit();
+    }
   };
 
   return (
@@ -173,41 +213,88 @@ export function QuestionComposer({
         ) : null}
 
         <View style={styles.composerShell}>
-          <TextInput
-            accessibilityLabel="ASK MALLO 질문 입력"
-            maxLength={160}
-            multiline
-            onBlur={handleBlur}
-            onChangeText={handleInputChange}
-            onFocus={handleFocus}
-            onSubmitEditing={handleSubmit}
-            placeholder="오늘은 무엇이 궁금한가요?"
-            placeholderTextColor={MALLO_COLORS.support.secondaryTextGray}
-            ref={inputRef}
-            returnKeyType="send"
-            scrollEnabled
-            selection={selection}
-            style={styles.input}
-            value={value}
-          />
+          {attachments.length ? (
+            <View style={styles.attachmentPreviewRow}>
+              {attachments.map((attachment, index) => (
+                <Pressable
+                  accessibilityLabel={`Mock 첨부 사진 ${index + 1} 제거`}
+                  accessibilityRole="button"
+                  key={attachment}
+                  onPress={() => onRemoveAttachment(attachment)}
+                  style={styles.attachmentPreview}
+                >
+                  <Ionicons
+                    name="image-outline"
+                    size={20}
+                    color={MALLO_COLORS.core.red}
+                  />
 
-          <Pressable
-            accessibilityLabel="질문 보내기"
-            accessibilityRole="button"
-            disabled={!canSubmit}
-            onPress={handleSubmit}
-            style={({ pressed }) => [
-              styles.sendButton,
-              !canSubmit && styles.sendButtonDisabled,
-              pressed && canSubmit && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name="arrow-up"
-              size={Platform.OS === 'web' ? 19 : 17}
-              color={MALLO_COLORS.core.white}
+                  <Ionicons
+                    name="close-circle"
+                    size={15}
+                    color={MALLO_COLORS.support.secondaryTextGray}
+                    style={styles.attachmentRemoveIcon}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.composerInputRow}>
+            <Pressable
+              accessibilityLabel="사진 첨부"
+              accessibilityRole="button"
+              hitSlop={6}
+              onPress={handleAddAttachment}
+              style={({ pressed }) => [
+                styles.attachmentButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name="add"
+                size={21}
+                color={MALLO_COLORS.core.red}
+              />
+            </Pressable>
+
+            <TextInput
+              accessibilityLabel="ASK MALLO 질문 입력"
+              maxLength={160}
+              multiline
+              onBlur={handleBlur}
+              onChangeText={handleInputChange}
+              onFocus={handleFocus}
+              onKeyPress={handleKeyPress}
+              onSubmitEditing={handleSubmit}
+              placeholder="오늘은 무엇이 궁금한가요?"
+              placeholderTextColor={MALLO_COLORS.support.secondaryTextGray}
+              ref={inputRef}
+              returnKeyType="send"
+              scrollEnabled
+              selection={selection}
+              style={styles.input}
+              value={value}
             />
-          </Pressable>
+
+            <Pressable
+              accessibilityLabel="질문 보내기"
+              accessibilityRole="button"
+              disabled={!canSubmit}
+              onPress={handleSubmit}
+              style={({ pressed }) => [
+                styles.sendButton,
+                !canSubmit && styles.sendButtonDisabled,
+                pressed && canSubmit && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name="arrow-up"
+                size={Platform.OS === 'web' ? 19 : 17}
+                color={MALLO_COLORS.core.white}
+              />
+            </Pressable>
+          </View>
         </View>
       </View>
     </>

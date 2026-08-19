@@ -345,6 +345,7 @@ export const styles = StyleSheet.create({
 
   optionList: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: MALLO_SPACING.lg,
   },
@@ -362,6 +363,7 @@ export const styles = StyleSheet.create({
 
   optionCard: {
     flex: 1,
+    flexBasis: '30%',
     minHeight: 78,
     alignItems: 'center',
     justifyContent: 'center',
@@ -528,12 +530,7 @@ export const styles = StyleSheet.create({
 
   composerShell: {
     minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: MALLO_SPACING.sm,
-
-    paddingLeft: MALLO_SPACING.lg,
-    paddingRight: MALLO_SPACING.xs,
+    paddingHorizontal: MALLO_SPACING.sm,
     paddingVertical: MALLO_SPACING.xs,
 
     borderWidth: 1,
@@ -556,6 +553,13 @@ export const styles = StyleSheet.create({
           boxShadow: '0 2px 8px rgba(26, 26, 26, 0.06)',
         }
       : {}),
+  },
+
+  composerInputRow: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: MALLO_SPACING.sm,
   },
 
   input: {
@@ -612,5 +616,96 @@ export const styles = StyleSheet.create({
 
   followUpMainContent: {
     marginTop: Platform.OS === 'web' ? 0 : 1,
+  },
+
+  attachmentPreviewRow: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    paddingHorizontal: 6,
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+
+  attachmentPreview: {
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+    borderRadius: MALLO_RADIUS.md,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+
+  attachmentRemoveIcon: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+  },
+
+  attachmentButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+
+  askStatusBody: {
+    alignItems: 'center',
+    marginTop: MALLO_SPACING.xxl,
+    paddingVertical: MALLO_SPACING.xl,
+  },
+
+  askStatusIcon: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.support.redTint,
+  },
+
+  askStatusTitle: {
+    ...MALLO_TYPOGRAPHY.cardTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginTop: MALLO_SPACING.lg,
+    textAlign: 'center',
+    color: MALLO_COLORS.core.ink,
+  },
+
+  askStatusDescription: {
+    ...MALLO_TYPOGRAPHY.body,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    maxWidth: 320,
+    marginTop: MALLO_SPACING.sm,
+    textAlign: 'center',
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+
+  askStatusPrimary: {
+    minHeight: 52,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: MALLO_SPACING.sm,
+    marginTop: MALLO_SPACING.xl,
+    borderRadius: MALLO_RADIUS.md,
+    backgroundColor: MALLO_COLORS.core.red,
+  },
+
+  askStatusPrimaryText: {
+    ...MALLO_TYPOGRAPHY.buttonLabel,
+    color: MALLO_COLORS.core.white,
+  },
+
+  askStatusReset: {
+    alignSelf: 'stretch',
+    marginTop: MALLO_SPACING.md,
   },
 });
