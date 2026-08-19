@@ -6,7 +6,7 @@ Updated: 2026-08-20 KST
 
 - Repository: `https://github.com/mingyeong-seo/MALLO.git`
 - Working branch: `feat/ai-triage-service`
-- Verified commit: `d19de189f458bfcf337b72571fe5a47ae903504d`
+- Verified implementation commit: `1c03da5cbaf13605832fb775a30071ba57812c9d`
 - Base remote branch used for backend work: `origin/backend-interaction`
 - Evaluator branch requirement: `main` or `master`
 - Current risk: verified AI work is not yet on `origin/main`; merge/push requires explicit team approval.
@@ -22,7 +22,7 @@ Updated: 2026-08-20 KST
 
 ## Verified Evidence
 
-- AI deterministic suite: `43 passed, 1 deselected`, branch coverage `93%`.
+- AI deterministic suite: `46 passed, 1 deselected`, branch coverage `93%`.
 - AI live OpenRouter smoke: `1 passed`; model calls `2`; deterministic safety bypass `1`.
 - Backend suite: `./gradlew test` build successful.
 - Cross-service local QA:
@@ -75,4 +75,7 @@ Updated: 2026-08-20 KST
 
 - No push, PR, merge, or production deployment was performed in this local implementation pass.
 - Gabia server hardening and AI deployment remain external-production actions.
+- The Gabia host is running, but SSH key authentication is not configured and
+  browser-terminal access requires the root password. Issuing a new password
+  would restart the server, so it was not performed without explicit approval.
 - Final track, real participant names, deployed URL, and presentation assets require team confirmation.
