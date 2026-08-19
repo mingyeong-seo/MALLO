@@ -1,4 +1,4 @@
-import os
+import socket
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -6,7 +6,7 @@ import anyio
 import httpx2
 import pytest
 import uvicorn
-from pydantic import SecretStr
+from pydantic import SecretStr, TypeAdapter
 from tests.support import (
     TEST_REQUEST_ID,
     TEST_SECRET,
@@ -16,6 +16,10 @@ from tests.support import (
 from mallo_ai.app import create_app
 from mallo_ai.provider_contracts import GeneralDecision, ProviderDecision, TriageInput
 from mallo_ai.settings import Settings
+
+_SOCKET_ADDRESS_ADAPTER: TypeAdapter[tuple[object, ...]] = TypeAdapter(
+    tuple[object, ...]
+)
 
 
 class HttpFakeProvider:
@@ -29,8 +33,22 @@ class HttpFakeProvider:
         self.closed = True
 
 
-def _test_port() -> int:
-    return 18_000 + (os.getpid() % 10_000)
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        address = _SOCKET_ADDRESS_ADAPTER.validate_python(sock.getsockname())
+        return _port_from_socket_address(address)
+
+
+def _port_from_socket_address(address: tuple[object, ...]) -> int:
+    if len(address) < 2:
+        message = "unexpected socket address shape"
+        raise AssertionError(message)
+    port = address[1]
+    if not isinstance(port, int):
+        message = "unexpected socket port type"
+        raise TypeError(message)
+    return port
 
 
 @asynccontextmanager
@@ -41,7 +59,7 @@ async def _running_server(
         openrouter_api_key=SecretStr("test-openrouter-key"),
         ai_shared_secret=SecretStr(TEST_SECRET),
     )
-    port = _test_port()
+    port = _free_port()
     server = uvicorn.Server(
         uvicorn.Config(
             create_app(settings, provider),
