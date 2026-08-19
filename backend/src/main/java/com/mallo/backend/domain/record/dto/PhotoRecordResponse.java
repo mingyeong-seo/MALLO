@@ -13,7 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * observation은 비의료적 관찰 결과만 담긴다 (redness/dryness 등) — 진단/위험도 필드는 절대 없음.
  */
 public record PhotoRecordResponse(
-		@Schema(description = "사진 id") Long id,
+		@Schema(description = "사진 id") Long photoId,
 		@Schema(description = "세션 id") String sessionId,
 		@Schema(description = "비의료적 관찰 결과 (redness/dryness 등). 진단/위험도 필드는 절대 포함되지 않음",
 				example = "{\"redness\": \"LOW\", \"dryness\": \"MEDIUM\"}")

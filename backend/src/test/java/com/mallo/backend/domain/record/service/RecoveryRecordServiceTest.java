@@ -22,10 +22,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.mallo.backend.domain.record.dto.PhotoRecordResponse;
 import com.mallo.backend.domain.record.dto.RecoveryRecordCreateRequest;
+import com.mallo.backend.domain.record.dto.RecoveryRecordCreateRequest.ActionEntry;
 import com.mallo.backend.domain.record.dto.RecoveryRecordResponse;
 import com.mallo.backend.domain.record.dto.RecoveryRecordUpdateRequest;
 import com.mallo.backend.domain.record.entity.PerformedStatus;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
+import com.mallo.backend.domain.record.entity.RecordAction;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
 import com.mallo.backend.domain.record.repository.RecoveryRecordRepository;
@@ -57,6 +59,14 @@ class RecoveryRecordServiceTest {
 		return PhotoRecordResponse.of(photo, java.util.Map.of("redness", "LOW"), "/uploads/photos/mock.jpg");
 	}
 
+	private List<ActionEntry> actionEntries(String action, PerformedStatus performedStatus) {
+		return List.of(new ActionEntry(action, performedStatus));
+	}
+
+	private List<RecordAction> recordActions(String action, PerformedStatus performedStatus) {
+		return List.of(RecordAction.builder().action(action).performedStatus(performedStatus).build());
+	}
+
 	/** BaseTimeEntity.createdAt은 JPA Auditing으로만 채워져서, 순수 단위 테스트에선 리플렉션으로 직접 세팅한다. */
 	private void setCreatedAt(RecoveryRecord record, LocalDateTime createdAt) {
 		ReflectionTestUtils.setField(record, "createdAt", createdAt);
@@ -68,14 +78,15 @@ class RecoveryRecordServiceTest {
 		@Test
 		void 사진_없이_기록을_생성한다() {
 			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
-					1, "EXERCISE", PerformedStatus.DONE, "가볍게 산책함", null);
+					1, actionEntries("EXERCISE", PerformedStatus.DONE), "가볍게 산책함", null);
 
 			RecoveryRecordResponse response = recoveryRecordService.create(SESSION_ID, request);
 
 			assertThat(response.sessionId()).isEqualTo(SESSION_ID);
 			assertThat(response.elapsedDay()).isEqualTo(1);
-			assertThat(response.action()).isEqualTo("EXERCISE");
-			assertThat(response.performedStatus()).isEqualTo(PerformedStatus.DONE);
+			assertThat(response.actions()).hasSize(1);
+			assertThat(response.actions().get(0).action()).isEqualTo("EXERCISE");
+			assertThat(response.actions().get(0).performedStatus()).isEqualTo(PerformedStatus.DONE);
 			assertThat(response.memo()).isEqualTo("가볍게 산책함");
 			assertThat(response.photos()).isEmpty();
 			verify(recoveryRecordRepository).save(any(RecoveryRecord.class));
@@ -92,7 +103,7 @@ class RecoveryRecordServiceTest {
 			given(photoRecordService.toResponse(photo2)).willReturn(photoResponse(photo2));
 
 			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
-					2, "WOUND_CARE", PerformedStatus.ADJUSTED_DONE, null, List.of(10L, 11L));
+					2, actionEntries("WOUND_CARE", PerformedStatus.ADJUSTED_DONE), null, List.of(10L, 11L));
 
 			RecoveryRecordResponse response = recoveryRecordService.create(SESSION_ID, request);
 
@@ -106,7 +117,7 @@ class RecoveryRecordServiceTest {
 			given(photoRecordService.getById(10L)).willReturn(photo);
 
 			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
-					2, "WOUND_CARE", PerformedStatus.DONE, null, List.of(10L));
+					2, actionEntries("WOUND_CARE", PerformedStatus.DONE), null, List.of(10L));
 
 			assertThatThrownBy(() -> recoveryRecordService.create(SESSION_ID, request))
 					.isInstanceOf(CustomException.class)
@@ -122,8 +133,7 @@ class RecoveryRecordServiceTest {
 		RecoveryRecord record = RecoveryRecord.builder()
 				.sessionId(SESSION_ID)
 				.elapsedDay(3)
-				.action("EXERCISE")
-				.performedStatus(PerformedStatus.DONE)
+				.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 				.build();
 		given(recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID))
 				.willReturn(List.of(record));
@@ -142,8 +152,7 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(3)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			given(recoveryRecordRepository.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
 					eq(SESSION_ID), any(), any())).willReturn(Optional.of(record));
@@ -173,18 +182,38 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.memo("이전 메모")
 					.build();
 			setCreatedAt(record, LocalDateTime.now());
 			given(recoveryRecordRepository.findById(1L)).willReturn(Optional.of(record));
 
 			RecoveryRecordResponse response = recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("수정된 메모", null));
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("수정된 메모", null, null));
 
 			assertThat(response.memo()).isEqualTo("수정된 메모");
 			verify(photoRecordService, never()).getById(any());
+		}
+
+		@Test
+		void 행동_목록을_통째로_교체한다() {
+			RecoveryRecord record = RecoveryRecord.builder()
+					.sessionId(SESSION_ID)
+					.elapsedDay(1)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
+					.build();
+			setCreatedAt(record, LocalDateTime.now());
+			given(recoveryRecordRepository.findById(1L)).willReturn(Optional.of(record));
+
+			RecoveryRecordResponse response = recoveryRecordService.update(
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null,
+							List.of(new ActionEntry("MAKEUP", PerformedStatus.NOT_DONE),
+									new ActionEntry("HEAT", PerformedStatus.DONE)),
+							null));
+
+			assertThat(response.actions()).hasSize(2);
+			assertThat(response.actions().get(0).action()).isEqualTo("MAKEUP");
+			assertThat(response.actions().get(1).action()).isEqualTo("HEAT");
 		}
 
 		@Test
@@ -192,8 +221,7 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			setCreatedAt(record, LocalDateTime.now());
 			PhotoRecord photo = photoRecord(SESSION_ID);
@@ -202,7 +230,7 @@ class RecoveryRecordServiceTest {
 			given(photoRecordService.toResponse(photo)).willReturn(photoResponse(photo));
 
 			RecoveryRecordResponse response = recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, List.of(10L)));
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, null, List.of(10L)));
 
 			assertThat(response.photos()).hasSize(1);
 		}
@@ -212,15 +240,14 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			setCreatedAt(record, LocalDateTime.now());
 			record.attachPhotos(List.of(photoRecord(SESSION_ID)));
 			given(recoveryRecordRepository.findById(1L)).willReturn(Optional.of(record));
 
 			RecoveryRecordResponse response = recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, List.of()));
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, null, List.of()));
 
 			assertThat(response.photos()).isEmpty();
 		}
@@ -230,7 +257,7 @@ class RecoveryRecordServiceTest {
 			given(recoveryRecordRepository.findById(999L)).willReturn(Optional.empty());
 
 			assertThatThrownBy(() -> recoveryRecordService.update(
-					SESSION_ID, 999L, new RecoveryRecordUpdateRequest("메모", null)))
+					SESSION_ID, 999L, new RecoveryRecordUpdateRequest("메모", null, null)))
 					.isInstanceOf(CustomException.class)
 					.extracting(e -> ((CustomException) e).getErrorCode())
 					.isEqualTo(RecordErrorCode.RECORD_NOT_FOUND);
@@ -241,13 +268,12 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(OTHER_SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			given(recoveryRecordRepository.findById(1L)).willReturn(Optional.of(record));
 
 			assertThatThrownBy(() -> recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("메모", null)))
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("메모", null, null)))
 					.isInstanceOf(CustomException.class)
 					.extracting(e -> ((CustomException) e).getErrorCode())
 					.isEqualTo(RecordErrorCode.RECORD_SESSION_MISMATCH);
@@ -258,8 +284,7 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			setCreatedAt(record, LocalDateTime.now());
 			PhotoRecord photo = photoRecord(OTHER_SESSION_ID);
@@ -267,7 +292,7 @@ class RecoveryRecordServiceTest {
 			given(photoRecordService.getById(10L)).willReturn(photo);
 
 			assertThatThrownBy(() -> recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, List.of(10L))))
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest(null, null, List.of(10L))))
 					.isInstanceOf(CustomException.class)
 					.extracting(e -> ((CustomException) e).getErrorCode())
 					.isEqualTo(RecordErrorCode.PHOTO_SESSION_MISMATCH);
@@ -278,14 +303,13 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			setCreatedAt(record, LocalDateTime.now().minusDays(1));
 			given(recoveryRecordRepository.findById(1L)).willReturn(Optional.of(record));
 
 			assertThatThrownBy(() -> recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("메모", null)))
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("메모", null, null)))
 					.isInstanceOf(CustomException.class)
 					.extracting(e -> ((CustomException) e).getErrorCode())
 					.isEqualTo(RecordErrorCode.RECORD_NOT_EDITABLE);
@@ -296,14 +320,13 @@ class RecoveryRecordServiceTest {
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(1)
-					.action("EXERCISE")
-					.performedStatus(PerformedStatus.DONE)
+					.actions(recordActions("EXERCISE", PerformedStatus.DONE))
 					.build();
 			setCreatedAt(record, java.time.LocalDate.now().atStartOfDay());
 			given(recoveryRecordRepository.findById(1L)).willReturn(Optional.of(record));
 
 			RecoveryRecordResponse response = recoveryRecordService.update(
-					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("메모", null));
+					SESSION_ID, 1L, new RecoveryRecordUpdateRequest("메모", null, null));
 
 			assertThat(response.memo()).isEqualTo("메모");
 		}
