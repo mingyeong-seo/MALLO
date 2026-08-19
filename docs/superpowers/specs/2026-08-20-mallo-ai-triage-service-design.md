@@ -283,12 +283,13 @@ Every request requires strict structured output and sends these provider prefere
 
 - `require_parameters: true`, so routing only selects endpoints that support the requested schema,
 - `data_collection: "deny"`, so providers that collect user data are excluded,
-- `zdr: true`, so only Zero Data Retention endpoints are eligible,
 - `allow_fallbacks: true`, so OpenRouter may fail over between eligible endpoints for the same configured model.
 
-The default model is `openai/gpt-5.6-luna`. The 2026-08-20 OpenRouter catalog identifies it as a fast, cost-efficient model for classification and latency-sensitive workflows. It supports `response_format` and `structured_outputs`, has a ZDR-eligible endpoint, and is priced at USD 0.20 per million input tokens and USD 1.20 per million output tokens. MALLO disables model reasoning for this classification task.
+The default model is `openai/gpt-5.6-luna`. On 2026-08-20 it was directly verified with the MALLO OpenRouter key under `require_parameters=true` and `data_collection="deny"`: the endpoint returned a schema-valid Korean action classification with zero reasoning tokens. The catalog price is USD 0.20 per million input tokens and USD 1.20 per million output tokens. MALLO disables reasoning for this classification task.
 
-The model slug remains an environment value, not an unpinned `auto` router. A future model change requires the same contract tests and a current endpoint check for structured-output and ZDR support, but does not change the MALLO internal contract.
+ZDR is not enabled by default because a direct Luna request with `zdr=true` returned `404 No endpoints found matching your data policy`, while the same request with `data_collection="deny"` succeeded. `data_collection="deny"` still excludes providers that collect or train on user data, but may allow temporary security or abuse-prevention retention. ZDR remains an optional deployment override when model availability permits it.
+
+The model slug remains an environment value, not an unpinned `auto` router. A future model change requires the same contract tests and a current endpoint check for structured-output support and the configured privacy policy, but does not change the MALLO internal contract.
 
 Production startup requires:
 

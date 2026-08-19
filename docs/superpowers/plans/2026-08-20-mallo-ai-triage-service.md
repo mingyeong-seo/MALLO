@@ -4,7 +4,7 @@
 
 **Goal:** Add a deployable OpenRouter-backed MALLO AI triage service and connect the existing Spring `POST /v1/ask` flow to it without allowing AI-generated medical decisions or guidance.
 
-**Architecture:** A stateless FastAPI service converts Korean questions into a closed, typed triage result. The Spring backend remains the only owner of sessions, Protocol matching, decisions, guidance, Interaction persistence, and the public response. OpenRouter uses `openai/gpt-5.6-luna` with native structured output, disabled reasoning, provider ZDR, and data collection denied.
+**Architecture:** A stateless FastAPI service converts Korean questions into a closed, typed triage result. The Spring backend remains the only owner of sessions, Protocol matching, decisions, guidance, Interaction persistence, and the public response. OpenRouter uses the directly verified `openai/gpt-5.6-luna` with native structured output, reasoning disabled, provider data collection denied, and optional ZDR.
 
 **Tech Stack:** Python 3.13, uv, FastAPI, Pydantic v2, pydantic-settings, pydantic-ai-slim 2.32 with OpenRouter, AnyIO, httpx2, structlog, pytest, basedpyright, ruff, Docker; Java 21, Spring Boot 4.1, Spring RestClient, Jackson 3, JUnit 5, MockRestServiceServer.
 
@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Base all work on branch `feat/ai-triage-service`, derived from `origin/backend-interaction` SHA `f061741f58a7c1b4b3a3ef5c1b1a4f0fd028d810`.
-- Default model is exactly `openai/gpt-5.6-luna`; model reasoning is disabled.
-- OpenRouter requests require `require_parameters=true`, `data_collection="deny"`, `zdr=true`, and `allow_fallbacks=true`.
+- Default model is exactly `openai/gpt-5.6-luna`; reasoning effort is `none` and reasoning content is excluded.
+- OpenRouter requests require `require_parameters=true`, `data_collection="deny"`, and `allow_fallbacks=true`; ZDR defaults off because Luna has no currently eligible ZDR endpoint for this account.
 - `decision`, `guidance`, `nextAction`, and `protocolRef` always come from Spring `ProtocolRepository`, never the model.
 - The frontend never calls the Gabia service and never receives either service credential.
 - Medical judgment, medication, diagnosis, image analysis, automatic Handoff creation, and general free-form recovery answers are out of scope.
@@ -349,7 +349,6 @@ def test_openrouter_settings_enforce_privacy_and_schema_support() -> None:
     assert model_settings["openrouter_provider"] == {
         "require_parameters": True,
         "data_collection": "deny",
-        "zdr": True,
         "allow_fallbacks": True,
     }
 ```
@@ -385,12 +384,10 @@ Use the current Pydantic AI 2.32 API:
 model_settings = OpenRouterModelSettings(
     timeout=7.0,
     max_tokens=256,
-    thinking=False,
     openrouter_reasoning={"effort": "none", "exclude": True},
     openrouter_provider={
         "require_parameters": True,
         "data_collection": "deny",
-        "zdr": True,
         "allow_fallbacks": True,
     },
     openrouter_usage={"include": True},
