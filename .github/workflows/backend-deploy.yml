@@ -43,11 +43,13 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # uses: 스텝(Docker 액션)은 잡의 defaults.run.working-directory(backend)를 안 타서
+          # 저장소 루트 기준 경로를 써야 한다 (run: 셸 스텝과 다름 — 실제로 겪은 버그, 재발 방지용 주석)
           source: |
-            ${{ steps.jar.outputs.path }}
-            scripts/deploy/remote-deploy.sh
+            backend/${{ steps.jar.outputs.path }}
+            backend/scripts/deploy/remote-deploy.sh
           target: /home/${{ secrets.EC2_USER }}/mallo
-          strip_components: 2
+          strip_components: 3
           rm: false
 
       - name: 원격 배포 스크립트 실행
