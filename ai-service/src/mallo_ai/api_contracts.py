@@ -47,6 +47,7 @@ __all__ = (
     "RequestId",
     "StrictModel",
     "TriageRequest",
+    "TriageRequestEnvelope",
     "TriageResponse",
     "UnsupportedDecision",
     "UnsupportedResponse",
@@ -64,6 +65,15 @@ class TriageRequest(StrictModel):
     """Validated request body accepted from the Spring backend."""
 
     contract_version: Literal["1.0"]
+    question: Question
+    procedure: Procedure
+    elapsed_day: ElapsedDay
+
+
+class TriageRequestEnvelope(StrictModel):
+    """HTTP boundary shape used before exact contract-version routing."""
+
+    contract_version: str
     question: Question
     procedure: Procedure
     elapsed_day: ElapsedDay

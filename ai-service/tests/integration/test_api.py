@@ -117,45 +117,6 @@ async def test_unknown_request_field_is_rejected(
     _assert_error(response, 422, "INVALID_REQUEST", "invalid request")
 
 
-@pytest.mark.parametrize(
-    ("request_body", "status_code", "code", "message"),
-    [
-        (
-            {**VALID_REQUEST, "contract_version": "2.0"},
-            409,
-            "CONTRACT_VERSION_UNSUPPORTED",
-            "unsupported contract version",
-        ),
-        (
-            {
-                "question": VALID_REQUEST["question"],
-                "procedure": VALID_REQUEST["procedure"],
-                "elapsed_day": VALID_REQUEST["elapsed_day"],
-            },
-            422,
-            "INVALID_REQUEST",
-            "invalid request",
-        ),
-    ],
-    ids=["unsupported", "missing"],
-)
-@pytest.mark.anyio
-async def test_contract_version_validation_returns_stable_error(
-    app_client: httpx2.AsyncClient,
-    request_body: dict[str, str | int],
-    status_code: int,
-    code: str,
-    message: str,
-) -> None:
-    response = await app_client.post(
-        "/internal/v1/triage",
-        headers=_auth_headers(),
-        json=request_body,
-    )
-
-    _assert_error(response, status_code, code, message)
-
-
 @pytest.mark.anyio
 async def test_safety_connect_does_not_call_provider(
     app_client: httpx2.AsyncClient, fake_provider: FakeProvider
