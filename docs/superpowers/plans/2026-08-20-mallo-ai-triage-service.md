@@ -515,7 +515,7 @@ protocol, so simple test fakes need only implement `decide()`.
 ```bash
 cd ai-service
 uv run pytest tests/integration/test_api.py tests/e2e/test_http_server.py -q
-uv run uvicorn mallo_ai.main:app --host 127.0.0.1 --port 8000
+uv run uvicorn --app-dir src mallo_ai.main:app --host 127.0.0.1 --port 8000
 ```
 
 From a second shell, send a request with test-mode credentials and verify the JSON response. Do not place the real shared secret in shell history; load it from the ignored env file inside the test driver.

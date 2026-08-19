@@ -60,3 +60,7 @@
 - `uv` commands require `UV_CACHE_DIR=/private/tmp/mallo-uv` in this sandbox to avoid reading the user home cache.
 - Local HTTP and Gradle tests require elevated local socket permission in this sandbox.
 - A stale SSH listener occupied `127.0.0.1:18080`; cross-service QA used `18180`.
+- Independent manual QA found the original local Uvicorn command could not import
+  the uninstalled `src/` layout. Adding `--app-dir src` changed startup from
+  `ModuleNotFoundError` to a healthy `/healthz` response; README and plan now use
+  the verified command.

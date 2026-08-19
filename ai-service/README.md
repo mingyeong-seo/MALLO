@@ -27,6 +27,16 @@ uv run basedpyright
 uv run pytest --cov=mallo_ai --cov-branch
 ```
 
+## Local Server
+
+This repository uses a `src/` layout without installing the project package.
+Point Uvicorn at that application directory explicitly:
+
+```sh
+cd ai-service
+uv run uvicorn --app-dir src mallo_ai.main:app --host 127.0.0.1 --port 8000
+```
+
 ## Container
 
 ```sh
