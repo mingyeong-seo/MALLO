@@ -99,7 +99,7 @@ export function AskMatchedResultState({
           <View style={styles.matchedProtocolIndex}>
             <Text style={styles.matchedProtocolIndexText}>1</Text>
           </View>
-          <Text style={styles.matchedProtocolText}>{result.protocolRef}</Text>
+          <Text style={styles.matchedProtocolText}>검수된 Recovery Protocol</Text>
         </View>
       </View>
 

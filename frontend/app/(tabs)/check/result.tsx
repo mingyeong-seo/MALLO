@@ -266,7 +266,7 @@ export default function QuickCheckResultScreen() {
                 <View style={styles.protocolIndex}>
                   <Text style={styles.protocolIndexText}>{index + 1}</Text>
                 </View>
-                <Text style={styles.protocolText}>{reference}</Text>
+                <Text style={styles.protocolText}>검수된 Recovery Protocol</Text>
               </View>
             ))}
           </View>
