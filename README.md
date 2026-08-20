@@ -2,9 +2,9 @@
 
 # MALLO
 
-### 시술 후 오늘, 무엇을 해도 되는지 60초 안에.
+### 시술 후 고민을, 오늘의 행동으로.
 
-**시술 정보와 경과일을 이해하고, 오늘의 행동을 근거와 함께 안내하는 AI Recovery Companion**
+**시술 후 안내를 현재 DAY와 실제 생활 행동에 연결하는 AI Recovery Companion**
 
 멋쟁이사자처럼 14기 중앙 해커톤 · **AAC Wellness with AI Track**
 
@@ -16,17 +16,24 @@
 
 <br />
 
-<img src="./frontend/assets/images/derna-mallo-connection.png" width="720" alt="DERNA의 시술 정보를 MALLO Recovery Journey로 연결하는 모습" />
+<img src="./frontend/assets/images/derna-mallo-connection.png" width="720" alt="DERNA의 시술 정보를 MALLO Recovery Journey로 연결하는 모습" /><br />
+
+<sub>해커톤 MVP 연결 콘셉트 · 실제 AAC/DERNA API 연동은 구현하지 않았습니다.</sub>
 
 </div>
+
+<p align="center">
+  <strong>MALLO = 병원의 회복 가이드를, 오늘 내가 행동할 수 있는 말로.</strong><br />
+  <sub>‘내 말로’는 의료용어의 단순 번역이 아니라, Recovery Protocol을 내 시술·현재 DAY·행동 상황에 연결해 실제 행동 가능한 정보로 만든다는 의미입니다.</sub>
+</p>
 
 ---
 
 ## 💡 Problem — 시술은 끝났지만, 회복은 이제 시작됩니다
 
-병원에서 받은 안내문은 일회성이고, 웹 검색은 **내 시술과 오늘의 경과일**을 알지 못합니다.
+시술 후 안내는 이미 제공됩니다. 하지만 사용자는 DAY 1, DAY 3, DAY 7처럼 회복 시점이 달라질 때마다 **지금 하려는 행동에 필요한 기준을 다시 찾아 적용해야 합니다.**
 
-사용자는 회복 기간 내내 같은 고민을 반복합니다.
+문제는 정보의 부재가 아니라, **현재 DAY와 행동 조건에 맞는 내용을 다시 찾고 적용해야 한다는 점**입니다.
 
 > “리쥬란 맞고 오늘 화장해도 될까?”
 >
@@ -34,33 +41,20 @@
 >
 > “레티놀이나 스크럽 제품을 다시 써도 될까?”
 
-범용 생성형 AI에 묻기에는 의료 정보가 부정확하게 생성될 위험이 있고, 사소한 생활 질문까지 매번 병원에 문의하기도 어렵습니다.
+웹 검색은 내 시술과 현재 DAY를 알지 못하고, 범용 생성형 AI는 의료 정보를 부정확하게 생성할 위험이 있습니다. 반대로 생활 행동에 관한 질문까지 매번 병원에 문의하기도 어렵습니다.
 
 MALLO는 이 간극을 **시술 정보 × 경과일 × 행동 조건**에 기반한 Recovery Journey로 연결합니다.
 
-<!-- 사용자 인터뷰/설문 수치가 확보되면 아래 블록의 주석을 해제하고 실제 값으로 교체하세요.
-
-### 우리가 확인한 문제
-
-| 사용자 검증 | 결과 |
-| --- | ---: |
-| 인터뷰·설문 참여자 | **00명** |
-| 시술 후 추가 검색 경험 | **00%** |
-| 안내문만으로 행동 판단이 어려웠던 사용자 | **00%** |
-| 가장 많이 반복된 질문 | **세안 · 화장 · 운동** |
-
-> “실제 인터뷰에서 나온 한 문장 인용을 여기에 입력하세요.”
-
--->
+---
 
 ## ✨ Solution — 질문 하나가 오늘의 행동이 되도록
 
 | 기존 방식 | MALLO |
 | --- | --- |
-| 안내문을 다시 찾아 읽기 | 현재 시술과 DAY를 자동 반영 |
+| 안내문에서 기준을 다시 찾기 | Recovery Session의 시술 정보와 현재 DAY를 기준으로 확인 |
 | 검색 결과를 스스로 해석 | 행동 조건 하나만 선택 |
-| AI가 답을 새로 생성 | 검증 가능한 Protocol에서 결과 조회 |
-| 의료 질문과 생활 질문이 섞임 | 의료 판단은 답하지 않고 `CONNECT` |
+| AI가 답을 새로 생성 | 정의된 Recovery Protocol을 기준으로 결과 결정 |
+| 의료 질문과 생활 질문이 섞임 | 의료 판단이 필요한 질문은 답변 없이 `CONNECT`로 분리 |
 | 회복 과정이 남지 않음 | 행동·메모·사진을 DAY별로 기록 |
 
 MALLO가 제공하는 결과는 네 가지입니다.
@@ -70,7 +64,7 @@ MALLO가 제공하는 결과는 네 가지입니다.
 | 🟢 `POSSIBLE` | 현재 조건으로 진행 가능 |
 | 🟡 `ADJUST` | 방법이나 강도를 조정해서 진행 |
 | 🔴 `POSTPONE` | 오늘은 미루고 회복을 우선 |
-| 🏥 `CONNECT` | AI가 답하지 않고 의료진 확인으로 전환 |
+| 🏥 `CONNECT` | AI가 답하지 않고 의료진 확인이 필요한 상태로 분리 |
 
 ---
 
@@ -80,7 +74,7 @@ MALLO가 제공하는 결과는 네 가지입니다.
 
 ### 최종 배포 빌드 시연 영상 준비 중
 
-DERNA 진입부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Journal 저장까지 한 번에 보여드릴 예정입니다.
+해커톤용 DERNA 진입 화면부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Journal 저장까지 한 번에 보여드릴 예정입니다.
 
 <!-- 영상이 준비되면 이 안내 문구를 지우고 아래 코드를 사용하세요.
 
@@ -99,7 +93,7 @@ DERNA 진입부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Jour
 ### Demo Flow
 
 ```text
-DERNA에서 MALLO 진입
+해커톤용 DERNA 화면에서 MALLO 진입
   → REJURAN 시술 정보로 Recovery Session 시작
   → “오늘 고강도 운동해도 될까요?”
   → EXERCISE + INTENSE_ACTIVITY 구조화
@@ -173,11 +167,11 @@ MALLO의 AI는 의료 답변을 만드는 역할을 맡지 않습니다.
 <table>
   <tr>
     <th width="50%">1. 회복 정보와 Safety 기준 확인</th>
-    <th width="50%">2. 의료적 판단은 의료진에게 Handoff</th>
+    <th width="50%">2. 의료진 확인이 필요한 질문은 CONNECT</th>
   </tr>
   <tr>
     <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-12-30.png" alt="사용자의 회복 정보와 질문에 맞는 안전 기준을 확인하는 ASK MALLO 화면" /></td>
-    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-07-46%20001.png" alt="담당 의료진과 병원으로 연결하는 MALLO Handoff 화면" /></td>
+    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-07-46%20001.png" alt="의료진 확인이 필요한 질문을 CONNECT 상태로 보여주는 MALLO Bridge 화면" /></td>
   </tr>
 </table>
 
@@ -203,8 +197,10 @@ POSSIBLE · ADJUST · POSTPONE · CONNECT
 - `decision`, `guidance`, `next_action`, `protocol_ref`는 Spring의 Protocol만 결정합니다.
 - 잘못된 모델 출력이나 타임아웃은 임의의 의료 답변으로 대체하지 않습니다.
 - Session ID, 사용자·병원 식별자, 이미지, Protocol 원문은 AI 서비스로 전송하지 않습니다.
-- 의료진 판단이 필요한 질문은 Handoff와 상담 알림 흐름으로 연결됩니다.
+- 의료진 판단이 필요한 질문은 AI 답변을 생성하지 않고 `CONNECT` 상태로 분리합니다.
 
+> 해커톤 MVP는 의료진 확인이 필요한 영역을 Bridge UI까지 구현했습니다. 실제 의료기관 전달·채팅·전화·상담 연결은 구현 범위에 포함되지 않습니다.
+>
 > 현재 REJURAN Protocol은 해커톤 시연용 fixture입니다. 의료기관 검수와 Protocol 버전 관리는 실서비스화 시 추가로 필요한 범위이며, 이번 해커톤에서는 구현하지 않았습니다.
 
 ---
@@ -213,16 +209,18 @@ POSSIBLE · ADJUST · POSTPONE · CONNECT
 
 MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이터와 의료기관 접점을 회복 관리로 확장하는 B2B2C Recovery Layer**를 해커톤 제품 가설로 설계했습니다.
 
+> 아래 내용은 실제 AAC 데이터 연동이 완료된 기능이 아니라, MALLO를 AAC 인프라와 연결했을 때의 제품 구조입니다.
+
 <p align="center">
   <img src="./backend/docs/aac-to-mallo-recovery-flow.png" width="100%" alt="AAC의 시술 맥락을 MALLO의 회복 행동으로 연결하는 흐름" />
 </p>
 
-| AAC가 가진 맥락 | MALLO에서의 활용 | 사용자·병원 가치 |
+| AAC 연동 시 활용 가능한 맥락 | MALLO 적용 가설 | 기대 가치 |
 | --- | --- | --- |
 | 최근 시술명 | 적용할 Recovery Protocol 결정 | 사용자가 시술명을 다시 찾지 않음 |
 | 시술일 | 한국 기준 `elapsed_day` 자동 계산 | 오늘에 맞는 행동 안내 |
-| 시술 병원 | 의료진 Handoff 대상 연결 | 답할 수 없는 질문을 원래 병원으로 전달 |
-| 병원별 관리 기준 | 버전된 Protocol로 관리 | 범용 AI가 답을 지어내지 않음 |
+| 시술 병원 | CONNECT 이후 의료기관 Bridge 확장 | 답할 수 없는 질문의 확인 경로 제공 |
+| 병원별 관리 기준 | 검수·버전 관리된 Protocol로 확장 | 범용 AI가 답을 지어내지 않는 구조 |
 | AAC 사용자 접점 | Recovery Journey 재방문 | 별도 서비스 탐색과 가입 부담 감소 |
 
 > **AAC가 없으면** 사용자의 직접 입력에 의존하는 범용 회복 도구입니다.
@@ -241,8 +239,8 @@ MALLO는 이번 해커톤에서 병원과 시술 후 사용자를 잇는 **B2B2C
 | --- | --- |
 | 병원별 Recovery Protocol 관리 | AAC 안에서 바로 Recovery Journey 시작 |
 | 반복적인 생활 문의 구조화 | 시술·경과일에 맞는 행동 안내 |
-| 시술 후 사용자 재접점 확보 | 필요할 때 원래 의료기관으로 연결 |
-| 질문·Handoff 유형을 통한 관리 개선 | DAY별 행동과 회복 기록 축적 |
+| 시술 후 사용자 재접점 확보 | CONNECT 이후 의료기관 확인 경로로 확장 |
+| 질문·CONNECT 유형을 활용한 관리 개선 | DAY별 행동과 회복 기록 축적 |
 
 ```text
 REJURAN
@@ -267,11 +265,13 @@ REJURAN
 | Layer | Responsibility |
 | --- | --- |
 | **Expo App** | Recovery Journey, Quick Check, ASK, Record UI |
-| **Spring Boot** | Session 인증, 한국 기준 DAY 계산, Protocol 매칭, 저장, Handoff, 알림 |
+| **Spring Boot** | Session 인증, 한국 기준 DAY 계산, Protocol 매칭, Record 저장, Handoff·Notification Backend API |
 | **FastAPI AI Service** | 한국어 질문 분류, 행동·조건 추출, 의료 안전 라우팅 |
 | **MySQL** | Session, Protocol, Check, Record, Interaction, Handoff 저장 |
 | **OpenRouter** | strict structured output을 지원하는 호스팅 모델 게이트웨이 |
-| **Firebase** | Recovery Journey와 의료진 답장 푸시 알림 |
+| **Firebase** | 조건부 FCM 발송 Adapter — 실기기 E2E 미검증 |
+
+> Handoff·Notification Backend 도메인은 구현되어 있지만, FE에서 실제 의료기관 상담으로 이어지는 흐름과 의료진 답장 FCM의 end-to-end 동작은 이번 MVP에서 완료·검증하지 않았습니다.
 
 ---
 
@@ -316,42 +316,24 @@ REJURAN
 
 ### Quality
 
-- **Backend:** 207 automated tests, GitHub Actions UTC 환경 검증
-- **AI:** unit · integration · HTTP E2E, strict contract와 branch coverage 검증
+- **Backend:** 207 automated tests 통과, GitHub Actions 테스트 Workflow 구성
+- **AI:** unit · integration · HTTP E2E 테스트와 strict contract·branch coverage 설정
 - **Frontend:** ESLint 기반 정적 검사
 - **Deployment:** `dev` merge 시 Backend 테스트·빌드·EC2 자동 배포
 
 ---
 
-## 📈 Validation & Impact
+## 📈 Technical Validation
 
-MALLO는 기능 수보다 **회복 기간 동안 사용자가 근거 있는 행동 판단을 완료했는가**를 핵심 가치로 봅니다.
+이번 해커톤에서는 기술 구현과 안전 분기를 검증했습니다. 실제 사용자 효과나 병원 도입 성과는 측정하지 않았습니다.
 
-| 검증 영역 | 현재 확보한 증거 | 다음 측정 지표 |
-| --- | --- | --- |
-| 기술 안정성 | Backend 207개 자동화 테스트 | 배포 E2E 성공률 |
-| AI 계약 | unit · integration · HTTP E2E | schema-invalid 응답 차단률 |
-| 의료 안전 | 고위험 질문의 결정론적 `CONNECT` | Safety 시나리오 통과율 |
-| 사용 경험 | Quick Check 3단계 Flow | 질문→결과 도달 시간과 완료율 |
-| 지속 사용 | DAY별 Record와 Journal | DAY 2·DAY 3 재방문율 |
-
-<!-- 실제 사용자 검증 후 아래 블록을 추가하세요.
-
-### User Validation
-
-| Metric | Result |
-| --- | ---: |
-| 테스트 참여자 | 00명 |
-| Quick Check 완료율 | 00% |
-| 질문부터 결과까지 중앙값 | 00초 |
-| DAY 2 재방문 의향 | 00% |
-| 의료 질문 CONNECT 성공 | 00 / 00건 |
-
-<p align="center">
-  <img src="./docs/readme-assets/user-test-result.png" width="760" alt="MALLO 사용자 검증 결과" />
-</p>
-
--->
+| 검증 영역 | 해커톤에서 확인한 내용 |
+| --- | --- |
+| Backend | 207개 자동화 테스트 통과 |
+| AI 계약 | unit · integration · HTTP E2E 테스트 구성 |
+| 의료 안전 | 고위험 질문을 결정론적으로 `CONNECT` 처리 |
+| 핵심 경험 | Quick Check 3단계와 ASK 조건 확인 흐름 구현 |
+| 회복 기록 | 행동·메모·사진을 DAY별 Record와 Journal로 저장 |
 
 ---
 
