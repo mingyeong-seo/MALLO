@@ -1,7 +1,9 @@
 package com.mallo.backend.domain.sessionInfo.entity;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
@@ -30,6 +32,8 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SessionInfo {
+
+	private static final ZoneId RECOVERY_ZONE = ZoneId.of("Asia/Seoul");
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
@@ -65,7 +69,11 @@ public class SessionInfo {
 	 * DB에 저장하지 않고 조회 시점마다 계산한다.
 	 */
 	public int getElapsedDay() {
-		return (int) ChronoUnit.DAYS.between(procedureAt, LocalDate.now());
+		return getElapsedDay(Clock.system(RECOVERY_ZONE));
+	}
+
+	int getElapsedDay(Clock clock) {
+		return (int) ChronoUnit.DAYS.between(procedureAt, LocalDate.now(clock));
 	}
 
 	public boolean isActive() {

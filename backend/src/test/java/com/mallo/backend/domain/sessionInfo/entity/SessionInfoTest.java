@@ -2,7 +2,10 @@ package com.mallo.backend.domain.sessionInfo.entity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +31,19 @@ class SessionInfoTest {
 				.build();
 
 		assertThat(sessionInfo.getElapsedDay()).isEqualTo(3);
+	}
+
+	@Test
+	void UTC로는_전날이어도_한국_시술_당일이면_elapsedDay는_0이다() {
+		SessionInfo sessionInfo = SessionInfo.builder()
+				.procedure("REJURAN")
+				.procedureAt(LocalDate.of(2026, 8, 21))
+				.build();
+		Clock koreanMidnight = Clock.fixed(
+				Instant.parse("2026-08-20T15:44:47Z"),
+				ZoneId.of("Asia/Seoul"));
+
+		assertThat(sessionInfo.getElapsedDay(koreanMidnight)).isZero();
 	}
 
 	@Test
