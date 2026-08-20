@@ -75,6 +75,16 @@ fi
 assert_no_sensitive_output "$TEST_DIR/missing-url.stdout"
 assert_no_sensitive_output "$TEST_DIR/missing-url.stderr"
 
+export AI_BASE_URL='http://mallo-ai.example.test'
+export AI_SHARED_SECRET="$TEST_SECRET"
+if bash "$UPDATER" "$TEST_DIR/http-url.env" >"$TEST_DIR/http-url.stdout" 2>"$TEST_DIR/http-url.stderr"; then
+	fail "http AI_BASE_URL unexpectedly succeeded"
+fi
+! grep -F 'http://mallo-ai.example.test' "$TEST_DIR/http-url.stdout" >/dev/null || fail "http URL leaked to stdout"
+! grep -F 'http://mallo-ai.example.test' "$TEST_DIR/http-url.stderr" >/dev/null || fail "http URL leaked to stderr"
+assert_no_sensitive_output "$TEST_DIR/http-url.stdout"
+assert_no_sensitive_output "$TEST_DIR/http-url.stderr"
+
 export AI_BASE_URL=$'https://mallo-ai.example.test\nUNRELATED=must-not-inject'
 export AI_SHARED_SECRET="$TEST_SECRET"
 if bash "$UPDATER" "$TEST_DIR/multiline-url.env" >"$TEST_DIR/multiline-url.stdout" 2>"$TEST_DIR/multiline-url.stderr"; then

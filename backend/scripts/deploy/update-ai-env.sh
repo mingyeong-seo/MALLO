@@ -23,6 +23,10 @@ trap cleanup EXIT HUP INT TERM
 case "$ai_base_url" in
 *$'\n'* | *$'\r'*) fail "AI_BASE_URL must be one line" ;;
 esac
+case "$ai_base_url" in
+https://*) ;;
+*) fail "AI_BASE_URL must use https" ;;
+esac
 case "$ai_shared_secret" in
 *$'\n'* | *$'\r'*) fail "AI_SHARED_SECRET must be exactly 32 characters" ;;
 esac
