@@ -19,7 +19,6 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
-import type { RecoverySession } from '@/features/recovery/types';
 
 export default function JourneyScreen() {
   const { isHydratingSession, recoverySession } = useRecoveryFlow();
@@ -69,101 +68,6 @@ function MalloBrandHeader({ isConnected }: { isConnected: boolean }) {
   );
 }
 
-function ActiveSessionState({ session }: { session: RecoverySession }) {
-  const recoveryDay = session.elapsedDay + 1;
-  const recoveryDayLabel = formatRecoveryDay(recoveryDay);
-
-  const progress = `${
-    Math.min(Math.max((recoveryDay - 1) / 6, 0), 1) * 100
-  }%` as `${number}%`;
-
-  return (
-    <View style={styles.stateContent}>
-      <View style={styles.divider} />
-
-      <View>
-        <SectionLabel>진행 중인 Recovery Journey</SectionLabel>
-
-        <View style={styles.activeSessionCard}>
-          <Text style={styles.sessionProcedure}>{session.procedureName}</Text>
-          <Text style={styles.sessionDay}>{recoveryDayLabel}</Text>
-          <Text style={styles.sessionMeta}>
-            {session.procedureDate} 시술 ·{' '}
-            {getRecoveryDayDescription(recoveryDay)}
-          </Text>
-
-          <View style={styles.progressSection}>
-            <Text style={styles.progressSectionTitle}>초기 집중 관리</Text>
-
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressLabel}>DAY 1</Text>
-              <Text style={styles.progressLabel}>DAY 7</Text>
-            </View>
-
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: progress }]} />
-            </View>
-          </View>
-
-          <PrimaryButton
-            label="Recovery Journey 이어가기"
-            inverted
-            onPress={() => router.push('/(tabs)/journey/home')}
-          />
-        </View>
-      </View>
-
-      <View>
-        <SectionLabel>오늘의 행동 결과</SectionLabel>
-        <View style={styles.previewCard}>
-          <PreviewRow
-            label="세안"
-            result="가볍게 진행할 수 있어요"
-            tone="possible"
-          />
-          <PreviewRow
-            label="스킨케어"
-            result="조절해서 진행해요"
-            tone="adjust"
-          />
-          <PreviewRow
-            label="화장"
-            result="오늘은 미루는 게 좋아요"
-            tone="postpone"
-          />
-        </View>
-      </View>
-
-      <View style={styles.quickAccessRow}>
-        <View style={styles.quickAccessCard}>
-          <View style={styles.quickAccessIcon}>
-            <Ionicons
-              name="chatbubble-outline"
-              size={18}
-              color={MALLO_COLORS.support.charcoal}
-            />
-          </View>
-          <Text style={styles.quickAccessLabel}>ASK MALLO</Text>
-        </View>
-        <View style={styles.quickAccessCard}>
-          <View style={styles.quickAccessIcon}>
-            <Ionicons
-              name="settings-outline"
-              size={18}
-              color={MALLO_COLORS.support.charcoal}
-            />
-          </View>
-          <Text style={styles.quickAccessLabel}>설정</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function getRecoveryDayDescription(day: number) {
-  return day === 1 ? '시술 당일' : `시술 후 ${day}일차`;
-}
-
 function EmptySessionState() {
   return (
     <View style={styles.emptyStateContent}>
@@ -203,10 +107,6 @@ function EmptySessionState() {
   );
 }
 
-function SectionLabel({ children }: { children: string }) {
-  return <Text style={styles.sectionLabel}>{children}</Text>;
-}
-
 function PrimaryButton({
   label,
   onPress,
@@ -242,34 +142,6 @@ function PrimaryButton({
       />
     </Pressable>
   );
-}
-
-function PreviewRow({
-  label,
-  result,
-  tone,
-}: {
-  label: string;
-  result: string;
-  tone: 'possible' | 'adjust' | 'postpone';
-}) {
-  const toneStyle = {
-    possible: styles.previewStatusPossible,
-    adjust: styles.previewStatusAdjust,
-    postpone: styles.previewStatusPostpone,
-  }[tone];
-
-  return (
-    <View style={styles.previewRow}>
-      <View style={[styles.previewStatus, toneStyle]} />
-      <Text style={styles.previewLabel}>{label}</Text>
-      <Text style={styles.previewResult}>{result}</Text>
-    </View>
-  );
-}
-
-function formatRecoveryDay(day: number) {
-  return `DAY ${Math.max(day, 1)}`;
 }
 
 const styles = StyleSheet.create({

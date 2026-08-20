@@ -7,6 +7,7 @@ import {
   useMemo,
   useReducer,
 } from 'react';
+import { HTTPError } from 'ky';
 
 import { getTodaySession } from '@/api/client';
 import { mapSession } from '@/api/session-mapper';
@@ -130,7 +131,12 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
           throw error;
         }
 
-        await clearSessionId();
+        if (
+          error instanceof HTTPError &&
+          [401, 404].includes(error.response.status)
+        ) {
+          await clearSessionId();
+        }
       } finally {
         if (isActive) {
           dispatch({ type: 'FINISH_SESSION_HYDRATION' });
