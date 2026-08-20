@@ -149,10 +149,18 @@ export const styles = StyleSheet.create({
     ...MALLO_TYPOGRAPHY.caption,
     color: MALLO_COLORS.support.secondaryTextGray,
   },
+  protocolCopy: {
+    flex: 1,
+    gap: MALLO_SPACING.xs,
+  },
+  protocolTitle: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    fontWeight: '600',
+    color: MALLO_COLORS.support.charcoal,
+  },
   protocolText: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
-    flex: 1,
     color: MALLO_COLORS.support.charcoal,
   },
   metaRow: {

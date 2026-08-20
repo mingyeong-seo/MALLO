@@ -17,6 +17,7 @@ import {
   MALLO_SPACING,
 } from '@/constants/theme';
 import { CheckRequestState } from '@/features/check/components/CheckRequestState';
+import { ProtocolEvidenceCard } from '@/features/check/components/ProtocolEvidenceCard';
 import { ACTION_LABELS } from '@/features/check/data';
 import { styles } from '@/features/check/result-styles';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
@@ -180,16 +181,7 @@ export default function QuickCheckResultScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recovery Protocol 근거</Text>
-          <View style={styles.protocolCard}>
-            {result.protocolRefs.map((reference, index) => (
-              <View key={`${reference}-${index}`} style={styles.protocolRow}>
-                <View style={styles.protocolIndex}>
-                  <Text style={styles.protocolIndexText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.protocolText}>{reference}</Text>
-              </View>
-            ))}
-          </View>
+          <ProtocolEvidenceCard />
           {result.protocolVersion ? (
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Protocol version</Text>
