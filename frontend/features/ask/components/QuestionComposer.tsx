@@ -26,10 +26,6 @@ type QuestionComposerProps = {
   value: string;
 };
 
-type WebKeyPressNativeEvent = TextInputKeyPressEventData & {
-  shiftKey?: boolean;
-};
-
 export function QuestionComposer({
   attachments,
   bottomClearance,
@@ -95,12 +91,6 @@ export function QuestionComposer({
 
     requestAnimationFrame(() => {
       inputRef.current?.focus();
-
-      if (Platform.OS === 'web') {
-        const input = inputRef.current as unknown as HTMLTextAreaElement;
-
-        input?.setSelectionRange?.(suggestion.length, suggestion.length);
-      }
     });
   };
 
@@ -127,9 +117,11 @@ export function QuestionComposer({
       return;
     }
 
-    const nativeEvent = event.nativeEvent as WebKeyPressNativeEvent;
+    const nativeEvent = event.nativeEvent;
+    const shiftKey =
+      'shiftKey' in nativeEvent && nativeEvent.shiftKey === true;
 
-    if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
+    if (nativeEvent.key === 'Enter' && !shiftKey) {
       event.preventDefault?.();
       handleSubmit();
     }
