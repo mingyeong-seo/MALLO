@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, type Href, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, type Href, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -72,6 +72,7 @@ const QUICK_ENTRIES: QuickEntry[] = [
 ];
 
 const CAROUSEL_NAVIGATION_BUTTON_SIZE = 36;
+type TodayRecordLoadState = 'loading' | 'ready' | 'error';
 
 export default function JourneyHomeScreen() {
   const { scrollToTop } = useLocalSearchParams<{ scrollToTop?: string }>();
@@ -103,26 +104,49 @@ export default function JourneyHomeScreen() {
   const [mainCarouselCardHeight, setMainCarouselCardHeight] = useState(0);
   const [cardWidth, setCardWidth] = useState(0);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [todayRecordLoadState, setTodayRecordLoadState] =
+    useState<TodayRecordLoadState>(todayRecord ? 'ready' : 'loading');
+  const [todayRecordLoadAttempt, setTodayRecordLoadAttempt] = useState(0);
   const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const sessionId = recoverySession?.sessionId;
 
-    if (!sessionId || todayRecord) {
+    if (!sessionId) {
+      return;
+    }
+
+    if (todayRecord) {
+      setTodayRecordLoadState('ready');
       return;
     }
 
     let active = true;
 
     const hydrateTodayRecord = async () => {
+      setTodayRecordLoadState('loading');
+
       try {
         const record = await getTodayRecord(sessionId);
 
-        if (active && record && record.elapsedDay === elapsedDay) {
+        if (!active) {
+          return;
+        }
+
+        if (record && record.elapsedDay !== elapsedDay) {
+          setTodayRecordLoadState('error');
+          return;
+        }
+
+        if (record) {
           upsertRecoveryRecord(record);
         }
+
+        setTodayRecordLoadState('ready');
       } catch {
-        // S04의 기존 화면은 유지하고, S09/S10에서 재시도할 수 있게 둡니다.
+        if (active) {
+          setTodayRecordLoadState('error');
+        }
       }
     };
 
@@ -131,7 +155,13 @@ export default function JourneyHomeScreen() {
     return () => {
       active = false;
     };
-  }, [elapsedDay, recoverySession?.sessionId, todayRecord, upsertRecoveryRecord]);
+  }, [
+    elapsedDay,
+    recoverySession?.sessionId,
+    todayRecord,
+    todayRecordLoadAttempt,
+    upsertRecoveryRecord,
+  ]);
 
   const handlePhasePress = () => {
     setShowPhaseInfo(true);
@@ -238,6 +268,10 @@ export default function JourneyHomeScreen() {
   const progress = `${
     Math.min(Math.max(journey.recoveryDay / 7, 0), 1) * 100
   }%` as `${number}%`;
+
+  if (!recoverySession) {
+    return <Redirect href="/(tabs)/journey" />;
+  }
 
   return (
     <SafeAreaView
@@ -368,19 +402,33 @@ export default function JourneyHomeScreen() {
                 </View>
 
                 <Text style={styles.todayFaceDescription}>
-                  {hasTodayFacePhoto
-                    ? '오늘 등록한 얼굴 사진과 회복 기록을 확인해보세요.'
-                    : '오늘 얼굴 사진을 남기고 회복 변화를 기록해보세요.'}
+                  {todayRecordLoadState === 'loading'
+                    ? '오늘 얼굴 기록을 확인하고 있어요.'
+                    : todayRecordLoadState === 'error'
+                      ? '오늘 얼굴 기록을 확인하지 못했어요. 다시 확인해 주세요.'
+                      : hasTodayFacePhoto
+                        ? '오늘 등록한 얼굴 사진과 회복 기록을 확인해보세요.'
+                        : '오늘 얼굴 사진을 남기고 회복 변화를 기록해보세요.'}
                 </Text>
 
                 <Pressable
                   accessibilityLabel={
-                    hasTodayFacePhoto
-                      ? '오늘 얼굴 기록 확인하기'
-                      : '오늘 얼굴 사진 등록하기'
+                    todayRecordLoadState === 'loading'
+                      ? '오늘 얼굴 기록 확인 중'
+                      : todayRecordLoadState === 'error'
+                        ? '오늘 얼굴 기록 다시 확인하기'
+                        : hasTodayFacePhoto
+                          ? '오늘 얼굴 기록 확인하기'
+                          : '오늘 얼굴 사진 등록하기'
                   }
                   accessibilityRole="button"
-                  onPress={() =>
+                  disabled={todayRecordLoadState === 'loading'}
+                  onPress={() => {
+                    if (todayRecordLoadState === 'error') {
+                      setTodayRecordLoadAttempt((attempt) => attempt + 1);
+                      return;
+                    }
+
                     router.push(
                       hasTodayFacePhoto
                         ? {
@@ -391,15 +439,21 @@ export default function JourneyHomeScreen() {
                             pathname: '/(tabs)/journey/record',
                             params: { day: String(elapsedDay) },
                           },
-                    )
-                  }
+                    );
+                  }}
                   style={({ pressed }) => [
                     styles.todayFaceAction,
                     pressed && styles.pressed,
                   ]}
                 >
                   <Text style={styles.todayFaceActionText}>
-                    {hasTodayFacePhoto ? '기록 확인하기' : '사진 등록하기'}
+                    {todayRecordLoadState === 'loading'
+                      ? '확인 중'
+                      : todayRecordLoadState === 'error'
+                        ? '다시 확인하기'
+                        : hasTodayFacePhoto
+                          ? '기록 확인하기'
+                          : '사진 등록하기'}
                   </Text>
                   <Ionicons
                     color={MALLO_COLORS.core.white}
@@ -644,10 +698,10 @@ export default function JourneyHomeScreen() {
                   />
                   <View style={styles.notificationCopy}>
                     <Text style={styles.notificationTitle}>
-                      오늘의 회복 안내
+                      오늘의 회복 가이드
                     </Text>
                     <Text style={styles.notificationDescription}>
-                      오늘 확인할 회복 가이드와 기록을 살펴보세요.
+                      오늘 확인할 행동과 회복 기록을 확인해보세요.
                     </Text>
                   </View>
                 </View>

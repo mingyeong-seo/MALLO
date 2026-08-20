@@ -30,8 +30,8 @@ export type QuickCheckResult = {
 export type RecoverySessionStatus = 'ACTIVE' | 'COMPLETED';
 
 export type RecoverySession = {
-  clinicId: string;
-  createdAt: string;
+  clinicId?: string | null;
+  createdAt?: string;
   elapsedDay: number;
   phase?: string;
   procedureDate: string;

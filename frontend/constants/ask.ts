@@ -1,0 +1,1 @@
+export const MAX_ASK_QUESTION_LENGTH = 500;

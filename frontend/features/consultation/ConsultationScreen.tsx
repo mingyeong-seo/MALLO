@@ -1,7 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import {
+  Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,6 +34,7 @@ export function ConsultationScreen({
 }: ConsultationScreenProps) {
   const insets = useSafeAreaInsets();
   const isAskEntry = mode === 'ask-mallo';
+  const displayQuestion = question?.trim();
   const floatingTabClearance =
     MALLO_SPACING.xxl * 2 +
     Math.max(insets.bottom, MALLO_SPACING.md) +
@@ -42,6 +45,20 @@ export function ConsultationScreen({
       pathname: '/(tabs)/ask',
       params: { reset: String(Date.now()) },
     });
+  };
+
+  const handleContactPress = () => {
+    const message = '의료진 연결 기능은 준비 중입니다.';
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.alert(message);
+      }
+
+      return;
+    }
+
+    Alert.alert('안내', message);
   };
 
   return (
@@ -61,49 +78,86 @@ export function ConsultationScreen({
           />
         </View>
 
-        {question ? (
+        {displayQuestion ? (
           <View style={styles.questionRecall}>
-            <Text style={styles.questionLabel}>문의할 내용</Text>
-            <Text style={styles.questionText}>“{question}”</Text>
+            <Text style={styles.questionLabel}>문의한 내용</Text>
+            <Text style={styles.questionText}>“{displayQuestion}”</Text>
           </View>
         ) : null}
 
-        <View style={styles.body}>
-          <View style={styles.iconCircle}>
-            <Ionicons
-              name="medical-outline"
-              size={28}
-              color={MALLO_COLORS.core.red}
-            />
-          </View>
-          <Text style={styles.title}>의료진의 확인이 필요해요</Text>
-          <Text style={styles.description}>
-            현재는 의료진 문의 전송과 상담 채널 연결을 제공하지 않아요.
-          </Text>
-
-          <View style={styles.notice}>
-            <Ionicons
-              name="information-circle-outline"
-              size={19}
-              color={MALLO_COLORS.support.secondaryTextGray}
-            />
-            <Text style={styles.noticeText}>
-              MALLO가 입력한 내용의 정상 여부나 의료적 판단을 제공하지 않아요.
+        <View
+          style={[styles.body, !displayQuestion && styles.bodyWithoutQuestion]}
+        >
+          <View style={styles.guidanceSection}>
+            <View style={styles.iconCircle}>
+              <Ionicons
+                name="medical-outline"
+                size={28}
+                color={MALLO_COLORS.core.red}
+              />
+            </View>
+            <Text style={styles.title}>의료진 확인이 필요합니다.</Text>
+            <Text style={styles.description}>
+              MALLO는 의료적 판단을 생성하지 않습니다.{`\n`}
+              담당 의료진에게 확인해 주세요.
             </Text>
           </View>
 
+          <View style={styles.doctorSection}>
+            <Text style={styles.sectionTitle}>담당 의료진 / 병원</Text>
+
+            <View style={styles.doctorCard}>
+              <View style={styles.doctorProfile}>
+                <Image
+                  accessible={false}
+                  resizeMode="cover"
+                  source={require('../../assets/images/doctor-placeholder.png')}
+                  style={styles.doctorImage}
+                />
+
+                <View style={styles.doctorCopy}>
+                  <Text style={styles.doctorTitle}>담당 의료진 정보</Text>
+                  <Text style={styles.doctorDescription}>
+                    의료진 정보 확인 후 표시됩니다.
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                accessibilityLabel="의료진에게 문의하기"
+                accessibilityRole="button"
+                onPress={handleContactPress}
+                style={({ pressed }) => [
+                  styles.contactButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.contactButtonText}>
+                  의료진에게 문의하기
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={17}
+                  color={MALLO_COLORS.core.red}
+                />
+              </Pressable>
+            </View>
+          </View>
+
           {isAskEntry ? (
-            <Pressable
-              accessibilityLabel="질문 다시 입력하기"
-              accessibilityRole="button"
-              onPress={handlePrimaryPress}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.primaryButtonText}>질문 다시 입력하기</Text>
-            </Pressable>
+            <View style={styles.footerAction}>
+              <Pressable
+                accessibilityLabel="질문 다시 입력하기"
+                accessibilityRole="button"
+                onPress={handlePrimaryPress}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.primaryButtonText}>질문 다시 입력하기</Text>
+              </Pressable>
+            </View>
           ) : null}
         </View>
       </ScrollView>
@@ -132,8 +186,13 @@ const styles = StyleSheet.create({
     width: 112,
     height: 25,
   },
-  questionRecall: {
+  screenTitle: {
+    ...MALLO_TYPOGRAPHY.screenTitle,
     marginTop: MALLO_SPACING.xl,
+    color: MALLO_COLORS.core.ink,
+  },
+  questionRecall: {
+    marginTop: MALLO_SPACING.lg,
     paddingLeft: MALLO_SPACING.md,
     paddingVertical: MALLO_SPACING.sm,
     borderLeftWidth: 3,
@@ -153,9 +212,17 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    alignItems: 'center',
+    alignSelf: 'stretch',
+    paddingTop: MALLO_SPACING.xxl,
+    paddingBottom: MALLO_SPACING.xl,
+  },
+  bodyWithoutQuestion: {
     justifyContent: 'center',
-    paddingVertical: MALLO_SPACING.xxl,
+    paddingTop: MALLO_SPACING.xl,
+  },
+  guidanceSection: {
+    alignItems: 'center',
+    paddingVertical: MALLO_SPACING.xl,
   },
   iconCircle: {
     width: 62,
@@ -180,29 +247,75 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: MALLO_COLORS.support.secondaryTextGray,
   },
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: MALLO_SPACING.sm,
-    marginTop: MALLO_SPACING.xl,
-    padding: MALLO_SPACING.md,
-    borderRadius: MALLO_RADIUS.md,
-    backgroundColor: MALLO_COLORS.support.warmGray,
+  doctorSection: {
+    width: '90%',
+    alignSelf: 'center',
+    marginTop: MALLO_SPACING.xxl,
   },
-  noticeText: {
+  sectionTitle: {
+    ...MALLO_TYPOGRAPHY.sectionTitle,
+    color: MALLO_COLORS.core.ink,
+  },
+  doctorCard: {
+    marginTop: MALLO_SPACING.md,
+    padding: MALLO_SPACING.lg,
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+    borderRadius: MALLO_RADIUS.lg,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+  doctorProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: MALLO_SPACING.md,
+  },
+  doctorImage: {
+    width: 60,
+    height: 60,
+    flexShrink: 0,
+    borderRadius: MALLO_RADIUS.full,
+  },
+  doctorCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  doctorTitle: {
+    ...MALLO_TYPOGRAPHY.body,
+    fontWeight: '600',
+    color: MALLO_COLORS.core.ink,
+  },
+  doctorDescription: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
-    flex: 1,
-    color: MALLO_COLORS.support.charcoal,
+    marginTop: MALLO_SPACING.xs,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+  contactButton: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: MALLO_SPACING.xs,
+    marginTop: MALLO_SPACING.lg,
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.core.red,
+    borderRadius: MALLO_RADIUS.md,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+  contactButtonText: {
+    ...MALLO_TYPOGRAPHY.buttonLabel,
+    color: MALLO_COLORS.core.red,
   },
   primaryButton: {
     minHeight: 52,
-    alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: MALLO_SPACING.xl,
     borderRadius: MALLO_RADIUS.md,
     backgroundColor: MALLO_COLORS.core.red,
+  },
+  footerAction: {
+    marginTop: 'auto',
+    paddingTop: MALLO_SPACING.xxl,
   },
   primaryButtonText: {
     ...MALLO_TYPOGRAPHY.buttonLabel,

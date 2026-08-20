@@ -3,9 +3,15 @@ import {
   type PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
+  useRef,
 } from 'react';
+
+import { isApiError } from '@/services/api';
+import { getTodaySession } from '@/services/session';
+import { getSessionId, removeSessionId } from '@/services/session-storage';
 
 import type {
   QuickCheckResult,
@@ -14,6 +20,8 @@ import type {
 } from './types';
 
 type RecoveryFlowState = {
+  hasSessionHydrationError: boolean;
+  isHydratingSession: boolean;
   quickChecks: QuickCheckResult[];
   recoveryRecords: RecoveryRecord[];
   recoverySession: RecoverySession | null;
@@ -24,11 +32,15 @@ type RecoveryFlowAction =
   | { type: 'SET_QUICK_CHECKS'; payload: QuickCheckResult[] }
   | { type: 'SET_RECOVERY_RECORDS'; payload: RecoveryRecord[] }
   | { type: 'UPSERT_RECOVERY_RECORD'; payload: RecoveryRecord }
-  | { type: 'SET_RECOVERY_SESSION'; payload: RecoverySession | null };
+  | { type: 'SET_RECOVERY_SESSION'; payload: RecoverySession | null }
+  | { type: 'START_SESSION_HYDRATION' }
+  | { type: 'FAIL_SESSION_HYDRATION' }
+  | { type: 'FINISH_SESSION_HYDRATION' };
 
 type RecoveryFlowContextValue = RecoveryFlowState & {
   findQuickCheck: (checkId: string) => QuickCheckResult | undefined;
   findRecoveryRecord: (elapsedDay: number) => RecoveryRecord | undefined;
+  retrySessionHydration: () => void;
   saveQuickCheck: (result: QuickCheckResult) => void;
   setQuickChecks: (results: QuickCheckResult[]) => void;
   setRecoveryRecords: (records: RecoveryRecord[]) => void;
@@ -37,6 +49,8 @@ type RecoveryFlowContextValue = RecoveryFlowState & {
 };
 
 const initialState: RecoveryFlowState = {
+  hasSessionHydrationError: false,
+  isHydratingSession: true,
   quickChecks: [],
   recoveryRecords: [],
   recoverySession: null,
@@ -90,6 +104,8 @@ function recoveryFlowReducer(
         state.recoverySession?.sessionId !== action.payload?.sessionId
       ) {
         return {
+          hasSessionHydrationError: false,
+          isHydratingSession: false,
           quickChecks: [],
           recoveryRecords: [],
           recoverySession: action.payload,
@@ -98,13 +114,103 @@ function recoveryFlowReducer(
 
       return {
         ...state,
+        hasSessionHydrationError: false,
+        isHydratingSession: false,
         recoverySession: action.payload,
+      };
+
+    case 'START_SESSION_HYDRATION':
+      return {
+        ...state,
+        hasSessionHydrationError: false,
+        isHydratingSession: true,
+      };
+
+    case 'FAIL_SESSION_HYDRATION':
+      return {
+        ...state,
+        hasSessionHydrationError: true,
+      };
+
+    case 'FINISH_SESSION_HYDRATION':
+      return {
+        ...state,
+        isHydratingSession: false,
       };
   }
 }
 
 export function RecoveryFlowProvider({ children }: PropsWithChildren) {
   const [state, dispatch] = useReducer(recoveryFlowReducer, initialState);
+  const hydrationRunRef = useRef(0);
+
+  const retrySessionHydration = useCallback(() => {
+    const runId = hydrationRunRef.current + 1;
+    hydrationRunRef.current = runId;
+    dispatch({ type: 'START_SESSION_HYDRATION' });
+
+    const hydrateSession = async () => {
+      try {
+        const storedSessionId = await getSessionId();
+
+        if (hydrationRunRef.current !== runId) return;
+
+        if (!storedSessionId) {
+          dispatch({ type: 'SET_RECOVERY_SESSION', payload: null });
+          return;
+        }
+
+        const session = await getTodaySession(storedSessionId);
+
+        if (hydrationRunRef.current !== runId) return;
+
+        if (session.status === 'COMPLETED') {
+          await removeSessionId();
+
+          if (hydrationRunRef.current !== runId) return;
+
+          dispatch({ type: 'SET_RECOVERY_SESSION', payload: null });
+          return;
+        }
+
+        dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
+      } catch (error) {
+        if (hydrationRunRef.current !== runId) return;
+
+        if (isApiError(error) && error.status === 401) {
+          try {
+            await removeSessionId();
+          } catch {
+            if (hydrationRunRef.current === runId) {
+              dispatch({ type: 'FAIL_SESSION_HYDRATION' });
+            }
+            return;
+          }
+
+          if (hydrationRunRef.current !== runId) return;
+
+          dispatch({ type: 'SET_RECOVERY_SESSION', payload: null });
+          return;
+        }
+
+        dispatch({ type: 'FAIL_SESSION_HYDRATION' });
+      } finally {
+        if (hydrationRunRef.current === runId) {
+          dispatch({ type: 'FINISH_SESSION_HYDRATION' });
+        }
+      }
+    };
+
+    void hydrateSession();
+  }, []);
+
+  useEffect(() => {
+    retrySessionHydration();
+
+    return () => {
+      hydrationRunRef.current += 1;
+    };
+  }, [retrySessionHydration]);
 
   const saveQuickCheck = useCallback((result: QuickCheckResult) => {
     dispatch({ type: 'SAVE_QUICK_CHECK', payload: result });
@@ -123,6 +229,7 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
   }, []);
 
   const setRecoverySession = useCallback((session: RecoverySession | null) => {
+    hydrationRunRef.current += 1;
     dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
   }, []);
 
@@ -143,6 +250,7 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
       ...state,
       findQuickCheck,
       findRecoveryRecord,
+      retrySessionHydration,
       saveQuickCheck,
       setQuickChecks,
       setRecoveryRecords,
@@ -152,6 +260,7 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
     [
       findQuickCheck,
       findRecoveryRecord,
+      retrySessionHydration,
       saveQuickCheck,
       setQuickChecks,
       setRecoveryRecords,

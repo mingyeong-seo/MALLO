@@ -13,6 +13,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
+import { MAX_ASK_QUESTION_LENGTH } from '@/constants/ask';
 import { MALLO_SPACING } from '@/constants/theme';
 import {
   AskHeader,
@@ -32,6 +33,7 @@ import type { ConditionOption } from '@/features/check/types';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 import { askMallo } from '@/services/ask';
 import { isApiError } from '@/services/api';
+import { createCheck } from '@/services/check';
 import type { AskResult } from '@/types/ask';
 
 export default function AskScreen() {
@@ -48,7 +50,8 @@ export default function AskScreen() {
   const rootNavigation = useNavigation('/');
   const scrollRef = useRef<ScrollView>(null);
   const lastRequestQuestionRef = useRef('');
-  const { recoverySession } = useRecoveryFlow();
+  const lastConditionOptionRef = useRef<ConditionOption | null>(null);
+  const { recoverySession, saveQuickCheck } = useRecoveryFlow();
 
   const isLoadingPreview = previewState === 'loading';
   const loadingPreviewQuestion =
@@ -95,6 +98,7 @@ export default function AskScreen() {
   const resetQuestion = useCallback(() => {
     Keyboard.dismiss();
     lastRequestQuestionRef.current = '';
+    lastConditionOptionRef.current = null;
     setScreenState('input');
     setQuestion('');
     setSubmittedQuestion('');
@@ -118,7 +122,26 @@ export default function AskScreen() {
 
   const executeQuestion = useCallback(
     async (requestQuestion: string, displayQuestion: string) => {
-      lastRequestQuestionRef.current = requestQuestion;
+      const normalizedRequestQuestion = requestQuestion.trim();
+
+      if (!normalizedRequestQuestion) {
+        setQuestion(displayQuestion);
+        setInputNotice('질문을 입력해 주세요.');
+        setScreenState('input');
+        return;
+      }
+
+      if (normalizedRequestQuestion.length > MAX_ASK_QUESTION_LENGTH) {
+        setQuestion(displayQuestion);
+        setInputNotice(
+          `질문은 ${MAX_ASK_QUESTION_LENGTH}자 이내로 입력해 주세요.`,
+        );
+        setScreenState('input');
+        return;
+      }
+
+      lastRequestQuestionRef.current = normalizedRequestQuestion;
+      lastConditionOptionRef.current = null;
       setSubmittedQuestion(displayQuestion);
       setInputNotice('');
       setErrorMessage('');
@@ -130,7 +153,7 @@ export default function AskScreen() {
       try {
         const result = await askMallo(
           {
-            question: requestQuestion,
+            question: normalizedRequestQuestion,
             photoRecordIds: [],
           },
           recoverySession?.sessionId,
@@ -176,20 +199,99 @@ export default function AskScreen() {
   );
 
   const completeConditionCheck = useCallback(
-    (option: ConditionOption) => {
-      const followUpQuestion = `${submittedQuestion} 추가 조건은 ${option.label}이에요.`;
-      void executeQuestion(followUpQuestion, submittedQuestion);
+    async (option: ConditionOption) => {
+      const clarifyAction = askResult?.action;
+
+      if (askResult?.status !== 'CLARIFY' || !clarifyAction) {
+        return;
+      }
+
+      const clarifyResult = askResult;
+      const config = CONDITION_CONFIGS[clarifyAction];
+      lastConditionOptionRef.current = option;
+      setInputNotice('');
+      setErrorMessage('');
+      setCanRetry(false);
+      setScreenState('loading');
+      Keyboard.dismiss();
+
+      try {
+        const response = await createCheck(
+          {
+            action: clarifyAction,
+            context: {
+              [config.contextKey]: option.value,
+            },
+          },
+          recoverySession?.sessionId,
+        );
+
+        if (response.status === 'NO_PROTOCOL') {
+          applyAskResult({
+            ...clarifyResult,
+            context: {
+              [config.contextKey]: option.value,
+            },
+            decision: null,
+            guidance: null,
+            message: null,
+            nextAction: null,
+            protocolRef: null,
+            status: 'NO_PROTOCOL',
+          });
+          return;
+        }
+
+        saveQuickCheck(response.result);
+        applyAskResult({
+          action: response.result.action,
+          context: response.result.context,
+          createdAt: response.result.createdAt,
+          decision: response.result.decision,
+          guidance: response.result.reason,
+          interactionId: clarifyResult.interactionId,
+          message: null,
+          nextAction: response.result.nextAction?.label ?? null,
+          photoRecordIds: clarifyResult.photoRecordIds,
+          protocolRef: response.result.protocolRefs[0] ?? null,
+          sessionId: clarifyResult.sessionId,
+          status: 'MATCHED',
+        });
+      } catch (error) {
+        const isSessionError = isApiError(error) && error.status === 401;
+        setErrorMessage(
+          isSessionError
+            ? '활성 Recovery Session을 확인하지 못했어요.'
+            : isApiError(error)
+              ? error.message
+              : '잠시 후 다시 확인해 주세요. 입력한 질문은 그대로 유지돼요.',
+        );
+        setCanRetry(!isSessionError);
+        setScreenState('error');
+      }
     },
-    [executeQuestion, submittedQuestion],
+    [
+      applyAskResult,
+      askResult,
+      recoverySession?.sessionId,
+      saveQuickCheck,
+    ],
   );
 
   const retryLastQuestion = useCallback(() => {
+    const conditionOption = lastConditionOptionRef.current;
+
+    if (conditionOption) {
+      void completeConditionCheck(conditionOption);
+      return;
+    }
+
     const requestQuestion = lastRequestQuestionRef.current;
 
     if (requestQuestion) {
       void executeQuestion(requestQuestion, submittedQuestion);
     }
-  }, [executeQuestion, submittedQuestion]);
+  }, [completeConditionCheck, executeQuestion, submittedQuestion]);
 
   const renderState = () => {
     if (screenState === 'input') {

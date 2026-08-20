@@ -53,9 +53,16 @@ export default function ConsentScreen() {
 
   // 자세히 보기 핸들러
   const handleOpenDetail = (title: string) => {
+    const detailContent =
+      title === '서비스 이용 동의'
+        ? '서비스 이용 및 Recovery Journey 제공을 위한 필수 동의입니다.'
+        : title === '데이터 처리 동의'
+          ? '서비스 제공에 필요한 시술 및 회복 관련 데이터를 처리합니다.'
+          : '회복 가이드와 기록을 확인할 수 있도록 알림을 받을 수 있어요.';
+
     setSelectedDetail({
       title,
-      content: `${title}에 대한 상세 내용입니다. (추후 확정 전문 반영 예정)`,
+      content: detailContent,
     });
     setModalVisible(true);
   };

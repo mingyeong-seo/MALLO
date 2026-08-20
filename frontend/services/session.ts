@@ -68,9 +68,11 @@ function isSessionDto(value: unknown): value is SessionDto {
     typeof dto.session_id === 'string' &&
     typeof dto.procedure === 'string' &&
     typeof dto.procedure_at === 'string' &&
-    typeof dto.clinic_id === 'string' &&
+    (dto.clinic_id === undefined ||
+      dto.clinic_id === null ||
+      typeof dto.clinic_id === 'string') &&
     typeof dto.elapsed_day === 'number' &&
-    typeof dto.created_at === 'string' &&
+    (dto.created_at === undefined || typeof dto.created_at === 'string') &&
     (dto.status === 'ACTIVE' || dto.status === 'COMPLETED')
   );
 }

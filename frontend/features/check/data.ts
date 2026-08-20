@@ -117,6 +117,7 @@ export const CONDITION_CONFIGS: Record<QuickCheckAction, ConditionConfig> = {
       {
         label: '그 외 활성 성분',
         description: '위 항목에 해당하지 않는 활성 성분 제품',
+        destination: 'ASK_MALLO',
         value: 'OTHER_ACTIVE',
       },
     ],

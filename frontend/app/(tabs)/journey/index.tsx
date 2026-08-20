@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -21,90 +20,23 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
-import { isApiError } from '@/services/api';
-import { getTodaySession } from '@/services/session';
-import { getSessionId, removeSessionId } from '@/services/session-storage';
-
-type SessionRestoreState = 'checking' | 'ready' | 'error';
 
 export default function JourneyScreen() {
-  const { recoverySession, setRecoverySession } = useRecoveryFlow();
-  const [restoreState, setRestoreState] =
-    useState<SessionRestoreState>('checking');
-  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const {
+    hasSessionHydrationError,
+    isHydratingSession,
+    recoverySession,
+    retrySessionHydration,
+  } = useRecoveryFlow();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const restoreSession = async () => {
-      setRestoreState('checking');
-
-      try {
-        const storedSessionId = await getSessionId();
-
-        if (cancelled) return;
-
-        if (!storedSessionId) {
-          setRecoverySession(null);
-          setRestoreState('ready');
-          return;
-        }
-
-        const session = await getTodaySession(storedSessionId);
-
-        if (cancelled) return;
-
-        if (session.status === 'COMPLETED') {
-          await removeSessionId();
-
-          if (cancelled) return;
-
-          setRecoverySession(null);
-          setRestoreState('ready');
-          return;
-        }
-
-        setRecoverySession(session);
-        setRestoreState('ready');
-      } catch (error) {
-        if (cancelled) return;
-
-        if (isApiError(error) && error.status === 401) {
-          try {
-            await removeSessionId();
-          } catch {
-            if (!cancelled) {
-              setRestoreState('error');
-            }
-            return;
-          }
-
-          if (cancelled) return;
-
-          setRecoverySession(null);
-          setRestoreState('ready');
-          return;
-        }
-
-        setRestoreState('error');
-      }
-    };
-
-    void restoreSession();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [restoreAttempt, setRecoverySession]);
-
-  if (restoreState === 'checking') {
+  if (isHydratingSession) {
     return <SessionCheckingState />;
   }
 
-  if (restoreState === 'error') {
+  if (hasSessionHydrationError) {
     return (
       <SessionRestoreError
-        onRetry={() => setRestoreAttempt((attempt) => attempt + 1)}
+        onRetry={retrySessionHydration}
       />
     );
   }

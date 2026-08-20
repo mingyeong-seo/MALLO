@@ -7,8 +7,8 @@ export type CreateSessionInput = {
 };
 
 export type SessionDto = {
-  clinic_id: string;
-  created_at: string;
+  clinic_id?: string | null;
+  created_at?: string;
   elapsed_day: number;
   procedure: string;
   procedure_at: string;
@@ -18,6 +18,6 @@ export type SessionDto = {
 
 export type SessionResponseDto = {
   data: SessionDto;
-  message: string;
+  message: string | null;
   success: boolean;
 };

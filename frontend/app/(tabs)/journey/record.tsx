@@ -42,15 +42,8 @@ import type {
 import { ApiError, isApiError } from '@/services/api';
 import { getTodayChecks } from '@/services/check';
 import { uploadSessionPhoto } from '@/services/photo';
-import {
-  createRecord,
-  getTodayRecord,
-  updateRecord,
-} from '@/services/record';
-import {
-  getPhotoConsent,
-  setPhotoConsent,
-} from '@/services/session-storage';
+import { createRecord, getTodayRecord, updateRecord } from '@/services/record';
+import { getPhotoConsent, setPhotoConsent } from '@/services/session-storage';
 
 type SaveState = 'idle' | 'saving' | 'error';
 type LoadState = 'loading' | 'ready' | 'error';
@@ -65,6 +58,7 @@ const ACTION_ORDER: QuickCheckAction[] = [
 const ACTION_TAB_WIDTH = 76;
 const ACTION_TAB_GAP = MALLO_SPACING.sm;
 const WEB_NAVIGATION_BUTTON_SIZE = 32;
+const COLLAPSED_CHECK_LIMIT = 3;
 const RECORD_DAY_MISMATCH_NOTICE =
   '현재 회복 DAY와 저장된 기록 정보가 일치하지 않아요. 다시 확인해 주세요.';
 
@@ -95,7 +89,10 @@ export default function RecoveryRecordScreen() {
 
   const {
     findRecoveryRecord,
+    hasSessionHydrationError,
+    isHydratingSession,
     recoverySession,
+    retrySessionHydration,
     setQuickChecks,
     upsertRecoveryRecord,
   } = useRecoveryFlow();
@@ -112,9 +109,9 @@ export default function RecoveryRecordScreen() {
 
   const existing = findRecoveryRecord(elapsedDay);
 
-  const [todayQuickChecks, setTodayQuickChecks] = useState<
-    QuickCheckResult[]
-  >([]);
+  const [todayQuickChecks, setTodayQuickChecks] = useState<QuickCheckResult[]>(
+    [],
+  );
 
   const actionCounts = useMemo(
     () =>
@@ -142,6 +139,9 @@ export default function RecoveryRecordScreen() {
   const [selectedAction, setSelectedAction] = useState<QuickCheckAction>(
     firstActionWithResult,
   );
+  const [expandedActions, setExpandedActions] = useState<
+    Partial<Record<QuickCheckAction, boolean>>
+  >({});
   const actionScrollRef = useRef<ScrollView>(null);
 
   const [performedByCheckId, setPerformedByCheckId] = useState<
@@ -176,6 +176,14 @@ export default function RecoveryRecordScreen() {
   const selectedChecks = todayQuickChecks.filter(
     (result) => result.action === selectedAction,
   );
+  const isSelectedActionExpanded = expandedActions[selectedAction] === true;
+  const visibleSelectedChecks = isSelectedActionExpanded
+    ? selectedChecks
+    : selectedChecks.slice(0, COLLAPSED_CHECK_LIMIT);
+  const hiddenSelectedCheckCount = Math.max(
+    selectedChecks.length - COLLAPSED_CHECK_LIMIT,
+    0,
+  );
 
   const allChecked =
     todayQuickChecks.length > 0 &&
@@ -202,6 +210,12 @@ export default function RecoveryRecordScreen() {
   }, [selectedAction]);
 
   const loadRecordData = useCallback(async () => {
+    if (isHydratingSession) {
+      setLoadState('loading');
+      setNotice('');
+      return;
+    }
+
     const sessionId = recoverySession?.sessionId;
     const currentElapsedDay = recoverySession?.elapsedDay;
 
@@ -286,6 +300,7 @@ export default function RecoveryRecordScreen() {
       setNotice(getRecordErrorMessage(error, '기록을 불러오지 못했어요.'));
     }
   }, [
+    isHydratingSession,
     recoverySession?.elapsedDay,
     recoverySession?.sessionId,
     setQuickChecks,
@@ -325,9 +340,7 @@ export default function RecoveryRecordScreen() {
           await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permission.granted) {
-          setNotice(
-            '회복 사진을 기록하려면 사진 접근 권한이 필요해요.',
-          );
+          setNotice('회복 사진을 기록하려면 사진 접근 권한이 필요해요.');
           return;
         }
       }
@@ -345,8 +358,7 @@ export default function RecoveryRecordScreen() {
       const selectedAt = Date.now();
       const acceptedAssets = result.assets.filter(
         (asset) =>
-          asset.fileSize == null ||
-          asset.fileSize <= MAX_PHOTO_FILE_SIZE_BYTES,
+          asset.fileSize == null || asset.fileSize <= MAX_PHOTO_FILE_SIZE_BYTES,
       );
       const hasOversizedPhoto = acceptedAssets.length < result.assets.length;
       const selectedPhotos: PhotoAttachment[] = acceptedAssets.map(
@@ -542,6 +554,7 @@ export default function RecoveryRecordScreen() {
       return;
     }
 
+    attachmentsRef.current = attachments;
     setSaveState('saving');
     setNotice('');
 
@@ -606,17 +619,26 @@ export default function RecoveryRecordScreen() {
       }));
       const trimmedMemo = memo.trim();
       const savedRecord = recordToUpdate
-          ? await updateRecord(sessionId, recordToUpdate.recordId, {
-              actions,
-              memo: trimmedMemo,
-              ...(photoRecordIdsChanged ? { photoRecordIds } : {}),
-            })
-          : await createRecord(sessionId, {
-              actions,
-              elapsedDay,
-              memo: trimmedMemo,
-              photoRecordIds,
-            });
+        ? await updateRecord(sessionId, recordToUpdate.recordId, {
+            actions,
+            memo: trimmedMemo,
+            ...(photoRecordIdsChanged ? { photoRecordIds } : {}),
+          })
+        : await createRecord(sessionId, {
+            actions,
+            elapsedDay,
+            memo: trimmedMemo,
+            photoRecordIds,
+          });
+      const savedPhotoIds = new Set(getPhotoIds(savedRecord.attachments));
+
+      if (photoRecordIds.some((photoId) => !savedPhotoIds.has(photoId))) {
+        throw new ApiError(
+          'INVALID_RESPONSE',
+          '업로드한 사진이 회복 기록에 연결되지 않았어요. 다시 시도해 주세요.',
+        );
+      }
+
       const hydratedRecord = savedRecord;
 
       attachmentsRef.current = hydratedRecord.attachments;
@@ -654,359 +676,406 @@ export default function RecoveryRecordScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="Recovery Journey 홈으로 이동"
-            accessibilityRole="button"
-            hitSlop={12}
-            onPress={handleLogoPress}
-            style={({ pressed }) => [
-              styles.logoButton,
-              pressed && styles.pressed,
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel="Recovery Journey 홈으로 이동"
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={handleLogoPress}
+              style={({ pressed }) => [
+                styles.logoButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Image
+                accessible={false}
+                resizeMode="contain"
+                source={require('../../../assets/images/mallo-logo-red.png')}
+                style={styles.logo}
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.contextRow}>
+            <Text style={styles.contextText}>
+              {recoverySession?.procedureName ?? 'REJURAN'}
+            </Text>
+            <Text style={styles.contextText}>
+              {formatElapsedDay(elapsedDay)}
+            </Text>
+            {recoverySession ? (
+              <Text style={styles.contextText}>
+                {formatRecoveryDate(recoverySession.procedureDate, elapsedDay)}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.intro}>
+            <Text style={styles.title}>오늘 확인한 행동을 기록해주세요.</Text>
+            <Text style={styles.description}>
+              오늘 MALLO에게 확인했던 행동을 실제로 어떻게 했는지
+              기록해주세요.
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.actionTabsWrapper,
+              Platform.OS === 'web' && styles.actionTabsWrapperWeb,
             ]}
           >
-            <Image
-              accessible={false}
-              resizeMode="contain"
-              source={require('../../../assets/images/mallo-logo-red.png')}
-              style={styles.logo}
-            />
-          </Pressable>
-        </View>
+            {Platform.OS === 'web' ? (
+              <ActionNavigationButton
+                direction="previous"
+                disabled={selectedAction === ACTION_ORDER[0]}
+                onPress={() => {
+                  const index = ACTION_ORDER.indexOf(selectedAction);
+                  setSelectedAction(ACTION_ORDER[Math.max(index - 1, 0)]);
+                }}
+              />
+            ) : null}
 
-        <View style={styles.contextRow}>
-          <Text style={styles.contextText}>
-            {recoverySession?.procedureName ?? 'REJURAN'}
-          </Text>
-          <Text style={styles.contextText}>{formatElapsedDay(elapsedDay)}</Text>
-          {recoverySession ? (
-            <Text style={styles.contextText}>
-              {formatRecoveryDate(
-                recoverySession.procedureDate,
-                elapsedDay,
-              )}
+            <ScrollView
+              contentContainerStyle={styles.actionTabs}
+              horizontal
+              ref={actionScrollRef}
+              showsHorizontalScrollIndicator={false}
+              style={
+                Platform.OS === 'web' ? styles.actionTabsScrollWeb : undefined
+              }
+            >
+              {ACTION_ORDER.map((action) => {
+                const selected = action === selectedAction;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    key={action}
+                    onPress={() => setSelectedAction(action)}
+                    style={({ pressed }) => [
+                      styles.actionTab,
+                      selected && styles.actionTabSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Ionicons
+                      name={ACTION_ICONS[action]}
+                      size={22}
+                      color={
+                        selected
+                          ? MALLO_COLORS.core.white
+                          : MALLO_COLORS.support.secondaryTextGray
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.actionTabLabel,
+                        selected && styles.actionTabLabelSelected,
+                      ]}
+                    >
+                      {ACTION_LABELS[action]}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.actionTabCount,
+                        selected && styles.actionTabCountSelected,
+                      ]}
+                    >
+                      {actionCounts[action]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {Platform.OS === 'web' ? (
+              <ActionNavigationButton
+                direction="next"
+                disabled={
+                  selectedAction === ACTION_ORDER[ACTION_ORDER.length - 1]
+                }
+                onPress={() => {
+                  const index = ACTION_ORDER.indexOf(selectedAction);
+                  setSelectedAction(
+                    ACTION_ORDER[Math.min(index + 1, ACTION_ORDER.length - 1)],
+                  );
+                }}
+              />
+            ) : null}
+          </View>
+
+          <View style={styles.actionSection}>
+            <Text style={styles.sectionTitle}>
+              {ACTION_LABELS[selectedAction]} 관련 행동 ({selectedChecks.length}
+              )
             </Text>
-          ) : null}
-        </View>
 
-        <View style={styles.intro}>
-          <Text style={styles.title}>오늘 확인한 행동을 기록해주세요.</Text>
-          <Text style={styles.description}>
-            오늘 확인했던 행동을 실제로 했는지 체크해주세요.
-          </Text>
-        </View>
+            {selectedChecks.length ? (
+              <View style={styles.checkList}>
+                {visibleSelectedChecks.map((result) => {
+                  const performedStatus = performedByCheckId[result.checkId];
+                  const decisionColor = DECISION_COLORS[result.decision];
 
-        <View
-          style={[
-            styles.actionTabsWrapper,
-            Platform.OS === 'web' && styles.actionTabsWrapperWeb,
-          ]}
-        >
-          {Platform.OS === 'web' ? (
-            <ActionNavigationButton
-              direction="previous"
-              disabled={selectedAction === ACTION_ORDER[0]}
-              onPress={() => {
-                const index = ACTION_ORDER.indexOf(selectedAction);
-                setSelectedAction(ACTION_ORDER[Math.max(index - 1, 0)]);
-              }}
-            />
-          ) : null}
+                  return (
+                    <View key={result.checkId} style={styles.checkCard}>
+                      <View>
+                        <Text style={styles.checkTitle}>
+                          {result.contextLabel}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.decisionLabel,
+                            { color: decisionColor },
+                          ]}
+                        >
+                          MALLO 안내 · {DECISION_LABELS[result.decision]}
+                        </Text>
+                      </View>
 
-          <ScrollView
-            contentContainerStyle={styles.actionTabs}
-            horizontal
-            ref={actionScrollRef}
-            showsHorizontalScrollIndicator={false}
-            style={
-              Platform.OS === 'web' ? styles.actionTabsScrollWeb : undefined
-            }
-          >
-            {ACTION_ORDER.map((action) => {
-              const selected = action === selectedAction;
+                      <View style={styles.performanceSection}>
+                        <Text style={styles.performanceLabel}>
+                          오늘 실제로는
+                        </Text>
+                        <View style={styles.performanceChoices}>
+                          <Choice
+                            label="했어요"
+                            onPress={() =>
+                              setPerformedStatus(result.checkId, 'DONE')
+                            }
+                            selected={performedStatus === 'DONE'}
+                          />
+                          <Choice
+                            label="하지 않았어요"
+                            onPress={() =>
+                              setPerformedStatus(result.checkId, 'NOT_DONE')
+                            }
+                            selected={performedStatus === 'NOT_DONE'}
+                          />
+                          <Choice
+                            label="일부만 했어요"
+                            onPress={() =>
+                              setPerformedStatus(
+                                result.checkId,
+                                'ADJUSTED_DONE',
+                              )
+                            }
+                            selected={performedStatus === 'ADJUSTED_DONE'}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
 
-              return (
+                {selectedChecks.length > COLLAPSED_CHECK_LIMIT ? (
+                  <Pressable
+                    accessibilityLabel={
+                      isSelectedActionExpanded
+                        ? `${ACTION_LABELS[selectedAction]} 행동 목록 접기`
+                        : `${ACTION_LABELS[selectedAction]} 행동 ${hiddenSelectedCheckCount}개 더 보기`
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: isSelectedActionExpanded }}
+                    onPress={() =>
+                      setExpandedActions((current) => ({
+                        ...current,
+                        [selectedAction]: !isSelectedActionExpanded,
+                      }))
+                    }
+                    style={({ pressed }) => [
+                      styles.checkListToggle,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.checkListToggleText}>
+                      {isSelectedActionExpanded
+                        ? '접기 ↑'
+                        : `${hiddenSelectedCheckCount}개 더 보기 ↓`}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.noActionState}>
+                <Text style={styles.noActionTitle}>
+                  오늘 확인한 {ACTION_LABELS[selectedAction]} 행동이 없어요.
+                </Text>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  key={action}
-                  onPress={() => setSelectedAction(action)}
+                  onPress={() => router.push('/(tabs)/check/quick')}
                   style={({ pressed }) => [
-                    styles.actionTab,
-                    selected && styles.actionTabSelected,
+                    styles.inlineButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.inlineButtonText}>Quick Check 하기</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionTitle}>오늘의 회복 한 줄</Text>
+              <Text style={styles.optionalLabel}>(선택)</Text>
+            </View>
+
+            <TextInput
+              accessibilityLabel="회복 메모"
+              maxLength={300}
+              multiline
+              onChangeText={setMemo}
+              placeholder="오늘 피부 느낌이나 회복하면서 느낀 점을 자유롭게 적어주세요."
+              placeholderTextColor={MALLO_COLORS.support.secondaryTextGray}
+              style={styles.memoInput}
+              textAlignVertical="top"
+              value={memo}
+            />
+
+            <Text style={styles.characterCount}>{memo.length}/300</Text>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionTitle}>사진</Text>
+              <Text style={styles.optionalLabel}>(선택)</Text>
+            </View>
+
+            <View style={styles.photoRow}>
+              {attachments.map((attachment, index) => {
+                const previewUri = attachment.photoUrl ?? attachment.localUri;
+
+                return (
+                  <Pressable
+                    accessibilityLabel={`사진 ${index + 1} 제거`}
+                    accessibilityRole="button"
+                    key={attachment.clientId}
+                    onPress={() => removePhoto(attachment.clientId)}
+                    style={styles.photoPreview}
+                  >
+                    {previewUri ? (
+                      <Image
+                        accessible={false}
+                        resizeMode="cover"
+                        source={{ uri: previewUri }}
+                        style={styles.photoImage}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="image-outline"
+                        size={24}
+                        color={MALLO_COLORS.core.red}
+                      />
+                    )}
+                    <Ionicons
+                      name="close-circle"
+                      size={17}
+                      color={MALLO_COLORS.support.secondaryTextGray}
+                      style={styles.removeIcon}
+                    />
+                  </Pressable>
+                );
+              })}
+
+              {attachments.length < 5 ? (
+                <Pressable
+                  accessibilityLabel="사진 추가"
+                  accessibilityRole="button"
+                  onPress={addPhoto}
+                  style={({ pressed }) => [
+                    styles.photoButton,
                     pressed && styles.pressed,
                   ]}
                 >
                   <Ionicons
-                    name={ACTION_ICONS[action]}
+                    name="camera-outline"
                     size={22}
-                    color={
-                      selected
-                        ? MALLO_COLORS.core.white
-                        : MALLO_COLORS.support.secondaryTextGray
-                    }
+                    color={MALLO_COLORS.support.charcoal}
                   />
-                  <Text
-                    style={[
-                      styles.actionTabLabel,
-                      selected && styles.actionTabLabelSelected,
-                    ]}
-                  >
-                    {ACTION_LABELS[action]}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.actionTabCount,
-                      selected && styles.actionTabCountSelected,
-                    ]}
-                  >
-                    {actionCounts[action]}
-                  </Text>
+                  <Text style={styles.photoButtonText}>사진 추가</Text>
                 </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          {Platform.OS === 'web' ? (
-            <ActionNavigationButton
-              direction="next"
-              disabled={
-                selectedAction === ACTION_ORDER[ACTION_ORDER.length - 1]
-              }
-              onPress={() => {
-                const index = ACTION_ORDER.indexOf(selectedAction);
-                setSelectedAction(
-                  ACTION_ORDER[Math.min(index + 1, ACTION_ORDER.length - 1)],
-                );
-              }}
-            />
-          ) : null}
-        </View>
-
-        <View style={styles.actionSection}>
-          <Text style={styles.sectionTitle}>
-            {ACTION_LABELS[selectedAction]} 관련 행동 ({selectedChecks.length})
-          </Text>
-
-          {selectedChecks.length ? (
-            <View style={styles.checkList}>
-              {selectedChecks.map((result) => {
-                const performedStatus = performedByCheckId[result.checkId];
-                const decisionColor = DECISION_COLORS[result.decision];
-
-                return (
-                  <View key={result.checkId} style={styles.checkCard}>
-                    <View style={styles.checkCopy}>
-                      <Text style={styles.checkTitle}>
-                        {result.contextLabel}
-                      </Text>
-                      <Text
-                        style={[styles.decisionLabel, { color: decisionColor }]}
-                      >
-                        {DECISION_LABELS[result.decision]}
-                      </Text>
-                    </View>
-
-                    <View style={styles.performanceChoices}>
-                      <Choice
-                        label="했어요"
-                        onPress={() =>
-                          setPerformedStatus(result.checkId, 'DONE')
-                        }
-                        selected={performedStatus === 'DONE'}
-                      />
-                      <Choice
-                        label="하지 않았어요"
-                        onPress={() =>
-                          setPerformedStatus(result.checkId, 'NOT_DONE')
-                        }
-                        selected={performedStatus === 'NOT_DONE'}
-                      />
-                      <Choice
-                        label="조절해서 했어요"
-                        onPress={() =>
-                          setPerformedStatus(result.checkId, 'ADJUSTED_DONE')
-                        }
-                        selected={performedStatus === 'ADJUSTED_DONE'}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
+              ) : null}
             </View>
-          ) : (
-            <View style={styles.noActionState}>
-              <Text style={styles.noActionTitle}>
-                오늘 확인한 {ACTION_LABELS[selectedAction]} 행동이 없어요.
+
+            <Text style={styles.photoCount}>{attachments.length}/5</Text>
+          </View>
+
+          {notice ? (
+            <Text accessibilityLiveRegion="polite" style={styles.noticeText}>
+              {notice}
+            </Text>
+          ) : null}
+
+          {loadState === 'loading' ? (
+            <View style={styles.errorBox}>
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                오늘 기록을 불러오고 있어요.
+              </Text>
+            </View>
+          ) : null}
+
+          {loadState === 'error' ? (
+            <View style={styles.errorBox}>
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                오늘 기록을 불러오지 못했어요.
               </Text>
               <Pressable
+                accessibilityLabel="오늘 기록 다시 불러오기"
                 accessibilityRole="button"
-                onPress={() => router.push('/(tabs)/check/quick')}
+                onPress={() => {
+                  if (!recoverySession || hasSessionHydrationError) {
+                    retrySessionHydration();
+                    return;
+                  }
+
+                  void loadRecordData();
+                }}
                 style={({ pressed }) => [
                   styles.inlineButton,
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={styles.inlineButtonText}>Quick Check 하기</Text>
+                <Text style={styles.inlineButtonText}>다시 불러오기</Text>
               </Pressable>
             </View>
-          )}
-        </View>
+          ) : null}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeadingRow}>
-            <Text style={styles.sectionTitle}>메모</Text>
-            <Text style={styles.optionalLabel}>(선택)</Text>
-          </View>
+          {saveState === 'error' ? (
+            <View style={styles.errorBox}>
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                기록을 저장하지 못했어요. 다시 시도해 주세요.
+              </Text>
+            </View>
+          ) : null}
 
-          <TextInput
-            accessibilityLabel="회복 메모"
-            maxLength={300}
-            multiline
-            onChangeText={setMemo}
-            placeholder="오늘 피부 느낌이나 자유롭게 적어주세요."
-            placeholderTextColor={MALLO_COLORS.support.secondaryTextGray}
-            style={styles.memoInput}
-            textAlignVertical="top"
-            value={memo}
-          />
+          <Pressable
+            accessibilityRole="button"
+            disabled={
+              saveState === 'saving' ||
+              loadState !== 'ready' ||
+              recordDayMismatch
+            }
+            onPress={() => void saveRecord()}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              (!allChecked || loadState !== 'ready' || recordDayMismatch) &&
+                styles.primaryButtonDisabled,
+              pressed && saveState !== 'saving' && styles.pressed,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {saveState === 'saving'
+                ? '저장하고 있어요'
+                : saveState === 'error'
+                  ? '다시 저장하기'
+                  : '오늘 기록 저장하기'}
+            </Text>
+          </Pressable>
 
-          <Text style={styles.characterCount}>{memo.length}/300</Text>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeadingRow}>
-            <Text style={styles.sectionTitle}>사진</Text>
-            <Text style={styles.optionalLabel}>(선택)</Text>
-          </View>
-
-          <View style={styles.photoRow}>
-            {attachments.map((attachment, index) => {
-              const previewUri = attachment.photoUrl ?? attachment.localUri;
-
-              return (
-                <Pressable
-                  accessibilityLabel={`사진 ${index + 1} 제거`}
-                  accessibilityRole="button"
-                  key={attachment.clientId}
-                  onPress={() => removePhoto(attachment.clientId)}
-                  style={styles.photoPreview}
-                >
-                  {previewUri ? (
-                    <Image
-                      accessible={false}
-                      resizeMode="cover"
-                      source={{ uri: previewUri }}
-                      style={styles.photoImage}
-                    />
-                  ) : (
-                    <Ionicons
-                      name="image-outline"
-                      size={24}
-                      color={MALLO_COLORS.core.red}
-                    />
-                  )}
-                  <Ionicons
-                    name="close-circle"
-                    size={17}
-                    color={MALLO_COLORS.support.secondaryTextGray}
-                    style={styles.removeIcon}
-                  />
-                </Pressable>
-              );
-            })}
-
-            {attachments.length < 5 ? (
-              <Pressable
-                accessibilityLabel="사진 추가"
-                accessibilityRole="button"
-                onPress={addPhoto}
-                style={({ pressed }) => [
-                  styles.photoButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons
-                  name="camera-outline"
-                  size={22}
-                  color={MALLO_COLORS.support.charcoal}
-                />
-                <Text style={styles.photoButtonText}>사진 추가</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          <Text style={styles.photoCount}>{attachments.length}/5</Text>
-        </View>
-
-        {notice ? (
-          <Text accessibilityLiveRegion="polite" style={styles.noticeText}>
-            {notice}
+          <Text style={styles.saveGuide}>
+            저장한 기록은 기록 모아보기에서 확인할 수 있어요.
           </Text>
-        ) : null}
-
-        {loadState === 'loading' ? (
-          <View style={styles.errorBox}>
-            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-              오늘 기록을 불러오고 있어요.
-            </Text>
-          </View>
-        ) : null}
-
-        {loadState === 'error' ? (
-          <View style={styles.errorBox}>
-            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-              오늘 기록을 불러오지 못했어요.
-            </Text>
-            <Pressable
-              accessibilityLabel="오늘 기록 다시 불러오기"
-              accessibilityRole="button"
-              onPress={() => void loadRecordData()}
-              style={({ pressed }) => [
-                styles.inlineButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.inlineButtonText}>다시 불러오기</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {saveState === 'error' ? (
-          <View style={styles.errorBox}>
-            <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-              기록을 저장하지 못했어요. 다시 시도해 주세요.
-            </Text>
-          </View>
-        ) : null}
-
-        <Pressable
-          accessibilityRole="button"
-          disabled={
-            saveState === 'saving' ||
-            loadState !== 'ready' ||
-            recordDayMismatch
-          }
-          onPress={() => void saveRecord()}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            (!allChecked || loadState !== 'ready' || recordDayMismatch) &&
-              styles.primaryButtonDisabled,
-            pressed && saveState !== 'saving' && styles.pressed,
-          ]}
-        >
-          <Text style={styles.primaryButtonText}>
-            {saveState === 'saving'
-              ? '저장하고 있어요'
-              : saveState === 'error'
-                ? '다시 저장하기'
-                : '오늘 기록 저장하기'}
-          </Text>
-        </Pressable>
-
-        <Text style={styles.saveGuide}>
-          저장한 기록은 Recovery Journal에서 확인할 수 있어요.
-        </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -1322,16 +1391,9 @@ const styles = StyleSheet.create({
   },
   checkCard: {
     minHeight: 78,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: MALLO_SPACING.md,
     paddingVertical: MALLO_SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: MALLO_COLORS.support.mistGray,
-  },
-  checkCopy: {
-    flex: 1,
   },
   checkTitle: {
     ...MALLO_TYPOGRAPHY.body,
@@ -1341,7 +1403,29 @@ const styles = StyleSheet.create({
   decisionLabel: {
     ...MALLO_TYPOGRAPHY.caption,
     marginTop: MALLO_SPACING.xs,
+    fontWeight: '500',
+  },
+  performanceSection: {
+    marginTop: MALLO_SPACING.md,
+  },
+  performanceLabel: {
+    ...MALLO_TYPOGRAPHY.caption,
+    marginBottom: MALLO_SPACING.sm,
     fontWeight: '600',
+    color: MALLO_COLORS.support.charcoal,
+  },
+  checkListToggle: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: MALLO_SPACING.md,
+    paddingVertical: MALLO_SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: MALLO_COLORS.support.mistGray,
+  },
+  checkListToggleText: {
+    ...MALLO_TYPOGRAPHY.buttonLabel,
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
   performanceChoices: {
     flexDirection: 'row',

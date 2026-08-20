@@ -152,12 +152,16 @@ function mapRecordDto(value: unknown): RecoveryRecord {
     );
   }
 
+  const uniquePhotos = [
+    ...new Map(value.photos.map((photo) => [photo.photo_id, photo])).values(),
+  ];
+
   return {
     actions: value.actions.map((action) => ({
       checkId: action.check_id,
       performedStatus: action.performed_status,
     })),
-    attachments: value.photos.map((photo) => {
+    attachments: uniquePhotos.map((photo) => {
       const mappedPhoto = mapPhotoRecordDto(photo);
 
       return {

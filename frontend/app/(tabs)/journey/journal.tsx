@@ -22,7 +22,6 @@ import {
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
-import { ACTION_LABELS } from '@/features/check/data';
 import { formatRecoveryDate } from '@/features/recovery/date';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
@@ -37,7 +36,7 @@ import { getCheckById } from '@/services/check';
 import { getRecords } from '@/services/record';
 
 const PERFORMED_LABELS: Record<RecoveryRecordPerformedStatus, string> = {
-  ADJUSTED_DONE: '조절해서 했어요',
+  ADJUSTED_DONE: '일부만 했어요',
   DONE: '했어요',
   NOT_DONE: '하지 않았어요',
 };
@@ -46,6 +45,7 @@ type JournalLoadState = 'loading' | 'ready' | 'error';
 const DAY_BUTTON_WIDTH = 42;
 const DAY_BUTTON_GAP = MALLO_SPACING.sm;
 const WEB_NAVIGATION_BUTTON_SIZE = 32;
+const COLLAPSED_ACTION_LIMIT = 5;
 
 const DECISION_LABELS: Record<QuickCheckDecision, string> = {
   POSSIBLE: '진행 가능',
@@ -67,18 +67,23 @@ export default function RecoveryJournalScreen() {
   const {
     findQuickCheck,
     findRecoveryRecord,
+    hasSessionHydrationError,
+    isHydratingSession,
     quickChecks,
     recoveryRecords,
     recoverySession,
+    retrySessionHydration,
     saveQuickCheck,
     setRecoveryRecords,
   } = useRecoveryFlow();
   const quickChecksRef = useRef<QuickCheckResult[]>(quickChecks);
-  const recoveryRecordsRef = useRef(recoveryRecords);
   const dayScrollRef = useRef<ScrollView>(null);
   const [loadState, setLoadState] = useState<JournalLoadState>('loading');
   const [loadNotice, setLoadNotice] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
+  const [expandedActionsDay, setExpandedActionsDay] = useState<number | null>(
+    null,
+  );
 
   const currentDay = recoverySession?.elapsedDay ?? 0;
   const parsedRouteDay = Number(params.day);
@@ -95,10 +100,12 @@ export default function RecoveryJournalScreen() {
   }, [quickChecks]);
 
   useEffect(() => {
-    recoveryRecordsRef.current = recoveryRecords;
-  }, [recoveryRecords]);
+    if (isHydratingSession) {
+      setLoadState('loading');
+      setLoadNotice('');
+      return;
+    }
 
-  useEffect(() => {
     const sessionId = recoverySession?.sessionId;
 
     if (!sessionId) {
@@ -120,23 +127,7 @@ export default function RecoveryJournalScreen() {
           return;
         }
 
-        const hydratedRecords = records.map((record) => {
-          const localRecord = recoveryRecordsRef.current.find(
-            (candidate) => candidate.recordId === record.recordId,
-          );
-
-          return localRecord
-            ? {
-                ...record,
-                attachments: mergePhotoAttachments(
-                  record.attachments,
-                  localRecord.attachments,
-                ),
-              }
-            : record;
-        });
-
-        setRecoveryRecords(hydratedRecords);
+        setRecoveryRecords(records);
 
         const cachedCheckIds = new Set(
           quickChecksRef.current.map((check) => check.checkId),
@@ -195,6 +186,7 @@ export default function RecoveryJournalScreen() {
       active = false;
     };
   }, [
+    isHydratingSession,
     recoverySession?.sessionId,
     reloadToken,
     saveQuickCheck,
@@ -225,7 +217,21 @@ export default function RecoveryJournalScreen() {
     });
   }, [selectedElapsedDay]);
 
+  useEffect(() => {
+    setExpandedActionsDay(null);
+  }, [selectedElapsedDay]);
+
   const selectedRecord = findRecoveryRecord(selectedElapsedDay);
+  const actionsExpanded = expandedActionsDay === selectedElapsedDay;
+  const visibleActions = selectedRecord
+    ? actionsExpanded
+      ? selectedRecord.actions
+      : selectedRecord.actions.slice(0, COLLAPSED_ACTION_LIMIT)
+    : [];
+  const hiddenActionCount = Math.max(
+    (selectedRecord?.actions.length ?? 0) - COLLAPSED_ACTION_LIMIT,
+    0,
+  );
   const isFuture = selectedElapsedDay > currentDay;
   const canEdit = selectedElapsedDay === currentDay;
   const floatingTabClearance =
@@ -395,7 +401,14 @@ export default function RecoveryJournalScreen() {
           <Pressable
             accessibilityLabel="회복 기록 다시 불러오기"
             accessibilityRole="button"
-            onPress={() => setReloadToken((current) => current + 1)}
+            onPress={() => {
+              if (!recoverySession || hasSessionHydrationError) {
+                retrySessionHydration();
+                return;
+              }
+
+              setReloadToken((current) => current + 1);
+            }}
             style={({ pressed }) => [
               styles.loadRetry,
               pressed && styles.pressed,
@@ -412,7 +425,7 @@ export default function RecoveryJournalScreen() {
                 <Text style={styles.detailLabel}>오늘 확인한 행동</Text>
 
                 <View style={styles.actionList}>
-                  {selectedRecord.actions.map((actionRecord) => {
+                  {visibleActions.map((actionRecord) => {
                     const quickCheck = findQuickCheck(actionRecord.checkId);
 
                     if (!quickCheck) {
@@ -438,7 +451,6 @@ export default function RecoveryJournalScreen() {
                       >
                         <View style={styles.actionRecordCopy}>
                           <Text style={styles.actionRecordTitle}>
-                            {ACTION_LABELS[quickCheck.action]} ·{' '}
                             {quickCheck.contextLabel}
                           </Text>
                           <Text
@@ -449,7 +461,7 @@ export default function RecoveryJournalScreen() {
                               },
                             ]}
                           >
-                            {DECISION_LABELS[quickCheck.decision]}
+                            MALLO 안내 · {DECISION_LABELS[quickCheck.decision]}
                           </Text>
                         </View>
 
@@ -460,6 +472,33 @@ export default function RecoveryJournalScreen() {
                     );
                   })}
                 </View>
+
+                {selectedRecord.actions.length > COLLAPSED_ACTION_LIMIT ? (
+                  <Pressable
+                    accessibilityLabel={
+                      actionsExpanded
+                        ? '행동 목록 접기'
+                        : `행동 ${hiddenActionCount}개 더 보기`
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: actionsExpanded }}
+                    onPress={() =>
+                      setExpandedActionsDay(
+                        actionsExpanded ? null : selectedElapsedDay,
+                      )
+                    }
+                    style={({ pressed }) => [
+                      styles.actionListToggle,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.actionListToggleText}>
+                      {actionsExpanded
+                        ? '접기 ↑'
+                        : `${hiddenActionCount}개 더 보기 ↓`}
+                    </Text>
+                  </Pressable>
+                ) : null}
 
                 <View style={styles.divider} />
               </>
@@ -477,29 +516,12 @@ export default function RecoveryJournalScreen() {
             {selectedRecord.attachments.length ? (
               <View style={styles.photoGrid}>
                 {selectedRecord.attachments.map((attachment) => {
-                  const previewUri =
-                    attachment.photoUrl ?? attachment.localUri;
-
                   return (
-                    <View
+                    <JournalPhoto
+                      attachment={attachment}
                       key={attachment.clientId}
-                      style={styles.photoPreview}
-                    >
-                      {previewUri ? (
-                        <Image
-                          accessible={false}
-                          resizeMode="cover"
-                          source={{ uri: previewUri }}
-                          style={styles.photoImage}
-                        />
-                      ) : (
-                        <Ionicons
-                          name="image-outline"
-                          size={24}
-                          color={MALLO_COLORS.core.red}
-                        />
-                      )}
-                    </View>
+                      sessionId={recoverySession?.sessionId}
+                    />
                   );
                 })}
               </View>
@@ -570,24 +592,106 @@ export default function RecoveryJournalScreen() {
   );
 }
 
-function mergePhotoAttachments(
-  serverAttachments: PhotoAttachment[],
-  localAttachments: PhotoAttachment[],
-) {
-  const serverPhotoIds = new Set(
-    serverAttachments.flatMap((attachment) =>
-      attachment.photoId === undefined ? [] : [attachment.photoId],
-    ),
-  );
+function JournalPhoto({
+  attachment,
+  sessionId,
+}: {
+  attachment: PhotoAttachment;
+  sessionId?: string;
+}) {
+  const sourceUri = attachment.photoUrl ?? attachment.localUri;
+  const [webObjectUri, setWebObjectUri] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
-  return [
-    ...serverAttachments,
-    ...localAttachments.filter(
-      (attachment) =>
-        attachment.photoId === undefined ||
-        !serverPhotoIds.has(attachment.photoId),
-    ),
-  ];
+  useEffect(() => {
+    setHasError(false);
+
+    if (Platform.OS !== 'web' || !sourceUri) {
+      return;
+    }
+
+    if (!attachment.photoUrl) {
+      setWebObjectUri(sourceUri);
+      return;
+    }
+
+    if (!sessionId) {
+      setWebObjectUri(null);
+      setHasError(true);
+      return;
+    }
+
+    let active = true;
+    let objectUri: string | null = null;
+
+    const loadPhoto = async () => {
+      try {
+        const response = await fetch(attachment.photoUrl as string, {
+          headers: { 'X-Session-Id': sessionId },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Photo request failed: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        objectUri = URL.createObjectURL(blob);
+
+        if (active) {
+          setWebObjectUri(objectUri);
+        }
+      } catch {
+        if (active) {
+          setWebObjectUri(null);
+          setHasError(true);
+        }
+      }
+    };
+
+    void loadPhoto();
+
+    return () => {
+      active = false;
+
+      if (objectUri) {
+        URL.revokeObjectURL(objectUri);
+      }
+    };
+  }, [attachment.photoUrl, sessionId, sourceUri]);
+
+  const displayUri = Platform.OS === 'web' ? webObjectUri : sourceUri;
+  const nativeSource =
+    displayUri && Platform.OS !== 'web'
+      ? {
+          headers:
+            attachment.photoUrl && sessionId
+              ? { 'X-Session-Id': sessionId }
+              : undefined,
+          uri: displayUri,
+        }
+      : displayUri
+        ? { uri: displayUri }
+        : null;
+
+  return (
+    <View style={styles.photoPreview}>
+      {nativeSource && !hasError ? (
+        <Image
+          accessible={false}
+          onError={() => setHasError(true)}
+          resizeMode="cover"
+          source={nativeSource}
+          style={styles.photoImage}
+        />
+      ) : (
+        <Ionicons
+          name="image-outline"
+          size={24}
+          color={MALLO_COLORS.core.red}
+        />
+      )}
+    </View>
+  );
 }
 
 function DayNavigationButton({
@@ -776,6 +880,7 @@ const styles = StyleSheet.create({
   },
   actionRecordCopy: {
     flex: 1,
+    minWidth: 0,
   },
   actionRecordTitle: {
     ...MALLO_TYPOGRAPHY.body,
@@ -785,12 +890,26 @@ const styles = StyleSheet.create({
   actionDecision: {
     ...MALLO_TYPOGRAPHY.caption,
     marginTop: MALLO_SPACING.xs,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   performedValue: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
+    flexShrink: 0,
     fontWeight: '600',
+    textAlign: 'right',
     color: MALLO_COLORS.support.charcoal,
+  },
+  actionListToggle: {
+    alignSelf: 'center',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: MALLO_SPACING.md,
+  },
+  actionListToggleText: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    fontWeight: '600',
+    color: MALLO_COLORS.support.secondaryTextGray,
   },
   divider: {
     height: 1,
@@ -806,14 +925,17 @@ const styles = StyleSheet.create({
   photoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
     gap: MALLO_SPACING.sm,
     marginTop: MALLO_SPACING.md,
   },
   photoPreview: {
-    width: 68,
-    height: 68,
+    width: 120,
+    aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     borderRadius: MALLO_RADIUS.md,
     backgroundColor: MALLO_COLORS.support.redTint,
   },
