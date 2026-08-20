@@ -125,13 +125,46 @@ class AskServiceTest {
 	@Test
 	void AI가_UNSUPPORTED로_분류하면_고정_백엔드_문구로_저장한다() {
 		aiTriagePort.willReturn(unsupported());
-		AskRequest request = new AskRequest("오늘 날씨 어때요?", null);
+		AskRequest request = new AskRequest("오늘 가능한지 모르겠어요", null);
 
 		AskResponse response = askService.ask(sessionId, session, request);
 
 		assertThat(response.status()).isEqualTo(InteractionStatus.UNSUPPORTED);
 		assertThat(response.action()).isNull();
 		assertThat(response.message()).isEqualTo("이 질문은 회복 관리 범위 밖이라 답변드리기 어려워요.");
+		assertThat(aiTriagePort.callCount()).isOne();
+	}
+
+	@ParameterizedTest
+	@MethodSource("clearlyUnsupportedCases")
+	void 명백한_범위_외_질문은_AI를_호출하지_않고_UNSUPPORTED로_저장한다(String question) {
+		AskResponse response = askService.ask(sessionId, session, new AskRequest(question, null));
+
+		assertThat(response.status()).isEqualTo(InteractionStatus.UNSUPPORTED);
+		assertThat(response.action()).isNull();
+		assertThat(response.message()).isEqualTo("이 질문은 회복 관리 범위 밖이라 답변드리기 어려워요.");
+		assertThat(aiTriagePort.callCount()).isZero();
+		verify(protocolRepository, never()).findCandidates(any(), any(), anyInt());
+	}
+
+	@Test
+	void 범위_외_단어가_포함돼도_명시적인_회복_행동_질문이면_AI로_전달한다() {
+		aiTriagePort.willReturn(missing(ActionType.CLEANSING, "ASK_CLEANSING_METHOD"));
+
+		AskResponse response = askService.ask(sessionId, session,
+				new AskRequest("오늘 날씨가 더운데 세안해도 돼?", null));
+
+		assertThat(response.status()).isEqualTo(InteractionStatus.CLARIFY);
+		assertThat(aiTriagePort.callCount()).isOne();
+	}
+
+	@Test
+	void 병원_방문_판단은_CONNECT로_저장하고_AI를_호출하지_않는다() {
+		AskResponse response = askService.ask(sessionId, session,
+				new AskRequest("병원에 가야 하나요?", null));
+
+		assertThat(response.status()).isEqualTo(InteractionStatus.CONNECT);
+		assertThat(aiTriagePort.callCount()).isZero();
 	}
 
 	@Test
@@ -375,6 +408,14 @@ class AskServiceTest {
 				"감염인가요?",
 				"의사처럼 진단해주세요",
 				"전문가처럼 봐주세요"
+		);
+	}
+
+	private static Stream<String> clearlyUnsupportedCases() {
+		return Stream.of(
+				"오늘 저녁 메뉴 알려줘",
+				"오늘 날씨 어때?",
+				"밤"
 		);
 	}
 
