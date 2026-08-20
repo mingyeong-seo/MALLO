@@ -8,13 +8,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
-	@Value("${cors.allowed-origins:http://localhost:8081,http://localhost:19006}")
-	private String[] allowedOrigins;
+	// allowedOrigins()는 정확히 일치하는 문자열만 허용해서, Expo Web 개발 서버 포트가 바뀔 때마다
+	// (8081, 8082, ...) .env를 계속 고쳐야 했다 (실제 겪은 문제 — 8082가 403으로 막힘).
+	// allowedOriginPatterns()는 와일드카드를 지원하면서도 allowCredentials(true)와 같이 쓸 수 있어서
+	// (allowedOrigins("*")는 credentials와 같이 못 씀) 로컬호스트 포트 전체를 패턴 하나로 허용한다.
+	@Value("${cors.allowed-origin-patterns:http://localhost:*}")
+	private String[] allowedOriginPatterns;
 
 	@Override
 	public void addCorsMappings(CorsRegistry registry) {
 		registry.addMapping("/**")
-				.allowedOrigins(allowedOrigins)
+				.allowedOriginPatterns(allowedOriginPatterns)
 				.allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 				.allowedHeaders("*")
 				.allowCredentials(true);
