@@ -8,8 +8,7 @@
 
 멋쟁이사자처럼 14기 중앙 해커톤 · **AAC Wellness with AI Track**
 
-[🚀 서비스 체험하기](https://mallo-recovery.vercel.app) · 2분 데모 영상 *(준비 중)* · [🛠️ Swagger](https://mallo-api.site/swagger-ui/index.html) · 📑 발표 자료 *(준비 중)*
-
+[🚀 서비스 체험하기](https://mallo-recovery.vercel.app) 
 <!-- 데모 영상과 발표 자료 링크가 준비되면 위 줄을 아래 줄로 교체하세요.
 [🚀 서비스 체험하기](https://mallo-recovery.vercel.app) · [▶️ 2분 데모 영상](YOUTUBE_URL) · [🛠️ Swagger](https://mallo-api.site/swagger-ui/index.html) · [📑 발표 자료](IR_DECK_URL)
 -->
