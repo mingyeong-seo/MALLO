@@ -13,25 +13,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { createSession } from '@/api/client';
+import { mapSession } from '@/api/session-mapper';
 import { MALLO_COLORS } from '@/constants/colors';
 import {
   MALLO_RADIUS,
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 
 // ─── Mock Data ────────────────────────────────────────────────
 
 interface ProcedureData {
-  procedure: string;
-  procedure_at: string;
-  clinic_id: string;
-  clinic_name: string;
+  readonly procedure: string;
+  readonly procedure_at: string;
+  readonly clinic_id: string;
+  readonly clinic_name: string;
 }
 
 const MOCK_PROCEDURE: ProcedureData = {
   procedure: 'REJURAN',
-  procedure_at: '2026.08.12 시술',
+  procedure_at: '2026-08-12',
   clinic_id: 'clinic_001',
   clinic_name: '더나의원',
 };
@@ -40,6 +43,7 @@ const MOCK_PROCEDURE: ProcedureData = {
 
 export default function ProcedureConfirmScreen() {
   const router = useRouter();
+  const { activateRecoverySession } = useRecoveryFlow();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Recovery Session 생성 및 S04 이동
@@ -47,21 +51,21 @@ export default function ProcedureConfirmScreen() {
     try {
       setIsSubmitting(true);
 
-      // TODO: 추후 백엔드 Session 생성 API 연동
-      // 1. API 호출 후 response로
-      //    { session_id, elapsed_day, status } 수신
-      // 2. await SecureStore.setItemAsync(
-      //      'session_id',
-      //      response.session_id,
-      //    );
+      const response = await createSession({
+        procedure: MOCK_PROCEDURE.procedure,
+        procedure_at: MOCK_PROCEDURE.procedure_at,
+        clinic_id: MOCK_PROCEDURE.clinic_id,
+      });
+      await activateRecoverySession(mapSession(response));
 
-      // 현재는 Mock 성공 딜레이 후 S04로 이동
-      setTimeout(() => {
-        setIsSubmitting(false);
-        router.dismissTo('/');
-        router.push('/(tabs)/journey/home');
-      }, 500);
-    } catch {
+      setIsSubmitting(false);
+      router.dismissTo('/');
+      router.push('/(tabs)/journey/home');
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+
       setIsSubmitting(false);
 
       Alert.alert('오류', '세션 생성에 실패했습니다. 다시 시도해주세요.');
@@ -94,7 +98,7 @@ export default function ProcedureConfirmScreen() {
 
             <View style={styles.procedureDetails}>
               <Text style={styles.procedureDetail}>
-                {MOCK_PROCEDURE.procedure_at}
+                {MOCK_PROCEDURE.procedure_at.replaceAll('-', '.')} 시술
               </Text>
 
               <Text style={styles.procedureDetail}>

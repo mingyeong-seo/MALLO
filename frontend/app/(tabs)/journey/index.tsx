@@ -18,26 +18,15 @@ import {
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
-
-type RecoverySession = {
-  procedureName: string;
-  procedureDate: string;
-  recoveryDay: number;
-};
-
-// true: 시술 정보 있음 / false: 시술 정보 없음
-const DEV_HAS_RECOVERY_SESSION = false;
-
-const MOCK_RECOVERY_SESSION: RecoverySession = {
-  procedureName: 'REJURAN',
-  procedureDate: '2026.08.15',
-  recoveryDay: 1,
-};
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import type { RecoverySession } from '@/features/recovery/types';
 
 export default function JourneyScreen() {
-  const recoverySession = DEV_HAS_RECOVERY_SESSION
-    ? MOCK_RECOVERY_SESSION
-    : null;
+  const { isHydratingSession, recoverySession } = useRecoveryFlow();
+
+  if (isHydratingSession) {
+    return null;
+  }
 
   // 이미 시술 정보가 있으면 Recovery Journey Home(S04)으로 바로 이동
   if (recoverySession) {
@@ -81,10 +70,11 @@ function MalloBrandHeader({ isConnected }: { isConnected: boolean }) {
 }
 
 function ActiveSessionState({ session }: { session: RecoverySession }) {
-  const recoveryDayLabel = formatRecoveryDay(session.recoveryDay);
+  const recoveryDay = session.elapsedDay + 1;
+  const recoveryDayLabel = formatRecoveryDay(recoveryDay);
 
   const progress = `${
-    Math.min(Math.max((session.recoveryDay - 1) / 6, 0), 1) * 100
+    Math.min(Math.max((recoveryDay - 1) / 6, 0), 1) * 100
   }%` as `${number}%`;
 
   return (
@@ -99,7 +89,7 @@ function ActiveSessionState({ session }: { session: RecoverySession }) {
           <Text style={styles.sessionDay}>{recoveryDayLabel}</Text>
           <Text style={styles.sessionMeta}>
             {session.procedureDate} 시술 ·{' '}
-            {getRecoveryDayDescription(session.recoveryDay)}
+            {getRecoveryDayDescription(recoveryDay)}
           </Text>
 
           <View style={styles.progressSection}>

@@ -3,11 +3,18 @@ import {
   type PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
 } from 'react';
 
-import { MOCK_RECOVERY_SESSION } from './mock-data';
+import { getTodaySession } from '@/api/client';
+import { mapSession } from '@/api/session-mapper';
+import {
+  clearSessionId,
+  readSessionId,
+  saveSessionId,
+} from '@/api/session-storage';
 import type {
   QuickCheckResult,
   RecoveryRecord,
@@ -15,6 +22,7 @@ import type {
 } from './types';
 
 type RecoveryFlowState = {
+  isHydratingSession: boolean;
   quickChecks: QuickCheckResult[];
   recoveryRecords: RecoveryRecord[];
   recoverySession: RecoverySession | null;
@@ -23,20 +31,23 @@ type RecoveryFlowState = {
 type RecoveryFlowAction =
   | { type: 'SAVE_QUICK_CHECK'; payload: QuickCheckResult }
   | { type: 'UPSERT_RECOVERY_RECORD'; payload: RecoveryRecord }
-  | { type: 'SET_RECOVERY_SESSION'; payload: RecoverySession | null };
+  | { type: 'SET_RECOVERY_SESSION'; payload: RecoverySession | null }
+  | { type: 'FINISH_SESSION_HYDRATION' };
 
 type RecoveryFlowContextValue = RecoveryFlowState & {
   findQuickCheck: (checkId: string) => QuickCheckResult | undefined;
   findRecoveryRecord: (elapsedDay: number) => RecoveryRecord | undefined;
+  activateRecoverySession: (session: RecoverySession) => Promise<void>;
+  clearRecoverySession: () => Promise<void>;
   saveQuickCheck: (result: QuickCheckResult) => void;
-  setRecoverySession: (session: RecoverySession | null) => void;
   upsertRecoveryRecord: (record: RecoveryRecord) => void;
 };
 
 const initialState: RecoveryFlowState = {
+  isHydratingSession: true,
   quickChecks: [],
   recoveryRecords: [],
-  recoverySession: MOCK_RECOVERY_SESSION,
+  recoverySession: null,
 };
 
 const RecoveryFlowContext = createContext<RecoveryFlowContextValue | null>(
@@ -75,6 +86,12 @@ function recoveryFlowReducer(
         ...state,
         recoverySession: action.payload,
       };
+
+    case 'FINISH_SESSION_HYDRATION':
+      return {
+        ...state,
+        isHydratingSession: false,
+      };
   }
 }
 
@@ -89,8 +106,56 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
     dispatch({ type: 'UPSERT_RECOVERY_RECORD', payload: record });
   }, []);
 
-  const setRecoverySession = useCallback((session: RecoverySession | null) => {
-    dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
+  useEffect(() => {
+    let isActive = true;
+
+    async function hydrateSession() {
+      const sessionId = await readSessionId();
+
+      if (sessionId === null) {
+        if (isActive) {
+          dispatch({ type: 'FINISH_SESSION_HYDRATION' });
+        }
+        return;
+      }
+
+      try {
+        const session = mapSession(await getTodaySession(sessionId));
+
+        if (isActive) {
+          dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
+        }
+      } catch (error) {
+        if (!(error instanceof Error)) {
+          throw error;
+        }
+
+        await clearSessionId();
+      } finally {
+        if (isActive) {
+          dispatch({ type: 'FINISH_SESSION_HYDRATION' });
+        }
+      }
+    }
+
+    void hydrateSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const activateRecoverySession = useCallback(
+    async (session: RecoverySession) => {
+      await saveSessionId(session.sessionId);
+      dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
+    },
+    [],
+  );
+
+  const clearRecoverySession = useCallback(async () => {
+    await clearSessionId();
+    dispatch({ type: 'SET_RECOVERY_SESSION', payload: null });
   }, []);
 
   const findQuickCheck = useCallback(
@@ -108,17 +173,19 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
   const value = useMemo(
     () => ({
       ...state,
+      activateRecoverySession,
+      clearRecoverySession,
       findQuickCheck,
       findRecoveryRecord,
       saveQuickCheck,
-      setRecoverySession,
       upsertRecoveryRecord,
     }),
     [
+      activateRecoverySession,
+      clearRecoverySession,
       findQuickCheck,
       findRecoveryRecord,
       saveQuickCheck,
-      setRecoverySession,
       state,
       upsertRecoveryRecord,
     ],
@@ -140,4 +207,3 @@ export function useRecoveryFlow() {
 
   return value;
 }
-
