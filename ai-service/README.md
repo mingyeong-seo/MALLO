@@ -56,3 +56,24 @@ Health checks:
 curl http://127.0.0.1:18000/healthz
 curl http://127.0.0.1:18000/readyz
 ```
+
+## Gabia Deployment
+
+The verified hackathon deployment is available at:
+
+- Base URL: `https://mallo-ai.1-201-116-196.sslip.io`
+- Health: `https://mallo-ai.1-201-116-196.sslip.io/healthz`
+- Internal triage: `POST /internal/v1/triage`
+
+The Spring backend must set:
+
+```dotenv
+AI_BASE_URL=https://mallo-ai.1-201-116-196.sslip.io
+AI_SHARED_SECRET=<same-32-character-secret-as-gabia>
+```
+
+The frontend must never call this host directly or receive either service
+credential. It continues to call Spring's public `POST /v1/ask` endpoint.
+
+The current `sslip.io` hostname is a temporary hackathon endpoint. Replace it
+with a team-owned domain before long-term production use.

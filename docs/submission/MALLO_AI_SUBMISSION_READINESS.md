@@ -11,6 +11,19 @@ Updated: 2026-08-20 KST
 - Evaluator branch requirement: `main` or `master`
 - Current risk: verified AI work is not yet on `origin/main`; merge/push requires explicit team approval.
 
+## Verified Gabia Deployment
+
+- Public HTTPS base URL: `https://mallo-ai.1-201-116-196.sslip.io`
+- Deployed branch SHA: `30e185ddbe46`
+- AI container: `running`, `healthy`, non-root user, restart policy `unless-stopped`
+- TLS proxy: Caddy with a valid Let's Encrypt certificate and restart policy `unless-stopped`
+- Host hardening: SSH key authentication only, password SSH disabled, UFW active for 22/80/443
+- Public checks passed:
+  - `/healthz` returned `200 {"status":"ok"}`,
+  - missing bearer authentication returned `401`,
+  - deterministic medical safety returned `CONNECT/SYMPTOM_JUDGMENT`,
+  - live Luna inference returned `ACTION/COMPLETE/EXERCISE/INTENSE_ACTIVITY`.
+
 ## AI Scope Implemented
 
 - Internal FastAPI AI triage service under `ai-service/`.
@@ -56,12 +69,8 @@ Updated: 2026-08-20 KST
 
 - Merge verified work into the submitted branch, `main` or `master`.
 - Keep repository public and ensure deployed product uses the same submitted branch/repo state.
-- Deploy AI service to the Gabia server or agreed runtime with:
-  - `OPENROUTER_API_KEY`,
-  - `AI_SHARED_SECRET`,
-  - `MALLO_AI_MODEL=openai/gpt-5.6-luna`.
 - Configure Spring backend `AI_BASE_URL` to the deployed AI service and `AI_SHARED_SECRET` to the same 32-character value.
-- Lock down Gabia security group before public use; earlier observed defaults were broad for SSH/HTTPS/RDP.
+- Remove the unused RDP rule from the Gabia cloud security group; host UFW already blocks every non-22/80/443 port.
 - Produce the required assets:
   - thumbnail images: PNG/JPG/GIF, max 5MB, 1200x800px,
   - IR Deck: PDF, 16:9, max 30MB,
@@ -73,9 +82,7 @@ Updated: 2026-08-20 KST
 
 ## Known Non-Code Gaps
 
-- No push, PR, merge, or production deployment was performed in this local implementation pass.
-- Gabia server hardening and AI deployment remain external-production actions.
-- The Gabia host is running, but SSH key authentication is not configured and
-  browser-terminal access requires the root password. Issuing a new password
-  would restart the server, so it was not performed without explicit approval.
+- The AI branch is pushed, but it is not yet merged into the evaluator branch or the AWS-deployed Spring branch.
+- AWS Spring still needs `AI_BASE_URL` and the matching `AI_SHARED_SECRET`, followed by one deployed `/v1/ask` end-to-end proof.
+- The deployed `sslip.io` endpoint is suitable for the hackathon handoff but should be replaced by a team-owned domain for long-term production.
 - Final track, real participant names, deployed URL, and presentation assets require team confirmation.
