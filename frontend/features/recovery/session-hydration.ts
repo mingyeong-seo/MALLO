@@ -32,9 +32,21 @@ export async function runSessionHydration(
       error instanceof HTTPError &&
       [401, 404].includes(error.response.status)
     ) {
-      await dependencies.clearSessionId();
+      await clearSessionIdBestEffort(dependencies.clearSessionId);
     }
   } finally {
     dependencies.finish();
+  }
+}
+
+async function clearSessionIdBestEffort(
+  clearSessionId: () => Promise<void>,
+): Promise<void> {
+  try {
+    await clearSessionId();
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      return;
+    }
   }
 }
