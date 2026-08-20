@@ -10,27 +10,30 @@ import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 
 class SessionInfoTest {
+	private static final ZoneId RECOVERY_ZONE = ZoneId.of("Asia/Seoul");
+	private static final Clock FIXED_CLOCK = Clock.fixed(
+			Instant.parse("2026-08-21T03:00:00Z"), RECOVERY_ZONE);
 
 	@Test
 	void 시술_당일이면_elapsedDay는_0이다() {
 		SessionInfo sessionInfo = SessionInfo.builder()
 				.procedure("REJURAN")
-				.procedureAt(LocalDate.now())
+				.procedureAt(LocalDate.now(FIXED_CLOCK))
 				.clinicId("DERNA")
 				.build();
 
-		assertThat(sessionInfo.getElapsedDay()).isZero();
+		assertThat(sessionInfo.getElapsedDay(FIXED_CLOCK)).isZero();
 	}
 
 	@Test
 	void procedureAt으로부터_지난_일수를_elapsedDay로_계산한다() {
 		SessionInfo sessionInfo = SessionInfo.builder()
 				.procedure("REJURAN")
-				.procedureAt(LocalDate.now().minusDays(3))
+				.procedureAt(LocalDate.now(FIXED_CLOCK).minusDays(3))
 				.clinicId("DERNA")
 				.build();
 
-		assertThat(sessionInfo.getElapsedDay()).isEqualTo(3);
+		assertThat(sessionInfo.getElapsedDay(FIXED_CLOCK)).isEqualTo(3);
 	}
 
 	@Test
@@ -41,7 +44,7 @@ class SessionInfoTest {
 				.build();
 		Clock koreanMidnight = Clock.fixed(
 				Instant.parse("2026-08-20T15:44:47Z"),
-				ZoneId.of("Asia/Seoul"));
+				RECOVERY_ZONE);
 
 		assertThat(sessionInfo.getElapsedDay(koreanMidnight)).isZero();
 	}
@@ -50,7 +53,7 @@ class SessionInfoTest {
 	void 생성_직후_상태는_ACTIVE이다() {
 		SessionInfo sessionInfo = SessionInfo.builder()
 				.procedure("REJURAN")
-				.procedureAt(LocalDate.now())
+				.procedureAt(LocalDate.now(FIXED_CLOCK))
 				.build();
 
 		assertThat(sessionInfo.getStatus()).isEqualTo(SessionStatus.ACTIVE);
@@ -61,7 +64,7 @@ class SessionInfoTest {
 	void complete를_호출하면_COMPLETED로_바뀐다() {
 		SessionInfo sessionInfo = SessionInfo.builder()
 				.procedure("REJURAN")
-				.procedureAt(LocalDate.now())
+				.procedureAt(LocalDate.now(FIXED_CLOCK))
 				.build();
 
 		sessionInfo.complete();
