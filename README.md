@@ -181,7 +181,7 @@ MALLO의 AI는 의료 답변을 만드는 역할을 맡지 않습니다.
   </tr>
 </table>
 
-> 해커톤 MVP에서는 의료진 정보를 mock·seed로 제공하며, 실제 서비스에서는 AAC 제휴 의료기관 데이터와 연결됩니다.
+> 해커톤 MVP에서는 의료진 정보를 mock·seed로 제공합니다. 실서비스로 확장한다면 AAC 제휴 의료기관 데이터 연동이 추가로 필요한 영역입니다.
 
 ```text
 사용자 질문
@@ -205,13 +205,13 @@ POSSIBLE · ADJUST · POSTPONE · CONNECT
 - Session ID, 사용자·병원 식별자, 이미지, Protocol 원문은 AI 서비스로 전송하지 않습니다.
 - 의료진 판단이 필요한 질문은 Handoff와 상담 알림 흐름으로 연결됩니다.
 
-> 현재 REJURAN Protocol은 해커톤 시연용 fixture입니다. 실제 서비스 적용 전 의료기관 검수와 Protocol 버전 관리가 필요합니다.
+> 현재 REJURAN Protocol은 해커톤 시연용 fixture입니다. 의료기관 검수와 Protocol 버전 관리는 실서비스화 시 추가로 필요한 범위이며, 이번 해커톤에서는 구현하지 않았습니다.
 
 ---
 
 ## 🔗 Why AAC — AAC가 가진 시술의 맥락을 회복까지
 
-MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이터와 의료기관 접점 위에서 작동하는 B2B2C Recovery Layer**입니다.
+MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이터와 의료기관 접점을 회복 관리로 확장하는 B2B2C Recovery Layer**를 해커톤 제품 가설로 설계했습니다.
 
 <p align="center">
   <img src="./backend/docs/aac-to-mallo-recovery-flow.png" width="100%" alt="AAC의 시술 맥락을 MALLO의 회복 행동으로 연결하는 흐름" />
@@ -229,13 +229,13 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 >
 > **AAC와 연결되면** 실제 시술 이력과 의료기관 접점을 기반으로 작동하는 개인화 Recovery Layer가 됩니다.
 
-현재 저장소의 DERNA 진입 화면과 의료진 데이터는 해커톤 데모용 mock·seed이며, 실제 AAC 데이터 연동은 후속 제휴 API 범위입니다.
+현재 저장소의 DERNA 진입 화면과 의료진 데이터는 해커톤 데모용 mock·seed이며, 실제 AAC 데이터 연동은 구현하지 않았습니다.
 
 ---
 
-## 💼 Business & Expansion
+## 💼 Business Hypothesis & Expansion
 
-MALLO는 병원과 시술 후 사용자를 잇는 **B2B2C Recovery SaaS**를 지향합니다.
+MALLO는 이번 해커톤에서 병원과 시술 후 사용자를 잇는 **B2B2C Recovery SaaS의 가능성**을 제품 가설로 제안합니다. 이는 AAC 트랙을 위한 확장 시나리오이며, 실제 병원 도입이나 사업화가 확정된 것은 아닙니다.
 
 | 병원 | 사용자 |
 | --- | --- |
@@ -252,16 +252,9 @@ REJURAN
             → 병원별 Recovery Protocol
 ```
 
-수익 모델은 병원 월 구독과 Recovery Session 기반 과금을 우선 가설로 두며, 해커톤 이후 병원 인터뷰를 통해 지불 의사와 도입 과정을 검증할 계획입니다.
+병원 월 구독과 Recovery Session 기반 과금은 확장 가능성을 설명하기 위한 가설입니다. 병원 제휴·인터뷰·도입·상용화는 이번 해커톤의 수행 범위에 포함되지 않습니다.
 
-<!-- 병원 인터뷰가 완료되면 아래 내용을 실제 수치로 교체해 추가하세요.
-- 인터뷰 병원: 00곳
-- 반복 문의가 많은 시술: OOO
-- 도입 의향: 00곳
-- 선호 과금 방식: 월 구독 / Session 과금
--->
-
-이러한 확장 가능성을 안정적으로 구현하기 위해, MALLO는 의료 안전 판단과 생성형 AI를 분리한 독립형 서비스 구조를 설계했습니다.
+해커톤 MVP에서는 이 가설을 기술적으로 보여주기 위해 의료 안전 판단과 생성형 AI를 분리한 독립형 서비스 구조를 설계했습니다.
 
 ---
 
