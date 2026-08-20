@@ -83,7 +83,7 @@ export default function AskScreen() {
     Math.max(insets.bottom, MALLO_SPACING.md) +
     MALLO_SPACING.lg;
   const composerBottomClearance =
-    Platform.OS === 'ios' && isComposerFocused
+    Platform.OS !== 'web' && isComposerFocused
       ? MALLO_SPACING.md
       : floatingTabClearance;
 
@@ -94,6 +94,18 @@ export default function AskScreen() {
 
     return () => clearTimeout(timer);
   }, [screenState]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || isComposerFocused) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ animated: false, y: 0 });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isComposerFocused]);
 
   const resetQuestion = useCallback(() => {
     Keyboard.dismiss();
@@ -442,7 +454,13 @@ export default function AskScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : Platform.OS === 'android'
+              ? 'height'
+              : undefined
+        }
         style={styles.keyboardView}
       >
         <ScrollView

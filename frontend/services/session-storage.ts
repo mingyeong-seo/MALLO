@@ -3,9 +3,17 @@ import { Platform } from 'react-native';
 
 const SESSION_ID_STORAGE_KEY = 'mallo.session_id';
 const PHOTO_CONSENT_STORAGE_KEY_PREFIX = 'mallo.photo_consent.';
+const NOTIFICATION_READ_STORAGE_KEY_PREFIX = 'mallo.notification_read.';
 
 function getPhotoConsentStorageKey(sessionId: string) {
   return `${PHOTO_CONSENT_STORAGE_KEY_PREFIX}${sessionId}`;
+}
+
+function getNotificationReadStorageKey(
+  sessionId: string,
+  notificationId: string,
+) {
+  return `${NOTIFICATION_READ_STORAGE_KEY_PREFIX}${sessionId}.${notificationId}`;
 }
 
 export async function getSessionId() {
@@ -55,6 +63,38 @@ export async function getPhotoConsent(sessionId: string) {
 
 export async function setPhotoConsent(sessionId: string) {
   const storageKey = getPhotoConsentStorageKey(sessionId);
+
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(storageKey, 'true');
+    }
+    return;
+  }
+
+  await SecureStore.setItemAsync(storageKey, 'true');
+}
+
+export async function getNotificationRead(
+  sessionId: string,
+  notificationId: string,
+) {
+  const storageKey = getNotificationReadStorageKey(sessionId, notificationId);
+
+  if (Platform.OS === 'web') {
+    return (
+      typeof window !== 'undefined' &&
+      window.localStorage.getItem(storageKey) === 'true'
+    );
+  }
+
+  return (await SecureStore.getItemAsync(storageKey)) === 'true';
+}
+
+export async function setNotificationRead(
+  sessionId: string,
+  notificationId: string,
+) {
+  const storageKey = getNotificationReadStorageKey(sessionId, notificationId);
 
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined') {

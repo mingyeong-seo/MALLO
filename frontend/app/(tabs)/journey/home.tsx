@@ -29,6 +29,10 @@ import {
 } from '@/constants/theme';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 import { getTodayRecord } from '@/services/record';
+import {
+  getNotificationRead,
+  setNotificationRead,
+} from '@/services/session-storage';
 
 type RecoveryJourneySummary = {
   procedureName: string;
@@ -72,6 +76,7 @@ const QUICK_ENTRIES: QuickEntry[] = [
 ];
 
 const CAROUSEL_NAVIGATION_BUTTON_SIZE = 36;
+const RECOVERY_GUIDE_NOTIFICATION_ID = 'today-recovery-guide-v1';
 type TodayRecordLoadState = 'loading' | 'ready' | 'error';
 
 export default function JourneyHomeScreen() {
@@ -85,6 +90,7 @@ export default function JourneyHomeScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const carouselRef = useRef<ScrollView>(null);
   const notificationProgress = useRef(new Animated.Value(0)).current;
+  const notificationOpenedRef = useRef(false);
   const lastScrollResetRef = useRef<string | null>(null);
   const elapsedDay = recoverySession?.elapsedDay ?? 0;
   const todayRecord = findRecoveryRecord(elapsedDay);
@@ -98,7 +104,7 @@ export default function JourneyHomeScreen() {
 
   const [showPhaseInfo, setShowPhaseInfo] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
+  const [hasUnreadNotification, setHasUnreadNotification] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [mainCarouselCardHeight, setMainCarouselCardHeight] = useState(0);
@@ -108,6 +114,41 @@ export default function JourneyHomeScreen() {
     useState<TodayRecordLoadState>(todayRecord ? 'ready' : 'loading');
   const [todayRecordLoadAttempt, setTodayRecordLoadAttempt] = useState(0);
   const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const sessionId = recoverySession?.sessionId;
+    notificationOpenedRef.current = false;
+
+    if (!sessionId) {
+      setHasUnreadNotification(false);
+      return;
+    }
+
+    let active = true;
+
+    const hydrateNotificationReadState = async () => {
+      try {
+        const isRead = await getNotificationRead(
+          sessionId,
+          RECOVERY_GUIDE_NOTIFICATION_ID,
+        );
+
+        if (active && !notificationOpenedRef.current) {
+          setHasUnreadNotification(!isRead);
+        }
+      } catch {
+        if (active && !notificationOpenedRef.current) {
+          setHasUnreadNotification(true);
+        }
+      }
+    };
+
+    void hydrateNotificationReadState();
+
+    return () => {
+      active = false;
+    };
+  }, [recoverySession?.sessionId]);
 
   useEffect(() => {
     const sessionId = recoverySession?.sessionId;
@@ -200,8 +241,18 @@ export default function JourneyHomeScreen() {
   }, [scrollToTop]);
 
   const openNotifications = () => {
+    const sessionId = recoverySession?.sessionId;
+    notificationOpenedRef.current = true;
     setShowNotifications(true);
     setHasUnreadNotification(false);
+
+    if (sessionId) {
+      void setNotificationRead(
+        sessionId,
+        RECOVERY_GUIDE_NOTIFICATION_ID,
+      ).catch(() => undefined);
+    }
+
     notificationProgress.setValue(0);
     Animated.timing(notificationProgress, {
       duration: 220,

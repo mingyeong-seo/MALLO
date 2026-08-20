@@ -408,20 +408,24 @@ function CompletedActionRow({
             </Text>
           </View>
 
-          <Text style={styles.actionLabel}>{item.label}</Text>
-        </View>
+          <View style={styles.actionBottomRow}>
+            <Text style={styles.actionLabel}>{item.label}</Text>
 
-        <Ionicons
-          name={
-            item.checkId
-              ? 'chevron-forward'
-              : isOpen
-                ? 'chevron-up'
-                : 'chevron-down'
-          }
-          size={17}
-          color={MALLO_COLORS.support.secondaryTextGray}
-        />
+            <View style={styles.actionChevron}>
+              <Ionicons
+                name={
+                  item.checkId
+                    ? 'chevron-forward'
+                    : isOpen
+                      ? 'chevron-up'
+                      : 'chevron-down'
+                }
+                size={17}
+                color={MALLO_COLORS.support.secondaryTextGray}
+              />
+            </View>
+          </View>
+        </View>
       </Pressable>
 
       {isOpen && item.detail ? (
@@ -657,11 +661,13 @@ function SwipeActionRow({
               </Text>
             </View>
 
-            <Text style={styles.actionLabel}>{item.label}</Text>
-          </View>
+            <View style={styles.actionBottomRow}>
+              <Text style={styles.actionLabel}>{item.label}</Text>
 
-          <View style={styles.swipeHint}>
-            <Ionicons name="chevron-forward" size={18} color={color} />
+              <View style={styles.actionChevron}>
+                <Ionicons name="chevron-forward" size={18} color={color} />
+              </View>
+            </View>
           </View>
         </Pressable>
       </Animated.View>
@@ -855,7 +861,7 @@ const styles = StyleSheet.create({
 
     overflow: Platform.OS === 'web' ? 'visible' : 'hidden',
 
-    paddingHorizontal: MALLO_SPACING.sm,
+    paddingHorizontal: Platform.OS === 'web' ? MALLO_SPACING.sm : 0,
     borderWidth: 1,
     borderRadius: MALLO_RADIUS.md,
   },
@@ -904,7 +910,9 @@ const styles = StyleSheet.create({
 
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: MALLO_SPACING.sm,
+    paddingHorizontal: Platform.OS === 'web' ? 0 : MALLO_SPACING.lg,
+    paddingVertical:
+      Platform.OS === 'web' ? MALLO_SPACING.sm : MALLO_SPACING.lg,
   },
 
   actionRowDivider: {
@@ -914,17 +922,27 @@ const styles = StyleSheet.create({
 
   actionCopy: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: MALLO_SPACING.sm,
+    minWidth: 0,
+    ...(Platform.OS === 'web'
+      ? {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: MALLO_SPACING.sm,
+        }
+      : {
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: MALLO_SPACING.sm,
+        }),
   },
 
   completeTag: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: Platform.OS === 'web' ? 7 : MALLO_SPACING.md,
+    paddingVertical: Platform.OS === 'web' ? 3 : MALLO_SPACING.xs,
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: 'rgba(76, 143, 91, 0.08)',
   },
@@ -935,8 +953,9 @@ const styles = StyleSheet.create({
   },
 
   actionStatusTag: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    flexShrink: 0,
+    paddingHorizontal: Platform.OS === 'web' ? 7 : MALLO_SPACING.md,
+    paddingVertical: Platform.OS === 'web' ? 3 : MALLO_SPACING.xs,
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.support.warmGray,
   },
@@ -949,9 +968,27 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...MALLO_TYPOGRAPHY.body,
     ...MALLO_TEXT_STYLES.koreanWordWrap,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
     fontWeight: '600',
     color: MALLO_COLORS.support.charcoal,
+  },
+
+  actionBottomRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Platform.OS === 'web' ? MALLO_SPACING.sm : MALLO_SPACING.md,
+    ...(Platform.OS === 'web' ? null : { width: '100%' }),
+  },
+
+  actionChevron: {
+    flexShrink: 0,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' ? null : { width: 20 }),
   },
 
   malloExplanation: {
@@ -1021,16 +1058,10 @@ const styles = StyleSheet.create({
     minHeight: 56,
     width: '100%',
 
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
 
-    paddingVertical: MALLO_SPACING.sm,
-  },
-
-  swipeHint: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: MALLO_SPACING.sm,
+    paddingHorizontal: MALLO_SPACING.lg,
+    paddingVertical: MALLO_SPACING.lg,
   },
 
   swipeRow: {

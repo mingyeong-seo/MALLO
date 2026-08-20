@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
@@ -307,9 +307,11 @@ export default function RecoveryRecordScreen() {
     upsertRecoveryRecord,
   ]);
 
-  useEffect(() => {
-    void loadRecordData();
-  }, [loadRecordData]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecordData();
+    }, [loadRecordData]),
+  );
 
   const handleLogoPress = () => {
     router.replace('/(tabs)/journey/home');
@@ -722,6 +724,7 @@ export default function RecoveryRecordScreen() {
             style={[
               styles.actionTabsWrapper,
               Platform.OS === 'web' && styles.actionTabsWrapperWeb,
+              loadState !== 'ready' && styles.hidden,
             ]}
           >
             {Platform.OS === 'web' ? (
@@ -805,7 +808,12 @@ export default function RecoveryRecordScreen() {
             ) : null}
           </View>
 
-          <View style={styles.actionSection}>
+          <View
+            style={[
+              styles.actionSection,
+              loadState !== 'ready' && styles.hidden,
+            ]}
+          >
             <Text style={styles.sectionTitle}>
               {ACTION_LABELS[selectedAction]} 관련 행동 ({selectedChecks.length}
               )
@@ -915,7 +923,9 @@ export default function RecoveryRecordScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
+          <View
+            style={[styles.section, loadState !== 'ready' && styles.hidden]}
+          >
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionTitle}>오늘의 회복 한 줄</Text>
               <Text style={styles.optionalLabel}>(선택)</Text>
@@ -936,7 +946,9 @@ export default function RecoveryRecordScreen() {
             <Text style={styles.characterCount}>{memo.length}/300</Text>
           </View>
 
-          <View style={styles.section}>
+          <View
+            style={[styles.section, loadState !== 'ready' && styles.hidden]}
+          >
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionTitle}>사진</Text>
               <Text style={styles.optionalLabel}>(선택)</Text>
@@ -1059,6 +1071,7 @@ export default function RecoveryRecordScreen() {
             onPress={() => void saveRecord()}
             style={({ pressed }) => [
               styles.primaryButton,
+              loadState !== 'ready' && styles.hidden,
               (!allChecked || loadState !== 'ready' || recordDayMismatch) &&
                 styles.primaryButtonDisabled,
               pressed && saveState !== 'saving' && styles.pressed,
@@ -1073,7 +1086,9 @@ export default function RecoveryRecordScreen() {
             </Text>
           </Pressable>
 
-          <Text style={styles.saveGuide}>
+          <Text
+            style={[styles.saveGuide, loadState !== 'ready' && styles.hidden]}
+          >
             저장한 기록은 기록 모아보기에서 확인할 수 있어요.
           </Text>
         </ScrollView>
@@ -1636,6 +1651,9 @@ const styles = StyleSheet.create({
   consentSecondaryButtonText: {
     ...MALLO_TYPOGRAPHY.buttonLabel,
     color: MALLO_COLORS.support.secondaryTextGray,
+  },
+  hidden: {
+    display: 'none',
   },
   pressed: {
     opacity: 0.68,

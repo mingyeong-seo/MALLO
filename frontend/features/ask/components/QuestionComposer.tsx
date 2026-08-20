@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   Platform,
   Pressable,
   Text,
@@ -55,6 +56,33 @@ export function QuestionComposer({
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canSubmit = value.trim().length > 0;
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
+
+    const keyboardHideSubscription = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        if (blurTimerRef.current) {
+          clearTimeout(blurTimerRef.current);
+          blurTimerRef.current = null;
+        }
+
+        setIsFocused(false);
+        onFocusChange?.(false);
+      },
+    );
+
+    return () => {
+      keyboardHideSubscription.remove();
+
+      if (blurTimerRef.current) {
+        clearTimeout(blurTimerRef.current);
+      }
+    };
+  }, [onFocusChange]);
 
   const handleFocus = () => {
     if (blurTimerRef.current) {
