@@ -46,6 +46,26 @@ function askEnvelope() {
   };
 }
 
+function quickCheckEnvelope() {
+  return {
+    success: true,
+    data: {
+      check_id: '96e3c3a9-0c0c-49f6-9fc5-b432bb36ea27',
+      session_id: VALID_SESSION_ID,
+      elapsed_day: 2,
+      action: 'EXERCISE',
+      context: { intensity: 'INTENSE_ACTIVITY' },
+      status: 'MATCHED',
+      decision: 'POSTPONE',
+      guidance: '오늘은 미뤄주세요.',
+      next_action: null,
+      protocol_ref: 'REJURAN-D2-EXERCISE-03',
+      created_at: '2026-08-20T17:00:00',
+    },
+    message: null,
+  };
+}
+
 function mockJsonResponse(
   payload: unknown,
 ): { requests: CapturedRequest[]; fetchMock: ReturnType<typeof vi.fn> } {
@@ -141,6 +161,30 @@ describe('AI API client', () => {
       },
       method: 'POST',
       url: 'https://mallo-api.site/v1/ask',
+    });
+    expect(requests[0].headers.get('x-session-id')).toBe(VALID_SESSION_ID);
+    expect(requests[0].headers.get('authorization')).toBeNull();
+  });
+
+  it('sends Quick Check context through Spring with the session header', async () => {
+    // Given
+    const { requests } = mockJsonResponse(quickCheckEnvelope());
+    const { createQuickCheck } = await import('./client');
+
+    // When
+    await createQuickCheck(VALID_SESSION_ID, {
+      action: 'EXERCISE',
+      context: { intensity: 'INTENSE_ACTIVITY' },
+    });
+
+    // Then
+    expect(requests[0]).toMatchObject({
+      body: {
+        action: 'EXERCISE',
+        context: { intensity: 'INTENSE_ACTIVITY' },
+      },
+      method: 'POST',
+      url: 'https://mallo-api.site/v1/checks',
     });
     expect(requests[0].headers.get('x-session-id')).toBe(VALID_SESSION_ID);
     expect(requests[0].headers.get('authorization')).toBeNull();

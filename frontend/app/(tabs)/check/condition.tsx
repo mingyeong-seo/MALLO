@@ -3,18 +3,17 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Image,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-
-import { MALLO_COLORS } from '@/constants/colors';
+import { createQuickCheck } from '@/api/client';
 import { CheckRequestState } from '@/features/check/components/CheckRequestState';
+import { styles } from '@/features/check/condition-styles';
 import { CONDITION_CONFIGS, isQuickCheckAction } from '@/features/check/data';
-import { requestMockQuickCheck } from '@/features/check/mock-service';
+import { resolveQuickCheckResponse } from '@/features/check/quick-check-resolution';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 
@@ -23,10 +22,9 @@ type RequestState = 'idle' | 'loading' | 'error' | 'no-protocol';
 export default function ConditionCheckScreen() {
   const router = useRouter();
 
-  const { action, actionTitle, simulate, source } = useLocalSearchParams<{
+  const { action, actionTitle, source } = useLocalSearchParams<{
     action?: string;
     actionTitle?: string;
-    simulate?: string;
     source?: string;
   }>();
 
@@ -35,10 +33,6 @@ export default function ConditionCheckScreen() {
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
 
   const [requestState, setRequestState] = useState<RequestState>('idle');
-
-  const [shouldSimulateError, setShouldSimulateError] = useState(
-    simulate === 'error',
-  );
 
   const normalizedAction =
     typeof action === 'string' && isQuickCheckAction(action)
@@ -60,37 +54,41 @@ export default function ConditionCheckScreen() {
   };
 
   const handleResult = async () => {
-    if (!selectedValue) return;
+    if (!selectedValue || recoverySession === null) {
+      setRequestState('error');
+      return;
+    }
 
     setRequestState('loading');
 
     try {
-      const response = await requestMockQuickCheck({
+      const response = await createQuickCheck(recoverySession.sessionId, {
         action: normalizedAction,
         context: {
           [config.contextKey]: selectedValue,
         },
-        elapsedDay,
-        simulateError: shouldSimulateError,
       });
+      const resolution = resolveQuickCheckResponse(response);
 
-      if (response.status === 'NO_PROTOCOL') {
+      if (resolution.kind === 'no-protocol') {
         setRequestState('no-protocol');
         return;
       }
 
-      saveQuickCheck(response.result);
+      saveQuickCheck(resolution.result);
 
       router.replace({
         pathname: '/(tabs)/check/result',
         params: {
-          checkId: response.result.checkId,
+          checkId: resolution.result.checkId,
           question: config.question,
           source: source || 'quick-check',
         },
       });
-    } catch {
-      setShouldSimulateError(false);
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       setRequestState('error');
     }
   };
@@ -248,234 +246,3 @@ export default function ConditionCheckScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: MALLO_COLORS.core.white,
-  },
-
-  navigation: {
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: MALLO_COLORS.support.mistGray,
-  },
-
-  logoButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  logoPressed: {
-    opacity: 0.7,
-  },
-
-  headerLogo: {
-    width: 112,
-    height: 25,
-  },
-
-  scrollView: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 24,
-  },
-
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-  },
-
-  badgeBlack: {
-    backgroundColor: MALLO_COLORS.core.ink,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-
-  badgeBlackText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: MALLO_COLORS.core.white,
-  },
-
-  badgeGray: {
-    backgroundColor: MALLO_COLORS.support.warmGray,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-
-  badgeGrayText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-
-  header: {
-    marginBottom: 28,
-  },
-
-  headerLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: MALLO_COLORS.core.red,
-    marginBottom: 8,
-  },
-
-  headerQuestion: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: MALLO_COLORS.core.ink,
-    lineHeight: 32,
-    marginBottom: 12,
-  },
-
-  headerGuide: {
-    fontSize: 14,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    lineHeight: 22,
-  },
-
-  optionList: {
-    gap: 12,
-  },
-
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: MALLO_COLORS.support.mistGray,
-    backgroundColor: MALLO_COLORS.core.white,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  optionCardSelected: {
-    borderColor: MALLO_COLORS.core.red,
-    backgroundColor: MALLO_COLORS.support.redTint,
-    shadowColor: MALLO_COLORS.core.red,
-    shadowOpacity: 0.1,
-  },
-
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: MALLO_COLORS.support.mistGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-
-  radioSelected: {
-    borderColor: MALLO_COLORS.core.red,
-  },
-
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: MALLO_COLORS.core.red,
-  },
-
-  optionTextContainer: {
-    flex: 1,
-  },
-
-  optionLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: MALLO_COLORS.core.ink,
-    marginBottom: 4,
-  },
-
-  optionLabelSelected: {
-    fontWeight: '700',
-    color: MALLO_COLORS.core.red,
-  },
-
-  optionDescription: {
-    fontSize: 13,
-    color: MALLO_COLORS.support.secondaryTextGray,
-    lineHeight: 18,
-  },
-
-  bottomContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-
-    // S07에서는 Bottom Tab을 숨기므로 기존 100px 여백 제거
-    paddingBottom: 20,
-
-    borderTopWidth: 1,
-    borderTopColor: MALLO_COLORS.support.mistGray,
-    backgroundColor: MALLO_COLORS.core.white,
-    gap: 10,
-  },
-
-  primaryButton: {
-    width: '100%',
-    height: 54,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  primaryButtonActive: {
-    backgroundColor: MALLO_COLORS.core.red,
-  },
-
-  primaryButtonDisabled: {
-    backgroundColor: MALLO_COLORS.support.mistGray,
-  },
-
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  primaryButtonTextActive: {
-    color: MALLO_COLORS.core.white,
-  },
-
-  primaryButtonTextDisabled: {
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-
-  secondaryButton: {
-    width: '100%',
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: MALLO_COLORS.support.mistGray,
-    backgroundColor: MALLO_COLORS.core.white,
-  },
-
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-});
