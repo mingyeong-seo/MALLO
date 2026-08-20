@@ -7,15 +7,14 @@ import {
   useMemo,
   useReducer,
 } from 'react';
-import { HTTPError } from 'ky';
 
 import { getTodaySession } from '@/api/client';
-import { mapSession } from '@/api/session-mapper';
 import {
   clearSessionId,
   readSessionId,
   saveSessionId,
 } from '@/api/session-storage';
+import { runSessionHydration } from './session-hydration';
 import type {
   QuickCheckResult,
   RecoveryRecord,
@@ -110,41 +109,21 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let isActive = true;
 
-    async function hydrateSession() {
-      const sessionId = await readSessionId();
-
-      if (sessionId === null) {
+    void runSessionHydration({
+      clearSessionId,
+      finish: () => {
         if (isActive) {
           dispatch({ type: 'FINISH_SESSION_HYDRATION' });
         }
-        return;
-      }
-
-      try {
-        const session = mapSession(await getTodaySession(sessionId));
-
+      },
+      getTodaySession,
+      readSessionId,
+      setSession: (session) => {
         if (isActive) {
           dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
         }
-      } catch (error) {
-        if (!(error instanceof Error)) {
-          throw error;
-        }
-
-        if (
-          error instanceof HTTPError &&
-          [401, 404].includes(error.response.status)
-        ) {
-          await clearSessionId();
-        }
-      } finally {
-        if (isActive) {
-          dispatch({ type: 'FINISH_SESSION_HYDRATION' });
-        }
-      }
-    }
-
-    void hydrateSession();
+      },
+    });
 
     return () => {
       isActive = false;

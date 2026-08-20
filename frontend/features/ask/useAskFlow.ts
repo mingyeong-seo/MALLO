@@ -10,6 +10,7 @@ import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 import type { QuickCheckAction } from '@/features/recovery/types';
 
 import type { AskMalloState } from './types';
+import { prepareAskRun } from './ask-run';
 import { wait, waitForPaint } from './flow-timing';
 import {
   mapMatchedAskToQuickCheck,
@@ -88,7 +89,7 @@ export function useAskFlow() {
   );
 
   const applyAskResponse = useCallback(
-    async (response: AskResponseWire) => {
+    async (response: AskResponseWire, resultQuestion: string) => {
       switch (response.status) {
         case 'MATCHED': {
           const result = mapMatchedAskToQuickCheck(
@@ -97,7 +98,7 @@ export function useAskFlow() {
           );
           saveQuickCheck(result);
           await showCheckedThen(() =>
-            openStoredResult(result.checkId, submittedQuestion),
+            openStoredResult(result.checkId, resultQuestion),
           );
           return;
         }
@@ -134,14 +135,13 @@ export function useAskFlow() {
       recoverySession?.elapsedDay,
       saveQuickCheck,
       showCheckedThen,
-      submittedQuestion,
     ],
   );
 
   const runQuestion = useCallback(
     async (rawQuestion: string) => {
-      const normalizedQuestion = rawQuestion.trim();
-      if (!normalizedQuestion) {
+      const prepared = prepareAskRun(rawQuestion);
+      if (!prepared.resultQuestion) {
         setInputNotice('질문을 입력해 주세요.');
         return;
       }
@@ -149,8 +149,8 @@ export function useAskFlow() {
         setInputNotice('먼저 Recovery Journey를 시작해 주세요.');
         return;
       }
-      setQuestion(normalizedQuestion);
-      setSubmittedQuestion(normalizedQuestion);
+      setQuestion(prepared.resultQuestion);
+      setSubmittedQuestion(prepared.resultQuestion);
       setInputNotice('');
       setIsLoadingComplete(false);
       setScreenState('loading');
@@ -158,13 +158,10 @@ export function useAskFlow() {
 
       try {
         const [response] = await Promise.all([
-          askMallo(recoverySession.sessionId, {
-            question: normalizedQuestion,
-            photo_record_ids: [],
-          }),
+          askMallo(recoverySession.sessionId, prepared.request),
           wait(INITIAL_LOADING_DELAY_MS),
         ]);
-        await applyAskResponse(response);
+        await applyAskResponse(response, prepared.resultQuestion);
       } catch (error) {
         if (!(error instanceof Error)) {
           throw error;

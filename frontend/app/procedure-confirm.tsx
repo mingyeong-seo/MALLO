@@ -22,19 +22,18 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { getDemoProcedureDate } from '@/features/recovery/procedure-date';
 
 // ─── Mock Data ────────────────────────────────────────────────
 
 interface ProcedureData {
   readonly procedure: string;
-  readonly procedure_at: string;
   readonly clinic_id: string;
   readonly clinic_name: string;
 }
 
 const MOCK_PROCEDURE: ProcedureData = {
   procedure: 'REJURAN',
-  procedure_at: '2026-08-12',
   clinic_id: 'clinic_001',
   clinic_name: '더나의원',
 };
@@ -45,6 +44,7 @@ export default function ProcedureConfirmScreen() {
   const router = useRouter();
   const { activateRecoverySession } = useRecoveryFlow();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const procedureDate = getDemoProcedureDate(new Date());
 
   // Recovery Session 생성 및 S04 이동
   const handleStart = async () => {
@@ -53,7 +53,7 @@ export default function ProcedureConfirmScreen() {
 
       const response = await createSession({
         procedure: MOCK_PROCEDURE.procedure,
-        procedure_at: MOCK_PROCEDURE.procedure_at,
+        procedure_at: procedureDate,
         clinic_id: MOCK_PROCEDURE.clinic_id,
       });
       await activateRecoverySession(mapSession(response));
@@ -98,7 +98,7 @@ export default function ProcedureConfirmScreen() {
 
             <View style={styles.procedureDetails}>
               <Text style={styles.procedureDetail}>
-                {MOCK_PROCEDURE.procedure_at.replaceAll('-', '.')} 시술
+                {procedureDate.replaceAll('-', '.')} 시술
               </Text>
 
               <Text style={styles.procedureDetail}>
