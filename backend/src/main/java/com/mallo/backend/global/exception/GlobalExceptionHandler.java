@@ -10,6 +10,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.mallo.backend.global.response.ApiResponse;
 
@@ -74,6 +75,16 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiResponse<Void>> handleNotReadable(HttpMessageNotReadableException e) {
 		log.warn("HttpMessageNotReadableException: {}", e.getMessage());
 		return ResponseEntity.badRequest().body(ApiResponse.error("요청 body를 읽을 수 없습니다."));
+	}
+
+	// 업로드 파일이 application.yml의 spring.servlet.multipart.max-file-size(10MB)를 초과한 경우.
+	// 프로덕션에선 보통 nginx client_max_body_size가 먼저 막지만(그러면 이 핸들러까지 안 옴,
+	// nginx의 순수 HTML 413 응답이 나감), 로컬 개발처럼 nginx 없이 붙는 환경 대비용 방어 로직.
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+		log.warn("MaxUploadSizeExceededException: {}", e.getMessage());
+		return ResponseEntity.status(CommonErrorCode.FILE_TOO_LARGE.getStatus())
+				.body(ApiResponse.error(CommonErrorCode.FILE_TOO_LARGE));
 	}
 
 	// 엔드포인트는 존재하지만 지원하지 않는 HTTP 메서드로 호출한 경우 (예: PATCH 대신 PUT).
