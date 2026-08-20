@@ -218,68 +218,6 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 
 ---
 
-## 🏗️ Architecture
-
-<p align="center">
-  <img src="./backend/docs/service-architecture.jpeg" width="100%" alt="MALLO 서비스 아키텍처" />
-</p>
-
-| Layer | Responsibility |
-| --- | --- |
-| **Expo App** | Recovery Journey, Quick Check, ASK, Record UI |
-| **Spring Boot** | Session 인증, 한국 기준 DAY 계산, Protocol 매칭, 저장, Handoff, 알림 |
-| **FastAPI AI Service** | 한국어 질문 분류, 행동·조건 추출, 의료 안전 라우팅 |
-| **MySQL** | Session, Protocol, Check, Record, Interaction, Handoff 저장 |
-| **OpenRouter** | strict structured output을 지원하는 호스팅 모델 게이트웨이 |
-| **Firebase** | Recovery Journey와 의료진 답장 푸시 알림 |
-
----
-
-## ⚙️ Key Technical Decisions
-
-| 기술적 문제 | MALLO의 선택 | 얻는 효과 |
-| --- | --- | --- |
-| 생성형 AI가 의료 안내를 만들 위험 | AI 분류와 Protocol 판단을 분리 | 모델이 최종 결과와 근거를 만들거나 바꿀 수 없음 |
-| 프롬프트만으로 안전을 보장하기 어려움 | Spring + AI Service 이중 Safety Gate | 모델 호출 전 고위험 질문을 결정론적으로 차단 |
-| 비정형 모델 출력 | Pydantic discriminated union과 strict schema | 허용된 route·action·context만 시스템에 진입 |
-| 서비스 간 계약 변경 | 내부 HTTP contract `1.0` | Spring과 AI를 독립 배포하면서 호환성 검증 |
-| FE·서버의 날짜 기준 불일치 | `Asia/Seoul` 기준 서버 계산 | 모든 화면과 API가 동일한 Recovery DAY 사용 |
-| AI 장애 시 잘못된 fallback | timeout·잘못된 출력은 명시적 실패 처리 | 장애를 임의 의료 답변으로 숨기지 않음 |
-
----
-
-## 📈 Validation & Impact
-
-MALLO는 기능 수보다 **회복 기간 동안 사용자가 근거 있는 행동 판단을 완료했는가**를 핵심 가치로 봅니다.
-
-| 검증 영역 | 현재 확보한 증거 | 다음 측정 지표 |
-| --- | --- | --- |
-| 기술 안정성 | Backend 207개 자동화 테스트 | 배포 E2E 성공률 |
-| AI 계약 | unit · integration · HTTP E2E | schema-invalid 응답 차단률 |
-| 의료 안전 | 고위험 질문의 결정론적 `CONNECT` | Safety 시나리오 통과율 |
-| 사용 경험 | Quick Check 3단계 Flow | 질문→결과 도달 시간과 완료율 |
-| 지속 사용 | DAY별 Record와 Journal | DAY 2·DAY 3 재방문율 |
-
-<!-- 실제 사용자 검증 후 아래 블록을 추가하세요.
-
-### User Validation
-
-| Metric | Result |
-| --- | ---: |
-| 테스트 참여자 | 00명 |
-| Quick Check 완료율 | 00% |
-| 질문부터 결과까지 중앙값 | 00초 |
-| DAY 2 재방문 의향 | 00% |
-| 의료 질문 CONNECT 성공 | 00 / 00건 |
-
-<p align="center">
-  <img src="./docs/readme-assets/user-test-result.png" width="760" alt="MALLO 사용자 검증 결과" />
-</p>
-
--->
-
----
-
 ## 💼 Business & Expansion
 
 MALLO는 병원과 시술 후 사용자를 잇는 **B2B2C Recovery SaaS**를 지향합니다.
@@ -307,6 +245,38 @@ REJURAN
 - 도입 의향: 00곳
 - 선호 과금 방식: 월 구독 / Session 과금
 -->
+
+이러한 확장 가능성을 안정적으로 구현하기 위해, MALLO는 의료 안전 판단과 생성형 AI를 분리한 독립형 서비스 구조를 설계했습니다.
+
+---
+
+## 🏗️ Architecture
+
+<p align="center">
+  <img src="./backend/docs/service-architecture.jpeg" width="100%" alt="MALLO 서비스 아키텍처" />
+</p>
+
+| Layer | Responsibility |
+| --- | --- |
+| **Expo App** | Recovery Journey, Quick Check, ASK, Record UI |
+| **Spring Boot** | Session 인증, 한국 기준 DAY 계산, Protocol 매칭, 저장, Handoff, 알림 |
+| **FastAPI AI Service** | 한국어 질문 분류, 행동·조건 추출, 의료 안전 라우팅 |
+| **MySQL** | Session, Protocol, Check, Record, Interaction, Handoff 저장 |
+| **OpenRouter** | strict structured output을 지원하는 호스팅 모델 게이트웨이 |
+| **Firebase** | Recovery Journey와 의료진 답장 푸시 알림 |
+
+---
+
+## ⚙️ Key Technical Decisions
+
+| 기술적 문제 | MALLO의 선택 | 얻는 효과 |
+| --- | --- | --- |
+| 생성형 AI가 의료 안내를 만들 위험 | AI 분류와 Protocol 판단을 분리 | 모델이 최종 결과와 근거를 만들거나 바꿀 수 없음 |
+| 프롬프트만으로 안전을 보장하기 어려움 | Spring + AI Service 이중 Safety Gate | 모델 호출 전 고위험 질문을 결정론적으로 차단 |
+| 비정형 모델 출력 | Pydantic discriminated union과 strict schema | 허용된 route·action·context만 시스템에 진입 |
+| 서비스 간 계약 변경 | 내부 HTTP contract `1.0` | Spring과 AI를 독립 배포하면서 호환성 검증 |
+| FE·서버의 날짜 기준 불일치 | `Asia/Seoul` 기준 서버 계산 | 모든 화면과 API가 동일한 Recovery DAY 사용 |
+| AI 장애 시 잘못된 fallback | timeout·잘못된 출력은 명시적 실패 처리 | 장애를 임의 의료 답변으로 숨기지 않음 |
 
 ---
 
@@ -342,6 +312,38 @@ REJURAN
 - **AI:** unit · integration · HTTP E2E, strict contract와 branch coverage 검증
 - **Frontend:** ESLint 기반 정적 검사
 - **Deployment:** `dev` merge 시 Backend 테스트·빌드·EC2 자동 배포
+
+---
+
+## 📈 Validation & Impact
+
+MALLO는 기능 수보다 **회복 기간 동안 사용자가 근거 있는 행동 판단을 완료했는가**를 핵심 가치로 봅니다.
+
+| 검증 영역 | 현재 확보한 증거 | 다음 측정 지표 |
+| --- | --- | --- |
+| 기술 안정성 | Backend 207개 자동화 테스트 | 배포 E2E 성공률 |
+| AI 계약 | unit · integration · HTTP E2E | schema-invalid 응답 차단률 |
+| 의료 안전 | 고위험 질문의 결정론적 `CONNECT` | Safety 시나리오 통과율 |
+| 사용 경험 | Quick Check 3단계 Flow | 질문→결과 도달 시간과 완료율 |
+| 지속 사용 | DAY별 Record와 Journal | DAY 2·DAY 3 재방문율 |
+
+<!-- 실제 사용자 검증 후 아래 블록을 추가하세요.
+
+### User Validation
+
+| Metric | Result |
+| --- | ---: |
+| 테스트 참여자 | 00명 |
+| Quick Check 완료율 | 00% |
+| 질문부터 결과까지 중앙값 | 00초 |
+| DAY 2 재방문 의향 | 00% |
+| 의료 질문 CONNECT 성공 | 00 / 00건 |
+
+<p align="center">
+  <img src="./docs/readme-assets/user-test-result.png" width="760" alt="MALLO 사용자 검증 결과" />
+</p>
+
+-->
 
 ---
 
