@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import {
+  ActivityIndicator,
   Image,
   Platform,
   Pressable,
@@ -12,31 +13,37 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MALLO_COLORS } from '@/constants/colors';
+import { MALLO_TEXT_STYLES } from '@/constants/text-styles';
 import {
   MALLO_RADIUS,
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
-
-type RecoverySession = {
-  procedureName: string;
-  procedureDate: string;
-  recoveryDay: number;
-};
-
-// 개발용 임시 상태입니다. false로 바꾸면 STATE B를 확인할 수 있습니다.
-const DEV_HAS_RECOVERY_SESSION = true;
-
-const MOCK_RECOVERY_SESSION: RecoverySession = {
-  procedureName: 'REJURAN',
-  procedureDate: '2026.08.15',
-  recoveryDay: 1,
-};
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 
 export default function JourneyScreen() {
-  const recoverySession = DEV_HAS_RECOVERY_SESSION
-    ? MOCK_RECOVERY_SESSION
-    : null;
+  const {
+    hasSessionHydrationError,
+    isHydratingSession,
+    recoverySession,
+    retrySessionHydration,
+  } = useRecoveryFlow();
+
+  if (isHydratingSession) {
+    return <SessionCheckingState />;
+  }
+
+  if (hasSessionHydrationError) {
+    return (
+      <SessionRestoreError
+        onRetry={retrySessionHydration}
+      />
+    );
+  }
+
+  if (recoverySession?.status === 'ACTIVE') {
+    return <Redirect href="/(tabs)/journey/home" />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -44,120 +51,68 @@ export default function JourneyScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <MalloBrandHeader />
-
-        {recoverySession ? (
-          <ActiveSessionState session={recoverySession} />
-        ) : (
-          <EmptySessionState />
-        )}
+        <MalloBrandHeader isConnected={false} />
+        <EmptySessionState />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MalloBrandHeader() {
+function SessionCheckingState() {
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.sessionStateScreen}>
+        <MalloBrandHeader isConnected={false} />
+        <View style={styles.divider} />
+        <View style={styles.sessionStateBody}>
+          <ActivityIndicator color={MALLO_COLORS.core.red} size="small" />
+          <Text style={styles.sessionStateTitle}>
+            Recovery Journey를 확인하고 있어요
+          </Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function SessionRestoreError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.sessionStateScreen}>
+        <MalloBrandHeader isConnected={false} />
+        <View style={styles.divider} />
+        <View style={styles.sessionStateBody}>
+          <Text style={styles.sessionStateTitle}>세션을 확인하지 못했어요</Text>
+          <Text style={styles.sessionStateDescription}>
+            네트워크 연결을 확인하고 다시 시도해주세요.
+          </Text>
+          <PrimaryButton label="다시 시도하기" onPress={onRetry} />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function MalloBrandHeader({ isConnected }: { isConnected: boolean }) {
   return (
     <View style={styles.brandHeader}>
       <View>
         <View style={styles.connectionStatus}>
-          <View style={styles.connectionDot} />
-          <Text style={styles.eyebrow}>CONNECTED TO DERNA</Text>
+          <View
+            style={[
+              styles.connectionDot,
+              !isConnected && styles.connectionDotDisconnected,
+            ]}
+          />
+          <Text style={styles.eyebrow}>
+            {isConnected ? 'CONNECTED TO DERNA' : 'DERNA 연결 전'}
+          </Text>
         </View>
+
         <Text style={styles.brandTitle}>MALLO</Text>
       </View>
-
-      <View style={styles.profileIcon}>
-        <Ionicons
-          name="person"
-          size={17}
-          color={MALLO_COLORS.support.charcoal}
-        />
-      </View>
     </View>
   );
-}
-
-function ActiveSessionState({ session }: { session: RecoverySession }) {
-  const recoveryDayLabel = formatRecoveryDay(session.recoveryDay);
-
-  const progress = `${
-    Math.min(Math.max((session.recoveryDay - 1) / 6, 0), 1) * 100
-  }%` as `${number}%`;
-
-  return (
-    <View style={styles.stateContent}>
-      <View style={styles.divider} />
-
-      <View>
-        <SectionLabel>진행 중인 Recovery Journey</SectionLabel>
-
-        <View style={styles.activeSessionCard}>
-          <Text style={styles.sessionProcedure}>{session.procedureName}</Text>
-          <Text style={styles.sessionDay}>{recoveryDayLabel}</Text>
-          <Text style={styles.sessionMeta}>
-            {session.procedureDate} 시술 ·{' '}
-            {getRecoveryDayDescription(session.recoveryDay)}
-          </Text>
-
-          <View style={styles.progressSection}>
-            <Text style={styles.progressSectionTitle}>초기 집중 관리</Text>
-
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressLabel}>DAY 1</Text>
-              <Text style={styles.progressLabel}>DAY 7</Text>
-            </View>
-
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: progress }]} />
-            </View>
-          </View>
-
-          <PrimaryButton
-            label="Recovery Journey 이어가기"
-            inverted
-            onPress={() => router.push('/(tabs)/journey/home')}
-          />
-        </View>
-      </View>
-
-      <View>
-        <SectionLabel>오늘 결과 Preview</SectionLabel>
-        <View style={styles.previewCard}>
-          <PreviewRow label="세안" result="가능" tone="possible" />
-          <PreviewRow label="스킨케어" result="조정 필요" tone="adjust" />
-          <PreviewRow label="화장" result="미루기 권장" tone="postpone" />
-        </View>
-      </View>
-
-      <View style={styles.quickAccessRow}>
-        <View style={styles.quickAccessCard}>
-          <View style={styles.quickAccessIcon}>
-            <Ionicons
-              name="chatbubble-outline"
-              size={18}
-              color={MALLO_COLORS.support.charcoal}
-            />
-          </View>
-          <Text style={styles.quickAccessLabel}>ASK MALLO</Text>
-        </View>
-        <View style={styles.quickAccessCard}>
-          <View style={styles.quickAccessIcon}>
-            <Ionicons
-              name="settings-outline"
-              size={18}
-              color={MALLO_COLORS.support.charcoal}
-            />
-          </View>
-          <Text style={styles.quickAccessLabel}>MY / 설정</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function getRecoveryDayDescription(day: number) {
-  return day === 1 ? '시술 당일' : `시술 후 ${day}일차`;
 }
 
 function EmptySessionState() {
@@ -184,8 +139,7 @@ function EmptySessionState() {
             DERNA의 시술 정보를 불러올까요?
           </Text>
           <Text style={styles.emptyStateText}>
-            최근 시술 정보를 확인하고{`\n`}
-            맞춤 회복관리를 시작할 수 있어요.
+            최근 시술 정보를 확인하고 맞춤 회복관리를 시작할 수 있어요.
           </Text>
         </View>
 
@@ -198,10 +152,6 @@ function EmptySessionState() {
       </View>
     </View>
   );
-}
-
-function SectionLabel({ children }: { children: string }) {
-  return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
 function PrimaryButton({
@@ -241,34 +191,6 @@ function PrimaryButton({
   );
 }
 
-function PreviewRow({
-  label,
-  result,
-  tone,
-}: {
-  label: string;
-  result: string;
-  tone: 'possible' | 'adjust' | 'postpone';
-}) {
-  const toneStyle = {
-    possible: styles.previewStatusPossible,
-    adjust: styles.previewStatusAdjust,
-    postpone: styles.previewStatusPostpone,
-  }[tone];
-
-  return (
-    <View style={styles.previewRow}>
-      <View style={[styles.previewStatus, toneStyle]} />
-      <Text style={styles.previewLabel}>{label}</Text>
-      <Text style={styles.previewResult}>{result}</Text>
-    </View>
-  );
-}
-
-function formatRecoveryDay(day: number) {
-  return `DAY ${Math.max(day, 1)}`;
-}
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -277,13 +199,36 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingTop: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.md,
     paddingBottom: MALLO_SPACING.xxl,
   },
+  sessionStateScreen: {
+    flex: 1,
+    paddingHorizontal: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.md,
+    paddingBottom: MALLO_SPACING.xxl,
+  },
+  sessionStateBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: MALLO_SPACING.md,
+    paddingBottom: MALLO_SPACING.xxl,
+  },
+  sessionStateTitle: {
+    ...MALLO_TYPOGRAPHY.cardTitle,
+    color: MALLO_COLORS.core.ink,
+    textAlign: 'center',
+  },
+  sessionStateDescription: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginBottom: MALLO_SPACING.sm,
+    color: MALLO_COLORS.support.secondaryTextGray,
+    textAlign: 'center',
+  },
   brandHeader: {
-    flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
   },
   eyebrow: {
     ...MALLO_TYPOGRAPHY.caption,
@@ -302,20 +247,14 @@ const styles = StyleSheet.create({
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.core.red,
   },
+
+  connectionDotDisconnected: {
+    backgroundColor: MALLO_COLORS.support.secondaryTextGray,
+  },
   brandTitle: {
     ...MALLO_TYPOGRAPHY.brand,
     color: MALLO_COLORS.core.red,
     letterSpacing: -0.6,
-  },
-  profileIcon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: MALLO_COLORS.support.mistGray,
-    borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.support.warmGray,
   },
   stateContent: {
     gap: MALLO_SPACING.xl,
@@ -486,18 +425,17 @@ const styles = StyleSheet.create({
   },
   emptyStateBody: {
     flex: 1,
-    paddingTop: MALLO_SPACING.xxl,
-    paddingBottom: MALLO_SPACING.xl,
+    justifyContent: 'center',
+    paddingBottom: MALLO_SPACING.xxl * 3,
   },
   emptyStateActionGap: {
-    height: MALLO_SPACING.xxl,
+    height: MALLO_SPACING.xl,
   },
   emptyStatePanel: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: MALLO_SPACING.xl,
-    paddingVertical: MALLO_SPACING.xxl,
+    paddingVertical: MALLO_SPACING.xl,
     borderRadius: MALLO_RADIUS.lg,
     backgroundColor: MALLO_COLORS.support.warmGray,
   },
@@ -514,6 +452,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     ...MALLO_TYPOGRAPHY.cardTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
     fontSize: 20,
     lineHeight: 28,
     color: MALLO_COLORS.core.ink,
@@ -521,6 +460,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
     fontSize: 15,
     lineHeight: 22,
     marginTop: MALLO_SPACING.md,

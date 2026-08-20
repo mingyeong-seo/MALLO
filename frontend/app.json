@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MALLO",
+    "name": "WHS",
     "slug": "MALLO",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,6 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -37,6 +36,15 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "회복 기록에 사진을 추가하기 위해 사진 보관함에 접근합니다.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
     ],
