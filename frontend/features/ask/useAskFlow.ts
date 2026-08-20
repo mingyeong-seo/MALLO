@@ -141,8 +141,8 @@ export function useAskFlow() {
   const runQuestion = useCallback(
     async (rawQuestion: string) => {
       const prepared = prepareAskRun(rawQuestion);
-      if (!prepared.resultQuestion) {
-        setInputNotice('질문을 입력해 주세요.');
+      if (prepared.kind === 'invalid') {
+        setInputNotice(prepared.notice);
         return;
       }
       if (recoverySession === null) {
