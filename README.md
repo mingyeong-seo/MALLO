@@ -53,7 +53,7 @@ MALLO는 이 간극을 **시술 정보 × 경과일 × 행동 조건**에 기반
 
 -->
 
-## ✨ Solution — 질문 하나가 오늘의 행동이 되도록
+## Solution — 질문 하나가 오늘의 행동이 되도록
 
 | 기존 방식 | MALLO |
 | --- | --- |
@@ -86,7 +86,7 @@ DERNA 진입부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Jour
 
 [![MALLO 2분 시연 영상](./docs/readme-assets/demo-thumbnail.png)](YOUTUBE_URL)
 
-[🚀 서비스 직접 체험하기](FRONTEND_URL) · [▶️ 2분 시연 영상](YOUTUBE_URL)
+[서비스 직접 체험하기](FRONTEND_URL) · [2분 시연 영상](YOUTUBE_URL)
 
 권장 파일:
 - docs/readme-assets/demo-thumbnail.png
@@ -111,7 +111,7 @@ DERNA에서 MALLO 진입
 
 ---
 
-## 📱 Core Experience
+## Core Experience
 
 ### 01. Quick Check — 세 단계면 끝나는 행동 확인
 
@@ -164,7 +164,7 @@ DERNA에서 MALLO 진입
 
 ---
 
-## 🛡️ Safety by Design — AI가 함부로 말하지 않도록
+## Safety by Design — AI가 함부로 말하지 않도록
 
 MALLO의 AI는 의료 답변을 만드는 역할을 맡지 않습니다.
 
@@ -194,7 +194,7 @@ POSSIBLE · ADJUST · POSTPONE · CONNECT
 
 ---
 
-## 🔗 Why AAC — AAC가 가진 시술의 맥락을 회복까지
+## Why AAC — AAC가 가진 시술의 맥락을 회복까지
 
 MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이터와 의료기관 접점 위에서 작동하는 B2B2C Recovery Layer**입니다.
 
@@ -218,7 +218,7 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 <p align="center">
   <img src="./backend/docs/service-architecture.jpeg" width="100%" alt="MALLO 서비스 아키텍처" />
@@ -235,7 +235,7 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 
 ---
 
-## ⚙️ Key Technical Decisions
+## Key Technical Decisions
 
 | 기술적 문제 | MALLO의 선택 | 얻는 효과 |
 | --- | --- | --- |
@@ -248,7 +248,7 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 
 ---
 
-## 📈 Validation & Impact
+## Validation & Impact
 
 MALLO는 기능 수보다 **회복 기간 동안 사용자가 근거 있는 행동 판단을 완료했는가**를 핵심 가치로 봅니다.
 
@@ -280,7 +280,7 @@ MALLO는 기능 수보다 **회복 기간 동안 사용자가 근거 있는 행�
 
 ---
 
-## 💼 Business & Expansion
+## Business & Expansion
 
 MALLO는 병원과 시술 후 사용자를 잇는 **B2B2C Recovery SaaS**를 지향합니다.
 
@@ -310,7 +310,7 @@ REJURAN
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 ### Frontend
 
