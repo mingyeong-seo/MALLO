@@ -1,0 +1,57 @@
+{
+  "document": {
+    "title": "MALLO Backend Routing Logic Draft",
+    "version": "mvp-0.1"
+  },
+  "quick_check": {
+    "endpoint": "POST /v1/checks",
+    "flow": [
+      "session_id 검증",
+      "Recovery Session에서 procedure / procedure_at 확인",
+      "현재 elapsed_day 계산",
+      "action 확인",
+      "필수 context 확인",
+      "context 부족 -> CLARIFY",
+      "context 충분 -> procedure + elapsed_day + action + context로 Protocol 조회",
+      "Protocol 없음 -> NO_PROTOCOL",
+      "Protocol 있음 -> ANSWERABLE + decision 반환",
+      "Action Check 저장"
+    ]
+  },
+  "ask_mallo": {
+    "endpoint": "POST /v1/ask",
+    "flow": [
+      "session_id 검증",
+      "사용자 질문 분류",
+      "정상/비정상, 부작용, 질환, 치료, 약물, 진료 필요성 등 의료 판단 요청 -> CONNECT",
+      "생활 행동 질문이면 action 추출",
+      "필수 context 부족 -> CLARIFY",
+      "context 충분 -> Protocol 조회",
+      "Protocol 있음 -> ANSWERABLE",
+      "Protocol 없음 -> NO_PROTOCOL",
+      "Interaction 저장"
+    ],
+    "mvp_rule": "응급도 별도 판정은 하지 않고 의료 판단 질문은 CONNECT로 단순화"
+  },
+  "protocol_matching": {
+    "inputs": [
+      "procedure",
+      "elapsed_day",
+      "action",
+      "context"
+    ],
+    "rule": "day_start <= elapsed_day <= day_end 범위와 action/conditions가 일치하는 검수 Protocol 조회",
+    "day_end_null": "day_end가 null이면 해당 day_start 이후에 계속 적용되는 규칙으로 처리 가능",
+    "recommendation": "전체 Protocol을 애플리케이션 for문으로 순회하기보다 DB 조회 조건으로 후보 규칙을 좁히는 방식 권장"
+  },
+  "photo_observation": {
+    "endpoint": "POST /v1/photos/analyze",
+    "flow": [
+      "session_id + photo 수신",
+      "비의료적 관찰 모델/Mock 실행",
+      "redness / dryness 등 합의된 관찰값만 반환",
+      "정상/비정상·부작용·진단·치료 필요성 값 생성 금지",
+      "ASK/Quick Check 의료 판단에 관찰값을 사용하지 않음"
+    ]
+  }
+}

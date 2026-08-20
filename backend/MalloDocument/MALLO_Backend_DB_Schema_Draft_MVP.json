@@ -1,0 +1,249 @@
+{
+  "document": {
+    "title": "MALLO Backend DB Schema Draft",
+    "version": "mvp-0.1",
+    "scope": "Hackathon MVP",
+    "note": "실제 ORM/테이블명은 백엔드 팀에서 조정 가능. 프론트와 공유되는 식별자/enum 의미는 API 계약과 일치시킨다."
+  },
+  "tables": {
+    "recovery_session": {
+      "purpose": "회원 대신 하나의 Recovery Journey를 구분",
+      "fields": {
+        "session_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "procedure": {
+          "type": "string",
+          "example": "REJURAN"
+        },
+        "procedure_at": {
+          "type": "date",
+          "example": "2026-08-17"
+        },
+        "clinic_id": {
+          "type": "string",
+          "example": "DERNA"
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "ACTIVE",
+            "COMPLETED"
+          ]
+        },
+        "created_at": {
+          "type": "datetime"
+        }
+      },
+      "derived": {
+        "elapsed_day": "procedure_at과 현재 날짜를 기준으로 계산. 시술 당일=0"
+      }
+    },
+    "protocol": {
+      "purpose": "검수된 Recovery Protocol 규칙",
+      "fields": {
+        "protocol_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "procedure": {
+          "type": "string"
+        },
+        "day_start": {
+          "type": "integer"
+        },
+        "day_end": {
+          "type": "integer|null"
+        },
+        "action": {
+          "type": "enum",
+          "values": [
+            "EXERCISE",
+            "MAKEUP",
+            "CLEANSING",
+            "SKINCARE",
+            "HEAT"
+          ]
+        },
+        "conditions": {
+          "type": "json",
+          "example": {
+            "intensity": "HIGH"
+          }
+        },
+        "decision": {
+          "type": "enum",
+          "values": [
+            "POSSIBLE",
+            "ADJUST",
+            "POSTPONE",
+            "CONNECT"
+          ]
+        },
+        "guidance": {
+          "type": "text"
+        },
+        "next_action": {
+          "type": "json|null"
+        },
+        "version": {
+          "type": "string",
+          "example": "rejuran-v1"
+        }
+      }
+    },
+    "action_check": {
+      "purpose": "Quick Check 요청/결과 기록",
+      "fields": {
+        "check_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "session_id": {
+          "type": "string/uuid",
+          "fk": "recovery_session.session_id"
+        },
+        "action": {
+          "type": "string"
+        },
+        "context": {
+          "type": "json"
+        },
+        "decision": {
+          "type": "string|null"
+        },
+        "protocol_ref": {
+          "type": "string|null"
+        },
+        "created_at": {
+          "type": "datetime"
+        }
+      }
+    },
+    "interaction": {
+      "purpose": "ASK MALLO 질문 및 라우팅 결과 기록",
+      "fields": {
+        "interaction_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "session_id": {
+          "type": "string/uuid",
+          "fk": "recovery_session.session_id"
+        },
+        "question": {
+          "type": "text"
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "ANSWERABLE",
+            "CLARIFY",
+            "CONNECT",
+            "NO_PROTOCOL"
+          ]
+        },
+        "action": {
+          "type": "string|null"
+        },
+        "context": {
+          "type": "json"
+        },
+        "protocol_ref": {
+          "type": "string|null"
+        },
+        "created_at": {
+          "type": "datetime"
+        }
+      }
+    },
+    "handoff": {
+      "purpose": "CONNECT 병원 문의 Mock 기록",
+      "fields": {
+        "handoff_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "interaction_id": {
+          "type": "string/uuid",
+          "fk": "interaction.interaction_id"
+        },
+        "channel": {
+          "type": "string",
+          "example": "KAKAO"
+        },
+        "status": {
+          "type": "string",
+          "example": "REQUESTED"
+        },
+        "summary": {
+          "type": "text|null"
+        },
+        "created_at": {
+          "type": "datetime"
+        }
+      }
+    },
+    "photo_record": {
+      "purpose": "선택 사진과 비의료적 관찰 결과 연결",
+      "fields": {
+        "photo_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "session_id": {
+          "type": "string/uuid",
+          "fk": "recovery_session.session_id"
+        },
+        "storage_key": {
+          "type": "string|null"
+        },
+        "observation": {
+          "type": "json",
+          "example": {
+            "redness": "MODERATE",
+            "dryness": "LOW"
+          }
+        },
+        "created_at": {
+          "type": "datetime"
+        }
+      },
+      "prohibited_observation_fields": [
+        "normal",
+        "side_effect",
+        "diagnosis",
+        "inflammation",
+        "need_treatment",
+        "risk_score"
+      ]
+    },
+    "recovery_record": {
+      "purpose": "DAY별 회복 기록",
+      "fields": {
+        "record_id": {
+          "type": "string/uuid",
+          "pk": true
+        },
+        "session_id": {
+          "type": "string/uuid",
+          "fk": "recovery_session.session_id"
+        },
+        "elapsed_day": {
+          "type": "integer"
+        },
+        "memo": {
+          "type": "text|null"
+        },
+        "photo_id": {
+          "type": "string/uuid|null",
+          "fk": "photo_record.photo_id"
+        },
+        "created_at": {
+          "type": "datetime"
+        }
+      }
+    }
+  }
+}

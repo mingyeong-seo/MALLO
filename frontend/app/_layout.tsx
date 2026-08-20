@@ -1,21 +1,39 @@
 import { Stack } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { RecoveryFlowProvider } from '@/features/recovery/RecoveryFlowProvider';
+
 export default function RootLayout() {
   return (
-    <View style={styles.appBackground}>
-      <View style={styles.mobileViewport}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
+    <RecoveryFlowProvider>
+      <View style={styles.appBackground}>
+        <View style={styles.mobileViewport}>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
 
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                gestureEnabled: false,
+                headerShown: false,
+              }}
+            />
 
-          <Stack.Screen name="consent" options={{ headerShown: false }} />
+            <Stack.Screen name="consent" options={{ headerShown: false }} />
 
-          <Stack.Screen name="procedure-confirm" options={{ headerShown: false }} />
-        </Stack>
+            <Stack.Screen
+              name="consultation"
+              options={{ headerShown: false }}
+            />
+
+            <Stack.Screen
+              name="procedure-confirm"
+              options={{ headerShown: false }}
+            />
+          </Stack>
+        </View>
       </View>
-    </View>
+    </RecoveryFlowProvider>
   );
 }
 

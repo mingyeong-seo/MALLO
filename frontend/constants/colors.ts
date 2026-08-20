@@ -10,6 +10,8 @@ export const MALLO_COLORS = {
     mistGray: '#E7E3DF',
     redTint: '#F4D6D2',
     secondaryTextGray: '#6B6865',
+
+    progress: '#F28B74',
   },
   semantic: {
     possible: '#4C8F5B',
