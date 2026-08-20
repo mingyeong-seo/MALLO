@@ -153,11 +153,13 @@ DERNA에서 MALLO 진입
 
 <table>
   <tr>
-    <th width="50%">진행 중인 Recovery Journey</th>
-    <th width="50%">DAY별 Recovery Journal</th>
+    <th width="33%">1. 진행 중인 Journey</th>
+    <th width="33%">2. 오늘 행동 기록</th>
+    <th width="33%">3. DAY별 Journal</th>
   </tr>
   <tr>
     <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-20-19-58-01%20001.png" alt="REJURAN Recovery Journey 홈" /></td>
+    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-20-19-58-02%20007.png" alt="확인한 행동의 수행 여부와 메모, 사진을 남기는 오늘의 기록" /></td>
     <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-20-19-58-02%20006.png" alt="DAY별 회복 기록" /></td>
   </tr>
 </table>
