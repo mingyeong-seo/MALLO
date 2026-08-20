@@ -28,12 +28,12 @@ npm start
 
 ### 백엔드 담당
 
-AI 연동 브랜치를 Spring 배포 브랜치에 병합하고 AWS 배포 환경에는 필수로 아래 두 값만 등록하면 됩니다.
+아래 두 GitHub Secrets는 이미 배포 저장소에 등록되어 있습니다.
 
 - `AI_BASE_URL`
 - `AI_SHARED_SECRET`
 
-`AI_BASE_URL`은 Gabia AI 서버의 HTTPS 주소입니다. `AI_SHARED_SECRET`은 Gabia AI 서버와 Spring이 공유하는 32자 비밀값입니다. 값은 공개 문서나 프론트 코드에 적지 말고 배포 담당자에게 별도로 전달합니다.
+백엔드 담당자는 `feat/ai-triage-service`를 실제 배포 브랜치에 병합하고 기존 CI/CD 배포 성공만 확인하면 됩니다. 환경변수를 새로 만들거나 프론트 계약을 수정할 필요가 없습니다.
 
 선택값인 `AI_CONNECT_TIMEOUT_MS`, `AI_READ_TIMEOUT_MS`는 Spring 기본값이 있으므로 해커톤 제출용 연동에서는 등록하지 않아도 됩니다. 프론트 요청·응답 계약은 변경할 필요가 없습니다.
 
@@ -54,10 +54,12 @@ AI 연동 브랜치를 Spring 배포 브랜치에 병합하고 AWS 배포 환경
 ```json
 {
   "procedure": "REJURAN",
-  "procedure_at": "2026-08-12",
+  "procedure_at": "2026-08-18",
   "clinic_id": "clinic_001"
 }
 ```
+
+`procedure_at`은 화면을 연 기기의 로컬 달력 날짜를 기준으로 이틀 전을 계산합니다. 화면에 표시하는 날짜와 API로 보내는 날짜가 항상 같습니다.
 
 앱은 반환된 `session_id` 하나만 저장합니다. 네이티브 앱은 Expo SecureStore, 웹은 localStorage를 사용합니다. 앱 재실행 시 저장된 ID로 `GET /v1/sessions/today`를 호출해 실제 DAY를 복구합니다.
 
