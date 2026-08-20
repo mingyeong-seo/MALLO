@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { MALLO_COLORS } from '@/constants/colors';
@@ -117,6 +118,8 @@ export function BehaviorFollowUpState({
   onReset: () => void;
   question: string;
 }) {
+  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
+
   return (
     <View style={styles.stateContent}>
       <View style={styles.questionRecall}>
@@ -136,10 +139,12 @@ export function BehaviorFollowUpState({
               <Pressable
                 accessibilityRole="button"
                 key={option.label}
+                onHoverIn={() => setHoveredOption(option.value)}
+                onHoverOut={() => setHoveredOption(null)}
                 onPress={() => onOptionPress(option)}
-                style={({ pressed, hovered }) => [
+                style={({ pressed }) => [
                   styles.optionCard,
-                  hovered && styles.optionCardHovered,
+                  hoveredOption === option.value && styles.optionCardHovered,
                   pressed && styles.optionCardPressed,
                 ]}
               >

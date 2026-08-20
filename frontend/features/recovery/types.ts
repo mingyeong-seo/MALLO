@@ -23,7 +23,7 @@ export type QuickCheckResult = {
     type: string;
   } | null;
   protocolRefs: string[];
-  protocolVersion: string;
+  protocolVersion: string | null;
   reason: string;
 };
 
