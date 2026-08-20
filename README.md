@@ -312,13 +312,29 @@ REJURAN
 
 ## 🧰 Tech Stack
 
-| Frontend | Backend | AI | Infra |
-| --- | --- | --- | --- |
-| Expo SDK 54 | Java 21 | Python 3.13 | AWS EC2 / RDS |
-| React Native 0.81 | Spring Boot 4.1 | FastAPI | Gabia Cloud |
-| React 19 | Spring Security / JPA | Pydantic AI | Docker / Caddy |
-| TypeScript 5.9 | MySQL / H2 | OpenRouter | GitHub Actions |
-| Expo Router 6 | Firebase Admin | GPT-5.6 Luna | HTTPS / FCM |
+### Frontend
+
+| Expo SDK 54 | React Native 0.81 | TypeScript 5.9 | Expo Router 6 |
+| :---: | :---: | :---: | :---: |
+| <img src="https://cdn.simpleicons.org/expo/4630EB" width="58" height="58" alt="Expo" /> | <img src="https://cdn.simpleicons.org/react/61DAFB" width="58" height="58" alt="React Native" /> | <img src="https://cdn.simpleicons.org/typescript/3178C6" width="58" height="58" alt="TypeScript" /> | <img src="https://cdn.simpleicons.org/expo/4630EB" width="58" height="58" alt="Expo Router" /> |
+
+### Backend
+
+| Java 21 | Spring Boot 4.1 | Spring Security · JPA | MySQL 8 |
+| :---: | :---: | :---: | :---: |
+| <img src="https://cdn.simpleicons.org/openjdk/ED8B00" width="58" height="58" alt="Java" /> | <img src="https://cdn.simpleicons.org/springboot/6DB33F" width="58" height="58" alt="Spring Boot" /> | <img src="https://cdn.simpleicons.org/springsecurity/6DB33F" width="58" height="58" alt="Spring Security" /> | <img src="https://cdn.simpleicons.org/mysql/4479A1" width="58" height="58" alt="MySQL" /> |
+
+### AI & Safety
+
+| Python 3.13 | FastAPI | Pydantic AI | OpenRouter |
+| :---: | :---: | :---: | :---: |
+| <img src="https://cdn.simpleicons.org/python/3776AB" width="58" height="58" alt="Python" /> | <img src="https://cdn.simpleicons.org/fastapi/009688" width="58" height="58" alt="FastAPI" /> | <img src="https://cdn.simpleicons.org/pydantic/E92063" width="58" height="58" alt="Pydantic AI" /> | <img src="https://cdn.simpleicons.org/openrouter/6467F2" width="58" height="58" alt="OpenRouter" /> |
+
+### Infrastructure & Delivery
+
+| AWS EC2 · RDS | Docker | Caddy · HTTPS | GitHub Actions | Firebase FCM |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="https://techstack-generator.vercel.app/aws-icon.svg" width="58" height="58" alt="AWS" /> | <img src="https://cdn.simpleicons.org/docker/2496ED" width="58" height="58" alt="Docker" /> | <img src="https://cdn.simpleicons.org/caddy/1F88C0" width="58" height="58" alt="Caddy" /> | <img src="https://cdn.simpleicons.org/githubactions/2088FF" width="58" height="58" alt="GitHub Actions" /> | <img src="https://cdn.simpleicons.org/firebase/DD2C00" width="58" height="58" alt="Firebase" /> |
 
 ### Quality
 
