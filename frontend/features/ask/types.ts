@@ -26,6 +26,19 @@ export type RecoveryContext = {
   recoveryDay: number;
 };
 
+export type QuestionComposerProps = {
+  readonly attachments: readonly string[];
+  readonly bottomClearance: number;
+  readonly notice: string;
+  readonly onChangeText: (value: string) => void;
+  readonly onSubmit: () => void;
+  readonly onFocusChange?: (focused: boolean) => void;
+  readonly onAddAttachment: () => void;
+  readonly onRemoveAttachment: (attachment: string) => void;
+  readonly suggestions: readonly string[];
+  readonly value: string;
+};
+
 export type MockQuestionIntent =
   | 'exercise-follow-up'
   | 'wash-follow-up'

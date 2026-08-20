@@ -12,19 +12,7 @@ import {
 
 import { MALLO_COLORS } from '@/constants/colors';
 import { styles } from '@/features/ask/styles';
-
-type QuestionComposerProps = {
-  attachments: readonly string[];
-  bottomClearance: number;
-  notice: string;
-  onChangeText: (value: string) => void;
-  onSubmit: () => void;
-  onFocusChange?: (focused: boolean) => void;
-  onAddAttachment: () => void;
-  onRemoveAttachment: (attachment: string) => void;
-  suggestions: readonly string[];
-  value: string;
-};
+import type { QuestionComposerProps } from '@/features/ask/types';
 
 export function QuestionComposer({
   attachments,

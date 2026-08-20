@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, router } from 'expo-router';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -175,7 +174,6 @@ const styles = StyleSheet.create({
     borderRadius: MALLO_RADIUS.full,
     backgroundColor: MALLO_COLORS.core.red,
   },
-
   connectionDotDisconnected: {
     backgroundColor: MALLO_COLORS.support.secondaryTextGray,
   },
@@ -184,67 +182,10 @@ const styles = StyleSheet.create({
     color: MALLO_COLORS.core.red,
     letterSpacing: -0.6,
   },
-  stateContent: {
-    gap: MALLO_SPACING.xl,
-
-    ...(Platform.OS === 'web' && {
-      gap: MALLO_SPACING.xxl + MALLO_SPACING.sm,
-      paddingTop: MALLO_SPACING.sm,
-    }),
-  },
   divider: {
     height: 1,
     marginTop: MALLO_SPACING.lg,
     backgroundColor: MALLO_COLORS.support.mistGray,
-  },
-  sectionLabel: {
-    ...MALLO_TYPOGRAPHY.sectionTitle,
-    marginBottom: MALLO_SPACING.sm,
-    color: MALLO_COLORS.support.secondaryTextGray,
-  },
-  activeSessionCard: {
-    padding: MALLO_SPACING.lg,
-    borderRadius: MALLO_RADIUS.lg,
-    backgroundColor: MALLO_COLORS.core.red,
-  },
-  sessionProcedure: {
-    ...MALLO_TYPOGRAPHY.statusLabel,
-    marginBottom: MALLO_SPACING.sm,
-    color: MALLO_COLORS.support.redTint,
-    letterSpacing: 0.8,
-  },
-  sessionDay: {
-    ...MALLO_TYPOGRAPHY.screenTitle,
-    marginBottom: MALLO_SPACING.xs,
-    color: MALLO_COLORS.core.white,
-    letterSpacing: -0.5,
-  },
-  sessionMeta: {
-    ...MALLO_TYPOGRAPHY.caption,
-    color: MALLO_COLORS.support.mistGray,
-  },
-  progressSection: {
-    marginVertical: MALLO_SPACING.lg,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: MALLO_SPACING.sm,
-  },
-  progressLabel: {
-    ...MALLO_TYPOGRAPHY.caption,
-    color: MALLO_COLORS.support.mistGray,
-  },
-  progressTrack: {
-    height: 4,
-    overflow: 'hidden',
-    borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.support.redTint,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.core.white,
   },
   primaryButton: {
     minHeight: 52,
@@ -271,82 +212,6 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.72,
-  },
-  previewCard: {
-    gap: MALLO_SPACING.lg,
-    padding: MALLO_SPACING.lg,
-    borderWidth: 1,
-    borderColor: MALLO_COLORS.support.mistGray,
-    borderRadius: MALLO_RADIUS.md,
-    backgroundColor: MALLO_COLORS.support.warmGray,
-
-    ...(Platform.OS === 'web' && {
-      minHeight: 160,
-      justifyContent: 'center',
-    }),
-  },
-  previewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  previewStatus: {
-    width: 8,
-    height: 8,
-    marginRight: MALLO_SPACING.md,
-    borderRadius: MALLO_RADIUS.full,
-  },
-  previewStatusPossible: {
-    backgroundColor: MALLO_COLORS.semantic.possible,
-  },
-  previewStatusAdjust: {
-    backgroundColor: MALLO_COLORS.semantic.adjust,
-  },
-  previewStatusPostpone: {
-    backgroundColor: MALLO_COLORS.semantic.postpone,
-  },
-  previewLabel: {
-    ...MALLO_TYPOGRAPHY.body,
-    flex: 1,
-    color: MALLO_COLORS.support.charcoal,
-  },
-  previewResult: {
-    ...MALLO_TYPOGRAPHY.statusLabel,
-    color: MALLO_COLORS.support.charcoal,
-  },
-  quickAccessRow: {
-    flexDirection: 'row',
-    gap: MALLO_SPACING.md,
-
-    ...(Platform.OS === 'web' && {
-      marginTop: MALLO_SPACING.xl,
-    }),
-  },
-  quickAccessCard: {
-    minHeight: 68,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: MALLO_SPACING.sm,
-    borderWidth: 1,
-    borderColor: MALLO_COLORS.support.mistGray,
-    borderRadius: MALLO_RADIUS.md,
-    backgroundColor: MALLO_COLORS.core.white,
-
-    ...(Platform.OS === 'web' && {
-      minHeight: 80,
-    }),
-  },
-  quickAccessIcon: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.support.warmGray,
-  },
-  quickAccessLabel: {
-    ...MALLO_TYPOGRAPHY.statusLabel,
-    color: MALLO_COLORS.support.charcoal,
   },
   emptyStateContent: {
     flex: 1,
@@ -394,10 +259,5 @@ const styles = StyleSheet.create({
     marginTop: MALLO_SPACING.md,
     color: MALLO_COLORS.support.secondaryTextGray,
     textAlign: 'center',
-  },
-  progressSectionTitle: {
-    ...MALLO_TYPOGRAPHY.statusLabel,
-    marginBottom: MALLO_SPACING.sm,
-    color: MALLO_COLORS.core.white,
   },
 });
