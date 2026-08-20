@@ -177,6 +177,33 @@ class RecoveryRecordRepositoryTest {
 	}
 
 	@Test
+	void 저널_조회시_사진이_action_개수만큼_중복되지_않는다() {
+		// FE QA 보고(2026-08-20): actions와 photoRecords를 한 @EntityGraph로 같이 fetch join하면
+		// SQL 결과가 (사진 수 x 행동 수)로 카테시안곱이 나서, photoRecords가 List(bag)였을 때
+		// 같은 사진이 행동 개수만큼 중복 반환됐다. 행동 2개 + 사진 1장으로 그 상황을 재현한다.
+		PhotoRecord photo = photoRecordRepository.save(PhotoRecord.builder()
+				.sessionId(SESSION_ID)
+				.observationJson("{}")
+				.build());
+		RecoveryRecord record = recoveryRecordRepository.save(RecoveryRecord.builder()
+				.sessionId(SESSION_ID)
+				.elapsedDay(1)
+				.actions(List.of(
+						RecordAction.builder().checkId(CHECK_EXERCISE).performedStatus(PerformedStatus.DONE).build(),
+						RecordAction.builder().checkId(CHECK_MEDICATION).performedStatus(PerformedStatus.DONE).build()))
+				.build());
+		record.attachPhotos(List.of(photo));
+		testEntityManager.flush();
+		testEntityManager.clear();
+
+		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
+
+		assertThat(journal).hasSize(1);
+		assertThat(journal.get(0).getPhotoRecords()).extracting(PhotoRecord::getId).containsExactly(photo.getId());
+		assertThat(journal.get(0).getActions()).hasSize(2);
+	}
+
+	@Test
 	void elapsedDay가_일치하는_기록을_찾는다() {
 		RecoveryRecord record = recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
 

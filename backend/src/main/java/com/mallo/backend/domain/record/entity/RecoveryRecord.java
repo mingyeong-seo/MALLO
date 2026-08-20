@@ -1,7 +1,9 @@
 package com.mallo.backend.domain.record.entity;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.mallo.backend.global.entity.BaseTimeEntity;
 
@@ -70,9 +72,16 @@ public class RecoveryRecord extends BaseTimeEntity {
 	private String memo;
 
 	// FK(recovery_record_id)는 PhotoRecord 쪽이 갖는다 — 여긴 조회 전용(inverse side)
+	// List가 아니라 Set인 이유: findBySessionIdOrderByElapsedDayAsc가 photoRecords와 actions를
+	// @EntityGraph로 한 쿼리에 같이 fetch join하는데, 두 컬렉션을 동시에 join하면 SQL 결과가
+	// (photo 수 x action 수)로 카테시안곱이 난다. actions는 @OrderColumn 인덱스 리스트라 같은 위치에
+	// 덮어써져서 괜찮지만, photoRecords가 List(bag)이면 곱해진 행 수만큼 그대로 append돼서
+	// GET /records 응답 photos[]에 같은 사진이 action 개수만큼 중복되는 버그가 났다
+	// (FE QA 보고, 2026-08-20). Set으로 바꾸면 Hibernate가 동일 엔티티(같은 id)를 중복 추가하지
+	// 않아서 한 쿼리를 유지하면서도 중복이 사라진다. @OrderBy는 Set에도 그대로 적용되어 순서 유지됨.
 	@OneToMany(mappedBy = "recoveryRecord", fetch = FetchType.LAZY)
 	@OrderBy("id asc")
-	private List<PhotoRecord> photoRecords = new ArrayList<>();
+	private Set<PhotoRecord> photoRecords = new LinkedHashSet<>();
 
 	@Builder
 	private RecoveryRecord(String sessionId, Integer elapsedDay, List<RecordAction> actions, String memo) {
