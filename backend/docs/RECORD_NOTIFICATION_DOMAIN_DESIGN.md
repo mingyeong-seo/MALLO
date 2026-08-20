@@ -56,7 +56,7 @@ erDiagram
 
 ## 2. 왜 이렇게 나눴나
 
-- **RecoveryRecord**: S09 화면에서 "행동을 실제로 했는지"를 DAY 단위로 남기는 로그. 세션당 여러 행이 쌓인다 (하루에 여러 행동을 체크할 수 있어서 `(session_id, elapsed_day)` 유니크는 걸지 않음 — 하나의 DAY에 행동별로 여러 기록이 있을 수 있다고 가정).
+- **RecoveryRecord**: S09 화면에서 "행동을 실제로 했는지"를 DAY 단위로 남기는 로그. 세션당 여러 행이 쌓인다. ~~하루에 여러 행동을 체크할 수 있어서 `(session_id, elapsed_day)` 유니크는 걸지 않음~~ — 2026-08-19 `actions[]` 리팩터링으로 하루치 행동(카테고리 5개/세부 행동 최대 12개)을 기록 1건에 리스트로 한 번에 저장하는 구조로 바뀌면서 "하나의 DAY에 행동별로 여러 기록" 가정 자체가 없어졌다. `(session_id, elapsed_day)` 유니크 제약을 걸어 세션+DAY당 기록 1개로 확정(6번 open question 종결, 2026-08-20) — 같은 날 추가 확인/수정은 새 기록 생성이 아니라 `PATCH`로 처리한다.
   - `photoRecord`는 `@OneToOne(LAZY)`인데, Journal 조회(`findBySessionIdOrderByElapsedDayAsc`)에서 기록마다 사진 관찰 결과를 같이 내려줘야 해서 서비스 쪽에서 결국 필드에 접근하게 된다. EntityGraph 없이 그냥 두면 기록 건수만큼 `photo_record`를 추가로 SELECT하는 N+1이 실제로 발생함을 로컬 MySQL에 붙여서 직접 확인했다(기록 3건 → 쿼리 4번). 그래서 이 조회 메서드에만 `@EntityGraph(attributePaths = "photoRecord")`를 걸어 LEFT JOIN FETCH 한 방으로 가져오게 했다 — 필드 기본값을 `EAGER`로 바꾸지 않은 이유는, 사진이 없는 케이스(대부분)에서까지 매번 조인하게 만들고 싶지 않아서고, 지금처럼 실제로 같이 쓰는 조회 지점에만 국소적으로 EntityGraph를 얹는 게 더 안전하다고 판단했다.
 - **PhotoRecord**: 사진 + 비의료적 관찰 결과만 별도 테이블로 분리. RecoveryRecord에 사진이 선택 사항이라 1:0..1로 뺐고, `normal/side_effect/risk_score` 같은 의료 판단 필드는 절대 추가하지 않는다 (MVP 문서 10번 규칙).
 - **Notification**: 스케줄·발송 이력·인박스(읽음 상태)를 한 테이블에 통합했다. 세 개로 쪼개는 대안도 있었지만, 결국 "한 알림 건의 상태가 시간 순으로 전이"하는 것뿐이라 상태 컬럼(`status`, `is_read`)으로 표현하는 게 조인 없이 조회하기 더 간단하다고 판단. FCM 실채널·트리거 확정 후 `type`에 `HANDOFF_REPLY`(의료진 채팅 답변 도착), `PHOTO_ANALYSIS_READY`(사진 분석 결과 도착)를 추가했다 — 셋 다(`DAILY_ACTION_REMINDER` 포함) 미리 한꺼번에 예약해두는 게 아니라, 해당 이벤트(DAY 전환/Handoff 답변/사진 분석 완료)가 실제로 발생한 시점에 그때그때 한 건씩 생성한다 (`scheduled_at`을 생성 시점(now)으로 넣고 바로 발송 처리). 자세한 트리거 시점은 2-1 참고. 탭했을 때 관련 화면으로 이동할 수 있게 `reference_id`(대상 id, `session_id`와 같은 패턴으로 FK 없이 값만 보관)를 추가했다.
@@ -118,7 +118,8 @@ InnoDB 세컨더리 인덱스의 리프 노드는 (인덱스 컬럼 값 + PK 값
 
 | 인덱스 | 대상 테이블 | 커버하는 쿼리 |
 |---|---|---|
-| `idx_recovery_record_session_day` (session_id, elapsed_day) | recovery_record | Journal 화면의 "세션의 DAY별 기록 조회" (`findBySessionIdOrderByElapsedDayAsc`). ~~`findBySessionIdAndElapsedDay`~~는 하루에 같은 DAY 기록이 여러 건일 수 있다는 위 결정과 모순되는 `Optional<RecoveryRecord>` 단건 반환 메서드였고(2건 이상이면 `NonUniqueResultException`) 실제로 아무 데서도 호출되지 않던 죽은 코드라 제거함 — 이제 이 인덱스는 `findBySessionIdOrderByElapsedDayAsc` 하나만 커버 |
+| `idx_recovery_record_session_day` (session_id, elapsed_day) | recovery_record | Journal 화면의 "세션의 DAY별 기록 조회" (`findBySessionIdOrderByElapsedDayAsc`) + `GET /records/today`가 세션의 elapsed_day로 단건 조회하는 `findBySessionIdAndElapsedDay` (2026-08-20, 위 2번 유니크 제약 참고 — 이제 세션+DAY당 최대 1건이라 `Optional` 단건 반환이 안전함) |
+| `uk_recovery_record_session_day` (session_id, elapsed_day) UNIQUE | recovery_record | 세션+DAY당 기록 1개 강제 (2번 참고). 서비스 레벨 `existsBySessionIdAndElapsedDay` 사전 체크와 별개로, 동시 요청 race condition을 막는 최종 방어선. `ddl-auto=update`는 기존에 중복 행이 있으면 이 제약을 못 건다 — 적용 전 중복 데이터 정리 필요 |
 | (없음) | photo_record | `PhotoRecordRepository`에 커스텀 쿼리메서드가 아직 없다. "나중에 쓸 것 같아서" 인덱스를 미리 걸었었는데(변경 이력), 이 표의 원칙(실제 쿼리 기준으로만 추가)에 안 맞아서 뺐다. `session_id`로 사진을 직접 조회하는 쿼리가 실제로 필요해지면 그때 `idx_photo_record_session`을 추가한다 |
 | `idx_notification_session_scheduled` (session_id, scheduled_at) | notification | 인박스 목록 조회(`findBySessionIdOrderByScheduledAtDesc`) |
 | `idx_notification_status_scheduled` (status, scheduled_at) | notification | 발송 워커가 `status=SCHEDULED AND scheduled_at <= now` 로 대상 폴링(`findByStatusAndScheduledAtLessThanEqual`) |
@@ -219,7 +220,7 @@ PK를 `(session_id, id)` 복합키로 잡으면(멀티테넌트 클러스터링 
 ## 6. 확정 안 된 것 / 나중에 다시 봐야 하는 것
 
 - 계정(User) 개념 도입 시 `NotificationPreference`가 세션 단위가 맞는지, 사용자 단위로 옮겨야 하는지
-- `RecoveryRecord`에 `(session_id, elapsed_day, action)` 유니크 제약을 걸지 여부 — 현재는 같은 날 같은 행동 중복 기록을 막지 않음. 일부러 안 걸었는데, 와이어프레임 문서(FIGMA_WIREFRAME_ANALYSIS.md)가 "하루에 같은 행동을 여러 번 재확인해서 여러 번 기록할 수 있는지"를 스스로 "확인 필요"로 남겨둔 상태라, 지금 유니크 제약을 걸면 정상 시나리오를 막는 버그가 될 수 있어서 보류. 세션 담당자와 이 플로우 확정되면 다시 결정
+- ~~`RecoveryRecord`에 `(session_id, elapsed_day, action)` 유니크 제약을 걸지 여부~~ — 2026-08-20 `(session_id, elapsed_day)` 유니크로 확정, 위 2번/3-2 참고. `actions[]` 리팩터링으로 "하루 = 기록 1건(행동 리스트)" 모델이 되면서 애초에 "같은 행동 재확인"이 여러 기록이 아니라 같은 기록의 `PATCH`로 처리되는 흐름이 됨
 - `(session_id, id)` 복합 클러스터드 PK로 전환해서 bookmark lookup을 없애는 안 (4-5 참고) — 검토는 해봤지만, DAY 1~7로 기간이 상한된 도메인 특성상 세션당 행 수가 원래 안 늘어나서 실익이 거의 없다고 결론. 다만 "회복 기간"의 정의 자체가 나중에 바뀌면(예: 장기 케어로 확장) 재검토
 - `Notification` 테이블이 커졌을 때(발송 이력이 계속 쌓임) 오래된 SENT/CANCELLED/FAILED 건을 별도 아카이브 테이블로 옮길지 — MySQL은 Postgres와 달리 부분(partial) 인덱스가 없어서 `idx_notification_status_scheduled`에 죽은 상태값 엔트리가 계속 쌓이고, 이게 버퍼풀에서 실제 자주 쓰는 `SCHEDULED` 구간과 캐시 공간을 다툰다. MVP 범위 밖이라 지금은 무시, 데이터 늘어나면 재검토
 - 실제 화면(인박스 목록 등)이 엔티티 전체가 아니라 컬럼 몇 개만 필요하다는 게 확인되면, projection 쿼리로 바꿔서 커버링 인덱스를 태우는 최적화 고려 (4-3 참고)

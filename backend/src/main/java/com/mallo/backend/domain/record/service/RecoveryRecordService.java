@@ -17,6 +17,7 @@ import com.mallo.backend.domain.record.entity.RecordAction;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
 import com.mallo.backend.domain.record.port.CheckQueryPort;
+import com.mallo.backend.domain.record.port.SessionQueryPort;
 import com.mallo.backend.domain.record.repository.RecoveryRecordRepository;
 import com.mallo.backend.global.exception.CustomException;
 
@@ -30,9 +31,15 @@ public class RecoveryRecordService {
 	private final RecoveryRecordRepository recoveryRecordRepository;
 	private final PhotoRecordService photoRecordService;
 	private final CheckQueryPort checkQueryPort;
+	private final SessionQueryPort sessionQueryPort;
 
 	@Transactional
 	public RecoveryRecordResponse create(String sessionId, RecoveryRecordCreateRequest request) {
+		validateElapsedDay(sessionId, request.elapsedDay());
+		if (recoveryRecordRepository.existsBySessionIdAndElapsedDay(sessionId, request.elapsedDay())) {
+			throw new CustomException(RecordErrorCode.RECORD_ALREADY_EXISTS_FOR_DAY);
+		}
+
 		List<PhotoRecord> photoRecords = resolvePhotos(sessionId, request.photoRecordIds());
 		validateChecks(sessionId, request.actions());
 
@@ -57,14 +64,14 @@ public class RecoveryRecordService {
 
 	/**
 	 * "오늘 기록이 있는지 / record_id가 뭔지"를 프론트가 전체 목록에서 찾지 않아도 되도록
-	 * 백엔드가 오늘 날짜 기준으로 직접 판단해서 돌려준다 (docs/S09_S10_PHOTO_QA_REPLY.md 참고).
-	 * 없으면 null — 프론트는 null이면 신규 작성, 있으면 그 record_id로 수정하면 된다.
+	 * 백엔드가 세션의 실제 elapsed_day 기준으로 직접 판단해서 돌려준다 (docs/S09_S10_PHOTO_QA_REPLY.md 참고).
+	 * createdAt(달력 날짜) 기준이 아니라 elapsed_day(세션 진행일) 기준인 이유:
+	 * 세션의 elapsed_day와 어긋난 레코드가 하필 오늘 생성됐을 뿐이어도 "오늘 기록"으로 잘못 반환되는
+	 * 문제가 있었음 (FE QA 보고, 2026-08-20). 없으면 null — 프론트는 null이면 신규 작성, 있으면 그 record_id로 수정하면 된다.
 	 */
 	public RecoveryRecordResponse getToday(String sessionId) {
-		LocalDate today = LocalDate.now();
-		Optional<RecoveryRecord> record = recoveryRecordRepository
-				.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-						sessionId, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+		int elapsedDay = sessionQueryPort.getElapsedDay(UUID.fromString(sessionId));
+		Optional<RecoveryRecord> record = recoveryRecordRepository.findBySessionIdAndElapsedDay(sessionId, elapsedDay);
 		return record.map(this::toResponse).orElse(null);
 	}
 
@@ -102,6 +109,18 @@ public class RecoveryRecordService {
 						.performedStatus(entry.performedStatus())
 						.build())
 				.toList();
+	}
+
+	/**
+	 * 요청의 elapsedDay가 세션의 실제 진행일과 같은지 검증한다.
+	 * 검증 없이 저장하면(FE QA 보고, 2026-08-20) 다른 DAY로 만들어진 기록이 /records/today에 잡혀서
+	 * 엉뚱한 기록이 수정되는 사고로 이어질 수 있다.
+	 */
+	private void validateElapsedDay(String sessionId, Integer elapsedDay) {
+		int sessionElapsedDay = sessionQueryPort.getElapsedDay(UUID.fromString(sessionId));
+		if (!elapsedDay.equals(sessionElapsedDay)) {
+			throw new CustomException(RecordErrorCode.RECORD_ELAPSED_DAY_MISMATCH);
+		}
 	}
 
 	/** actions[]의 checkId 각각이 실제로 존재하고 같은 세션 것인지 검증한다 (resolvePhotos와 동일 패턴). */

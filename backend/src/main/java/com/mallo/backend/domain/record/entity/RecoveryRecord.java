@@ -19,6 +19,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -31,6 +32,13 @@ import lombok.NoArgsConstructor;
 @Table(name = "recovery_record", indexes = {
 		// Journal 화면(세션의 DAY별 기록 조회)이 커버링에 가깝게 타도록 session_id + elapsed_day 복합 인덱스
 		@Index(name = "idx_recovery_record_session_day", columnList = "session_id, elapsed_day")
+}, uniqueConstraints = {
+		// 세션+DAY당 기록 1개로 확정 (docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 6번 open question 종결,
+		// 2026-08-20). 서비스 레벨 existsBySessionIdAndElapsedDay 체크와 동일한 규칙을 DB 레벨에서도
+		// 강제해서 동시 요청 race condition까지 막는다.
+		// 주의: ddl-auto=update는 기존 테이블에 이미 같은 session_id+elapsed_day 중복 행이 있으면
+		// 이 제약을 추가하지 못하고 경고만 남긴다 — 적용 전에 중복 데이터부터 정리해야 한다.
+		@UniqueConstraint(name = "uk_recovery_record_session_day", columnNames = {"session_id", "elapsed_day"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

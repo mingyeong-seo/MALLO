@@ -1,8 +1,8 @@
 package com.mallo.backend.domain.record.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import com.mallo.backend.domain.record.entity.PerformedStatus;
 import com.mallo.backend.domain.record.entity.PhotoRecord;
@@ -25,8 +26,8 @@ import jakarta.persistence.EntityManagerFactory;
 
 /**
  * docs/RECORD_NOTIFICATION_DOMAIN_DESIGN.md 2번 "왜 이렇게 나눴나"에서 결정한
- * "하루에 같은 행동을 여러 번 기록할 수 있어서 (session_id, elapsed_day) 유니크는 걸지 않는다"가
- * 실제 스키마에도 반영돼 있는지, DAY 오름차순 조회 인덱스가 의도대로 동작하는지 검증한다.
+ * "세션+DAY당 기록 1개 — (session_id, elapsed_day) 유니크 제약"이 실제 스키마에도 반영돼 있는지,
+ * DAY 오름차순 조회 인덱스가 의도대로 동작하는지 검증한다.
  */
 @DataJpaTest
 @Import(JpaAuditingConfig.class)
@@ -61,15 +62,14 @@ class RecoveryRecordRepositoryTest {
 	}
 
 	@Test
-	void 같은_DAY에_행동별로_여러_기록을_저장할_수_있다() {
-		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
-		recoveryRecordRepository.save(record(1, CHECK_MEDICATION));
+	void 같은_세션_DAY에_중복_저장하면_유니크_제약에_걸린다() {
+		// (session_id, elapsed_day) 유니크 제약 확정 (2026-08-20, FE QA로 확인된
+		// /records/today 오동작 회귀 방지). 같은 DAY의 행동 여러 개는 별도 기록이 아니라
+		// actions[]로 한 기록에 묶어 저장한다.
+		recoveryRecordRepository.saveAndFlush(record(1, CHECK_EXERCISE));
 
-		List<RecoveryRecord> journal = recoveryRecordRepository.findBySessionIdOrderByElapsedDayAsc(SESSION_ID);
-
-		assertThat(journal).hasSize(2);
-		assertThat(journal).extracting(record -> record.getActions().get(0).getCheckId())
-				.containsExactlyInAnyOrder(CHECK_EXERCISE, CHECK_MEDICATION);
+		assertThatThrownBy(() -> recoveryRecordRepository.saveAndFlush(record(1, CHECK_MEDICATION)))
+				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@Test
@@ -177,28 +177,32 @@ class RecoveryRecordRepositoryTest {
 	}
 
 	@Test
-	void 생성일_범위_안의_기록을_찾는다() {
+	void elapsedDay가_일치하는_기록을_찾는다() {
 		RecoveryRecord record = recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
 
-		LocalDate today = LocalDate.now();
-		Optional<RecoveryRecord> found = recoveryRecordRepository
-				.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-						SESSION_ID, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+		Optional<RecoveryRecord> found = recoveryRecordRepository.findBySessionIdAndElapsedDay(SESSION_ID, 1);
 
 		assertThat(found).isPresent();
 		assertThat(found.get().getId()).isEqualTo(record.getId());
 	}
 
 	@Test
-	void 생성일_범위_밖이면_찾지_못한다() {
-		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
+	void elapsedDay가_다르면_찾지_못한다() {
+		// createdAt은 오늘이어도 elapsedDay가 세션 진행일과 다르면 "오늘 기록"이 아니다
+		// (FE QA로 확인된 버그, 2026-08-20) — createdAt 기준이 아니라 elapsedDay 기준으로 조회함을 확인
+		recoveryRecordRepository.save(record(7, CHECK_EXERCISE));
 
-		LocalDate yesterday = LocalDate.now().minusDays(1);
-		Optional<RecoveryRecord> found = recoveryRecordRepository
-				.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-						SESSION_ID, yesterday.atStartOfDay(), yesterday.plusDays(1).atStartOfDay());
+		Optional<RecoveryRecord> found = recoveryRecordRepository.findBySessionIdAndElapsedDay(SESSION_ID, 8);
 
 		assertThat(found).isEmpty();
+	}
+
+	@Test
+	void 같은_세션_DAY에_기록이_있는지_존재_여부를_확인한다() {
+		recoveryRecordRepository.save(record(1, CHECK_EXERCISE));
+
+		assertThat(recoveryRecordRepository.existsBySessionIdAndElapsedDay(SESSION_ID, 1)).isTrue();
+		assertThat(recoveryRecordRepository.existsBySessionIdAndElapsedDay(SESSION_ID, 2)).isFalse();
 	}
 
 	private RecoveryRecord record(int elapsedDay, UUID checkId) {
