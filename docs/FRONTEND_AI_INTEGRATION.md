@@ -24,7 +24,9 @@ npm start
 
 추가 API 키 등록, Gabia AI 서버 설정, OpenRouter 설정은 없습니다. `EXPO_PUBLIC_API_BASE_URL`을 비워두거나 `.env.local`을 만들지 않아도 기본값으로 운영 Spring API `https://mallo-api.site`를 사용합니다.
 
-로컬 Spring에 붙여 테스트할 때만 `frontend/.env.example`을 복사해 `.env.local`을 만들고 주소를 바꾸면 됩니다.
+로컬 Spring에 붙여 테스트할 때만 `frontend/.env.example`을 복사해 `.env.local`을 만들고 `http://localhost:<port>`로 바꿉니다. 프로덕션 빌드는 이 값을 무시하고 항상 `https://mallo-api.site`만 사용합니다.
+
+웹 개발 서버도 `http://localhost:<port>`로 열어야 합니다. 배포된 Spring의 기본 CORS 패턴은 `http://localhost:*`이며 `127.0.0.1` 브라우저 origin은 포함하지 않습니다.
 
 ### 백엔드 담당
 
@@ -33,7 +35,9 @@ npm start
 - `AI_BASE_URL`
 - `AI_SHARED_SECRET`
 
-백엔드 담당자는 `feat/ai-triage-service`를 실제 배포 브랜치에 병합하고 기존 CI/CD 배포 성공만 확인하면 됩니다. 환경변수를 새로 만들거나 프론트 계약을 수정할 필요가 없습니다.
+백엔드 담당자는 AI 연동 PR [#35 (`feat/ai-triage-service`)](https://github.com/mingyeong-seo/MALLO/pull/35)를 실제 배포 브랜치에 병합하고 GitHub Deploy Action 성공만 확인하면 됩니다. PR #35의 현재 diff에 AI 환경변수 주입까지 포함되어 있으므로 환경변수를 새로 만들거나 프론트 계약을 수정할 필요가 없습니다.
+
+PR #36은 PR #35가 병합되면 중복되는 배포 변경입니다. 두 PR을 순서 확인 없이 모두 병합하지 말고, PR #35를 기준으로 배포한 뒤 #36의 필요 여부를 다시 확인합니다.
 
 선택값인 `AI_CONNECT_TIMEOUT_MS`, `AI_READ_TIMEOUT_MS`는 Spring 기본값이 있으므로 해커톤 제출용 연동에서는 등록하지 않아도 됩니다. 프론트 요청·응답 계약은 변경할 필요가 없습니다.
 
@@ -134,3 +138,7 @@ npx expo export --platform web
 ```
 
 현재 운영 `mallo-api.site`의 `/v1/ask`는 AI Spring 브랜치가 운영에 병합·배포된 뒤 새 AI 분류를 사용합니다. 그 전까지 프론트 코드는 새 계약을 사용하더라도 운영 응답은 기존 키워드 분류 동작일 수 있습니다.
+
+## 상속된 의존성 위험
+
+`npm audit`의 19건(중간 10, 높음 9)은 `origin/frontend`에도 동일하게 존재하는 Expo 빌드 체인 경고입니다. `npm audit fix --force`는 Expo 54를 57로 올리는 호환성 변경을 포함하므로 이번 AI 연동에서 의존성을 강제 변경하지 않습니다. 제출 기능과 분리된 기존 빌드 체인 위험으로 추적합니다.
