@@ -8,10 +8,10 @@
 
 멋쟁이사자처럼 14기 중앙 해커톤 · **AAC Wellness with AI Track**
 
-서비스 체험하기 *(준비 중)* · 2분 데모 영상 *(준비 중)* · [🛠️ Swagger](https://mallo-api.site/swagger-ui/index.html) · 📑 발표 자료 *(준비 중)*
+[🚀 서비스 체험하기](https://mallo-recovery.vercel.app) · 2분 데모 영상 *(준비 중)* · [🛠️ Swagger](https://mallo-api.site/swagger-ui/index.html) · 📑 발표 자료 *(준비 중)*
 
-<!-- 링크가 준비되면 위 줄을 아래 줄로 교체하세요.
-[🚀 서비스 체험하기](FRONTEND_URL) · [▶️ 2분 데모 영상](YOUTUBE_URL) · [🛠️ Swagger](https://mallo-api.site/swagger-ui/index.html) · [📑 발표 자료](IR_DECK_URL)
+<!-- 데모 영상과 발표 자료 링크가 준비되면 위 줄을 아래 줄로 교체하세요.
+[🚀 서비스 체험하기](https://mallo-recovery.vercel.app) · [▶️ 2분 데모 영상](YOUTUBE_URL) · [🛠️ Swagger](https://mallo-api.site/swagger-ui/index.html) · [📑 발표 자료](IR_DECK_URL)
 -->
 
 <br />
@@ -76,11 +76,13 @@ MALLO가 제공하는 결과는 네 가지입니다.
 
 해커톤용 DERNA 진입 화면부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Journal 저장까지 한 번에 보여드릴 예정입니다.
 
+[🚀 최종 Production 서비스 체험하기](https://mallo-recovery.vercel.app)
+
 <!-- 영상이 준비되면 이 안내 문구를 지우고 아래 코드를 사용하세요.
 
 [![MALLO 2분 시연 영상](./docs/readme-assets/demo-thumbnail.png)](YOUTUBE_URL)
 
-[🚀 서비스 직접 체험하기](FRONTEND_URL) · [▶️ 2분 시연 영상](YOUTUBE_URL)
+[🚀 서비스 직접 체험하기](https://mallo-recovery.vercel.app) · [▶️ 2분 시연 영상](YOUTUBE_URL)
 
 권장 파일:
 - docs/readme-assets/demo-thumbnail.png
@@ -316,7 +318,7 @@ REJURAN
 
 ### Quality
 
-- **Backend:** 207 automated tests 통과, GitHub Actions 테스트 Workflow 구성
+- **Backend:** 426 automated tests 통과, GitHub Actions 테스트 Workflow 구성
 - **AI:** unit · integration · HTTP E2E 테스트와 strict contract·branch coverage 설정
 - **Frontend:** ESLint 기반 정적 검사
 - **Deployment:** `dev` merge 시 Backend 테스트·빌드·EC2 자동 배포
@@ -329,7 +331,7 @@ REJURAN
 
 | 검증 영역 | 해커톤에서 확인한 내용 |
 | --- | --- |
-| Backend | 207개 자동화 테스트 통과 |
+| Backend | 426개 자동화 테스트 통과 |
 | AI 계약 | unit · integration · HTTP E2E 테스트 구성 |
 | 의료 안전 | 고위험 질문을 결정론적으로 `CONNECT` 처리 |
 | 핵심 경험 | Quick Check 3단계와 ASK 조건 확인 흐름 구현 |
@@ -383,25 +385,36 @@ uv run uvicorn --app-dir src mallo_ai.main:app --host 127.0.0.1 --port 8000
 
 ## 👥 Team
 
-| Backend | Frontend | Research / Product |
-| :---: | :---: | :---: |
-| 3명 | 2명 | 3명 |
-| Session · Protocol · AI · Infra | Expo UI · API Integration | Recovery Protocol · UX · IR |
-
-<!--
-팀원 정보가 확정되면 위 요약 표를 아래 형식으로 교체하세요.
-
-| 이름 | 역할 | 담당 | GitHub |
-| :---: | --- | --- | :---: |
-| 팀원 이름 | Backend | Session · Protocol · Infra | [@username](https://github.com/USERNAME) |
-| 팀원 이름 | Backend / AI | ASK MALLO · Safety Gate | [@username](https://github.com/USERNAME) |
-| 팀원 이름 | Backend | Record · Handoff · Notification | [@username](https://github.com/USERNAME) |
-| 팀원 이름 | Frontend | Recovery Journey · Quick Check | [@username](https://github.com/USERNAME) |
-| 팀원 이름 | Frontend | ASK MALLO · Record · API Integration | [@username](https://github.com/USERNAME) |
-| 팀원 이름 | Research / Product | Recovery Protocol · 사용자 리서치 | [@username](https://github.com/USERNAME) |
-
-프로필 이미지를 넣고 싶다면 docs/readme-assets/team/ 아래에 저장한 뒤 WayToEarth 형태의 HTML table로 변경할 수 있습니다.
--->
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://github.com/mingyeong-seo"><img src="https://github.com/mingyeong-seo.png?size=120" width="100" alt="mingyeong-seo GitHub profile" /><br /><b>@mingyeong-seo</b></a><br />
+      <sub>Frontend · 기획</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/se0nes1393"><img src="https://github.com/se0nes1393.png?size=120" width="100" alt="se0nes1393 GitHub profile" /><br /><b>@se0nes1393</b></a><br />
+      <sub>Frontend</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/leepg038292"><img src="https://github.com/leepg038292.png?size=120" width="100" alt="leepg038292 GitHub profile" /><br /><b>@leepg038292</b></a><br />
+      <sub>Backend</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://github.com/kimhwanhui12"><img src="https://github.com/kimhwanhui12.png?size=120" width="100" alt="kimhwanhui12 GitHub profile" /><br /><b>@kimhwanhui12</b></a><br />
+      <sub>Backend</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/jiung23"><img src="https://github.com/jiung23.png?size=120" width="100" alt="jiung23 GitHub profile" /><br /><b>@jiung23</b></a><br />
+      <sub>Backend</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://github.com/kjhk3082"><img src="https://github.com/kjhk3082.png?size=120" width="100" alt="kjhk3082 GitHub profile" /><br /><b>@kjhk3082</b></a><br />
+      <sub>AI · 기획</sub>
+    </td>
+  </tr>
+</table>
 
 <div align="center">
 
