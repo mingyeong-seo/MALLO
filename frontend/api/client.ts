@@ -1,5 +1,6 @@
 import ky from 'ky';
 
+import { resolveApiBaseUrl } from './api-base-url';
 import {
   askEnvelopeSchema,
   quickCheckEnvelopeSchema,
@@ -12,10 +13,11 @@ import {
   type SessionWire,
 } from './contracts';
 
-const DEFAULT_API_BASE_URL = 'https://mallo-api.site';
 const SESSION_HEADER = 'X-Session-Id';
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
+const apiBaseUrl = resolveApiBaseUrl(
+  process.env.EXPO_PUBLIC_API_BASE_URL,
+  process.env.NODE_ENV === 'production',
+);
 
 const api = ky.create({
   prefix: apiBaseUrl,
