@@ -2,6 +2,7 @@ package com.mallo.backend.global.config;
 
 import java.nio.charset.StandardCharsets;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,6 +33,11 @@ public class SecurityConfig {
 	private final SessionAuthenticationFilter sessionAuthenticationFilter;
 	private final ObjectMapper objectMapper;
 
+	// PhotoStorageConfig가 이 prefix로 정적 리소스를 서빙한다. 같은 값을 여기서도 써서
+	// "정적 파일 서빙 경로"와 "인증 예외 경로"가 항상 같이 움직이게 한다(따로 하드코딩하면 드리프트 위험).
+	@Value("${photo.storage.url-prefix}")
+	private String photoUrlPrefix;
+
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
@@ -48,6 +54,11 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/v1/sessions").permitAll()
 						// Swagger / OpenAPI 문서는 개발 편의상 허용
 						.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+						// 업로드된 사진 정적 파일: API가 아니라 그냥 이미지 서빙이라 원래 인증 대상이 아니었는데
+						// anyRequest().authenticated()에 같이 걸려있던 버그. FE가 <Image source={{uri}}>로
+						// 커스텀 헤더 없이 그냥 열람하는 구조라 여기만 공개로 뺀다. 파일명 자체가 업로드 시점
+						// 랜덤 UUID라 URL을 아는 사람만 접근 가능 (session_id 목록 공개와 같은 수준의 MVP 트레이드오프).
+						.requestMatchers(HttpMethod.GET, photoUrlPrefix + "/**").permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(ex -> ex.authenticationEntryPoint(sessionAuthenticationEntryPoint()))
 				.addFilterBefore(sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
