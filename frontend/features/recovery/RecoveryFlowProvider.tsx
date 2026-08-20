@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
 } from 'react';
 
 import { getTodaySession } from '@/api/client';
@@ -22,6 +23,7 @@ import type {
 } from './types';
 
 type RecoveryFlowState = {
+  hasSessionHydrationError: boolean;
   isHydratingSession: boolean;
   quickChecks: QuickCheckResult[];
   recoveryRecords: RecoveryRecord[];
@@ -32,11 +34,14 @@ type RecoveryFlowAction =
   | { type: 'SAVE_QUICK_CHECK'; payload: QuickCheckResult }
   | { type: 'UPSERT_RECOVERY_RECORD'; payload: RecoveryRecord }
   | { type: 'SET_RECOVERY_SESSION'; payload: RecoverySession | null }
+  | { type: 'START_SESSION_HYDRATION' }
+  | { type: 'FAIL_SESSION_HYDRATION' }
   | { type: 'FINISH_SESSION_HYDRATION' };
 
 type RecoveryFlowContextValue = RecoveryFlowState & {
   findQuickCheck: (checkId: string) => QuickCheckResult | undefined;
   findRecoveryRecord: (elapsedDay: number) => RecoveryRecord | undefined;
+  retrySessionHydration: () => void;
   activateRecoverySession: (session: RecoverySession) => Promise<void>;
   clearRecoverySession: () => Promise<void>;
   saveQuickCheck: (result: QuickCheckResult) => void;
@@ -44,6 +49,7 @@ type RecoveryFlowContextValue = RecoveryFlowState & {
 };
 
 const initialState: RecoveryFlowState = {
+  hasSessionHydrationError: false,
   isHydratingSession: true,
   quickChecks: [],
   recoveryRecords: [],
@@ -84,7 +90,22 @@ function recoveryFlowReducer(
     case 'SET_RECOVERY_SESSION':
       return {
         ...state,
+        hasSessionHydrationError: false,
         recoverySession: action.payload,
+      };
+
+    case 'START_SESSION_HYDRATION':
+      return {
+        ...state,
+        hasSessionHydrationError: false,
+        isHydratingSession: true,
+      };
+
+    case 'FAIL_SESSION_HYDRATION':
+      return {
+        ...state,
+        hasSessionHydrationError: true,
+        recoverySession: null,
       };
 
     case 'FINISH_SESSION_HYDRATION':
@@ -97,6 +118,7 @@ function recoveryFlowReducer(
 
 export function RecoveryFlowProvider({ children }: PropsWithChildren) {
   const [state, dispatch] = useReducer(recoveryFlowReducer, initialState);
+  const hydrationRunRef = useRef(0);
 
   const saveQuickCheck = useCallback((result: QuickCheckResult) => {
     dispatch({ type: 'SAVE_QUICK_CHECK', payload: result });
@@ -106,29 +128,39 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
     dispatch({ type: 'UPSERT_RECOVERY_RECORD', payload: record });
   }, []);
 
-  useEffect(() => {
-    let isActive = true;
-
+  const retrySessionHydration = useCallback(() => {
+    const runId = hydrationRunRef.current + 1;
+    hydrationRunRef.current = runId;
+    dispatch({ type: 'START_SESSION_HYDRATION' });
     void runSessionHydration({
       clearSessionId,
+      fail: () => {
+        if (hydrationRunRef.current === runId) {
+          dispatch({ type: 'FAIL_SESSION_HYDRATION' });
+        }
+      },
       finish: () => {
-        if (isActive) {
+        if (hydrationRunRef.current === runId) {
           dispatch({ type: 'FINISH_SESSION_HYDRATION' });
         }
       },
       getTodaySession,
       readSessionId,
       setSession: (session) => {
-        if (isActive) {
+        if (hydrationRunRef.current === runId) {
           dispatch({ type: 'SET_RECOVERY_SESSION', payload: session });
         }
       },
     });
+  }, []);
+
+  useEffect(() => {
+    retrySessionHydration();
 
     return () => {
-      isActive = false;
+      hydrationRunRef.current += 1;
     };
-  }, []);
+  }, [retrySessionHydration]);
 
   const activateRecoverySession = useCallback(
     async (session: RecoverySession) => {
@@ -162,6 +194,7 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
       clearRecoverySession,
       findQuickCheck,
       findRecoveryRecord,
+      retrySessionHydration,
       saveQuickCheck,
       upsertRecoveryRecord,
     }),
@@ -170,6 +203,7 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
       clearRecoverySession,
       findQuickCheck,
       findRecoveryRecord,
+      retrySessionHydration,
       saveQuickCheck,
       state,
       upsertRecoveryRecord,

@@ -6,6 +6,7 @@ import type { RecoverySession } from './types';
 
 export type SessionHydrationDependencies = {
   readonly clearSessionId: () => Promise<void>;
+  readonly fail: () => void;
   readonly finish: () => void;
   readonly getTodaySession: (sessionId: string) => Promise<SessionWire>;
   readonly readSessionId: () => Promise<string | null>;
@@ -33,6 +34,8 @@ export async function runSessionHydration(
       [401, 404].includes(error.response.status)
     ) {
       await clearSessionIdBestEffort(dependencies.clearSessionId);
+    } else {
+      dependencies.fail();
     }
   } finally {
     dependencies.finish();

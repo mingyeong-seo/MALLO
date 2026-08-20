@@ -18,16 +18,17 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { SessionLoadState } from '@/features/recovery/SessionLoadState';
 
 export default function JourneyScreen() {
-  const { isHydratingSession, recoverySession } = useRecoveryFlow();
+  const flow = useRecoveryFlow();
 
-  if (isHydratingSession) {
-    return null;
+  if (flow.isHydratingSession || flow.hasSessionHydrationError) {
+    return <SessionLoadState isLoading={flow.isHydratingSession} onRetry={flow.retrySessionHydration} />;
   }
 
   // 이미 시술 정보가 있으면 Recovery Journey Home(S04)으로 바로 이동
-  if (recoverySession) {
+  if (flow.recoverySession) {
     return <Redirect href="/(tabs)/journey/home" />;
   }
 
