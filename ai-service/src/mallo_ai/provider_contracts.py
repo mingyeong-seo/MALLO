@@ -223,7 +223,7 @@ class ConnectDecision(StrictModel):
 
 
 class GeneralDecision(StrictModel):
-    """In-scope non-action question without generated guidance."""
+    """Explicitly in-scope non-action question without generated guidance."""
 
     route: Literal[Route.GENERAL] = Route.GENERAL
     action: None = None
@@ -234,7 +234,7 @@ class GeneralDecision(StrictModel):
 
 
 class UnsupportedDecision(StrictModel):
-    """Out-of-scope question without generated guidance."""
+    """Out-of-scope or context-free ambiguous question without generated guidance."""
 
     route: Literal[Route.UNSUPPORTED] = Route.UNSUPPORTED
     action: None = None
