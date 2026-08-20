@@ -193,10 +193,12 @@ export default function QuickCheckResultScreen() {
               </View>
             ))}
           </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Protocol version</Text>
-            <Text style={styles.metaValue}>{result.protocolVersion}</Text>
-          </View>
+          {result.protocolVersion ? (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Protocol version</Text>
+              <Text style={styles.metaValue}>{result.protocolVersion}</Text>
+            </View>
+          ) : null}
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>저장 시점</Text>
             <Text style={styles.metaValue}>

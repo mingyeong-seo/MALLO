@@ -14,7 +14,7 @@ import { MALLO_COLORS } from '@/constants/colors';
 import { styles } from '@/features/ask/styles';
 
 type QuestionComposerProps = {
-  attachments: string[];
+  attachments: readonly string[];
   bottomClearance: number;
   notice: string;
   onChangeText: (value: string) => void;
