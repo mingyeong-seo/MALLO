@@ -3,7 +3,6 @@ package com.mallo.backend.domain.record.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -34,6 +33,7 @@ import com.mallo.backend.domain.record.entity.RecordAction;
 import com.mallo.backend.domain.record.entity.RecoveryRecord;
 import com.mallo.backend.domain.record.exception.RecordErrorCode;
 import com.mallo.backend.domain.record.port.CheckQueryPort;
+import com.mallo.backend.domain.record.port.SessionQueryPort;
 import com.mallo.backend.domain.record.repository.RecoveryRecordRepository;
 import com.mallo.backend.global.exception.CustomException;
 
@@ -53,6 +53,9 @@ class RecoveryRecordServiceTest {
 
 	@Mock
 	private CheckQueryPort checkQueryPort;
+
+	@Mock
+	private SessionQueryPort sessionQueryPort;
 
 	@InjectMocks
 	private RecoveryRecordService recoveryRecordService;
@@ -92,6 +95,7 @@ class RecoveryRecordServiceTest {
 
 		@Test
 		void 사진_없이_기록을_생성한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(1);
 			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
 					1, actionEntries(CHECK_ID, PerformedStatus.DONE), "가볍게 산책함", null);
 
@@ -110,6 +114,7 @@ class RecoveryRecordServiceTest {
 
 		@Test
 		void 같은_세션의_사진들을_연결해서_기록을_생성한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(2);
 			PhotoRecord photo1 = photoRecord(SESSION_ID);
 			PhotoRecord photo2 = photoRecord(SESSION_ID);
 			given(photoRecordService.getById(10L)).willReturn(photo1);
@@ -128,6 +133,7 @@ class RecoveryRecordServiceTest {
 
 		@Test
 		void 다른_세션의_사진을_연결하려면_예외가_발생한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(2);
 			PhotoRecord photo = photoRecord(OTHER_SESSION_ID);
 			given(photoRecordService.getById(10L)).willReturn(photo);
 
@@ -144,6 +150,7 @@ class RecoveryRecordServiceTest {
 
 		@Test
 		void 존재하지_않거나_다른_세션의_check_id면_예외가_발생한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(1);
 			given(checkQueryPort.existsForSession(OTHER_CHECK_ID, UUID.fromString(SESSION_ID))).willReturn(false);
 
 			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
@@ -153,6 +160,37 @@ class RecoveryRecordServiceTest {
 					.isInstanceOf(CustomException.class)
 					.extracting(e -> ((CustomException) e).getErrorCode())
 					.isEqualTo(RecordErrorCode.CHECK_SESSION_MISMATCH);
+
+			verify(recoveryRecordRepository, never()).save(any());
+		}
+
+		@Test
+		void elapsedDay가_세션의_진행일과_다르면_예외가_발생한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(8);
+
+			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
+					7, actionEntries(CHECK_ID, PerformedStatus.DONE), null, null);
+
+			assertThatThrownBy(() -> recoveryRecordService.create(SESSION_ID, request))
+					.isInstanceOf(CustomException.class)
+					.extracting(e -> ((CustomException) e).getErrorCode())
+					.isEqualTo(RecordErrorCode.RECORD_ELAPSED_DAY_MISMATCH);
+
+			verify(recoveryRecordRepository, never()).save(any());
+		}
+
+		@Test
+		void 같은_세션_DAY에_이미_기록이_있으면_예외가_발생한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(1);
+			given(recoveryRecordRepository.existsBySessionIdAndElapsedDay(SESSION_ID, 1)).willReturn(true);
+
+			RecoveryRecordCreateRequest request = new RecoveryRecordCreateRequest(
+					1, actionEntries(CHECK_ID, PerformedStatus.DONE), null, null);
+
+			assertThatThrownBy(() -> recoveryRecordService.create(SESSION_ID, request))
+					.isInstanceOf(CustomException.class)
+					.extracting(e -> ((CustomException) e).getErrorCode())
+					.isEqualTo(RecordErrorCode.RECORD_ALREADY_EXISTS_FOR_DAY);
 
 			verify(recoveryRecordRepository, never()).save(any());
 		}
@@ -178,14 +216,15 @@ class RecoveryRecordServiceTest {
 	class GetToday {
 
 		@Test
-		void 오늘_기록이_있으면_반환한다() {
+		void 세션의_elapsedDay에_해당하는_기록이_있으면_반환한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(3);
 			RecoveryRecord record = RecoveryRecord.builder()
 					.sessionId(SESSION_ID)
 					.elapsedDay(3)
 					.actions(recordActions(CHECK_ID, PerformedStatus.DONE))
 					.build();
-			given(recoveryRecordRepository.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-					eq(SESSION_ID), any(), any())).willReturn(Optional.of(record));
+			given(recoveryRecordRepository.findBySessionIdAndElapsedDay(SESSION_ID, 3))
+					.willReturn(Optional.of(record));
 
 			RecoveryRecordResponse response = recoveryRecordService.getToday(SESSION_ID);
 
@@ -194,9 +233,24 @@ class RecoveryRecordServiceTest {
 		}
 
 		@Test
-		void 오늘_기록이_없으면_null을_반환한다() {
-			given(recoveryRecordRepository.findFirstBySessionIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-					eq(SESSION_ID), any(), any())).willReturn(Optional.empty());
+		void 세션의_elapsedDay에_해당하는_기록이_없으면_null을_반환한다() {
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(3);
+			given(recoveryRecordRepository.findBySessionIdAndElapsedDay(SESSION_ID, 3))
+					.willReturn(Optional.empty());
+
+			RecoveryRecordResponse response = recoveryRecordService.getToday(SESSION_ID);
+
+			assertThat(response).isNull();
+		}
+
+		@Test
+		void createdAt이_오늘이어도_세션_elapsedDay와_다른_기록은_반환하지_않는다() {
+			// FE QA로 확인된 버그(2026-08-20) 회귀 방지: 오늘 생성됐지만 세션의 진행일과 어긋난
+			// 레코드가 "오늘 기록"으로 잘못 반환되면 안 된다. elapsedDay 기준 조회만 타므로
+			// createdAt 관련 stub이 아예 없어도(=호출되지 않아도) 통과해야 정상이다.
+			given(sessionQueryPort.getElapsedDay(UUID.fromString(SESSION_ID))).willReturn(8);
+			given(recoveryRecordRepository.findBySessionIdAndElapsedDay(SESSION_ID, 8))
+					.willReturn(Optional.empty());
 
 			RecoveryRecordResponse response = recoveryRecordService.getToday(SESSION_ID);
 

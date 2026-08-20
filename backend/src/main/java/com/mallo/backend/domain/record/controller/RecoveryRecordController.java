@@ -34,7 +34,10 @@ public class RecoveryRecordController {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
 					description = "요청 검증 실패, 다른 세션의 photoRecordId를 연결하려 함, "
-							+ "또는 존재하지 않거나 다른 세션의 check_id를 연결하려 함")
+							+ "존재하지 않거나 다른 세션의 check_id를 연결하려 함, "
+							+ "또는 elapsedDay가 세션의 실제 진행일과 다름"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409",
+					description = "이미 해당 DAY에 기록이 존재함 (수정은 PATCH 사용)")
 	})
 	@PostMapping("/v1/sessions/{sessionId}/records")
 	public ApiResponse<RecoveryRecordResponse> create(

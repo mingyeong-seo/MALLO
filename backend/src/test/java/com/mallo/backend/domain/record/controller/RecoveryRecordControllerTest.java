@@ -106,6 +106,34 @@ class RecoveryRecordControllerTest {
 	}
 
 	@Test
+	void elapsedDay가_세션_진행일과_다르면_400을_반환한다() throws Exception {
+		given(recoveryRecordService.create(eq(SESSION_ID), any()))
+				.willThrow(new CustomException(RecordErrorCode.RECORD_ELAPSED_DAY_MISMATCH));
+
+		mockMvc.perform(withAuth(post("/v1/sessions/{sessionId}/records", SESSION_ID)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"elapsed_day":7,"actions":[{"check_id":"%s","performed_status":"DONE"}]}
+								""".formatted(CHECK_ID))))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.success").value(false));
+	}
+
+	@Test
+	void 같은_DAY에_이미_기록이_있으면_409를_반환한다() throws Exception {
+		given(recoveryRecordService.create(eq(SESSION_ID), any()))
+				.willThrow(new CustomException(RecordErrorCode.RECORD_ALREADY_EXISTS_FOR_DAY));
+
+		mockMvc.perform(withAuth(post("/v1/sessions/{sessionId}/records", SESSION_ID)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"elapsed_day":1,"actions":[{"check_id":"%s","performed_status":"DONE"}]}
+								""".formatted(CHECK_ID))))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.success").value(false));
+	}
+
+	@Test
 	void 세션의_저널을_조회한다() throws Exception {
 		given(recoveryRecordService.getJournal(SESSION_ID)).willReturn(List.of(response()));
 
