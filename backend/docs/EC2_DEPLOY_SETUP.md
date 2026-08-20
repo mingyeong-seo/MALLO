@@ -86,6 +86,10 @@ ssh ec2-user@<EC2_HOST> 'cd ~/mallo && bash remote-deploy.sh'
 | `EC2_HOST` | EC2 퍼블릭 IP 또는 도메인 |
 | `EC2_USER` | `ec2-user` (또는 만든 배포 계정) |
 | `EC2_SSH_KEY` | 1번에서 만든 `.pem` 파일 내용 통째로 |
+| `AI_BASE_URL` | Gabia AI 서버의 HTTPS 주소 |
+| `AI_SHARED_SECRET` | Gabia AI 서버와 같은 32자 공유 비밀 |
+
+`AI_BASE_URL`과 `AI_SHARED_SECRET`은 EC2에 직접 붙여넣지 않는다. `dev` 배포마다 GitHub Actions가 `~/mallo/.env`의 기존 AI 항목을 갱신하고, DB·Firebase·사진 저장 경로 같은 나머지 설정은 그대로 보존한다. 두 AI 항목은 파일에 각각 하나만 남으며 권한은 `600`으로 고정된다.
 
 ## 5. 자동 배포로 전환 — 완료 (2026-08-19)
 

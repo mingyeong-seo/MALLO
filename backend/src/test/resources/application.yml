@@ -17,3 +17,9 @@ photo:
   storage:
     dir: build/test-photos
     url-prefix: /uploads/photos
+
+ai:
+  base-url: http://ai.test
+  shared-secret: test-secret
+  connect-timeout-ms: 1000
+  read-timeout-ms: 8000

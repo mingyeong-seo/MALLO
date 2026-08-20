@@ -1,0 +1,79 @@
+# MALLO AI Service
+
+Internal FastAPI triage service for ASK MALLO. The Spring backend owns sessions,
+protocol matching, final recovery guidance, and persistence; this service only
+returns the closed triage route/action/context contract.
+
+## Required Environment
+
+Create `ai-service/.env.local` locally. It is ignored by Git and excluded from
+the Docker build context.
+
+Add these variables to `ai-service/.env.local`:
+
+- `OPENROUTER_API_KEY`: your OpenRouter key
+- `AI_SHARED_SECRET`: `<exactly-32-characters>`
+- `MALLO_AI_MODEL`: `openai/gpt-5.6-luna`
+
+`MALLO_AI_MODEL` is optional. The default is `openai/gpt-5.6-luna`.
+
+## Local Quality Gate
+
+```sh
+cd ai-service
+uv run ruff format --check src tests
+uv run ruff check src tests
+uv run basedpyright
+uv run pytest --cov=mallo_ai --cov-branch
+```
+
+## Local Server
+
+This repository uses a `src/` layout without installing the project package.
+Point Uvicorn at that application directory explicitly:
+
+```sh
+cd ai-service
+uv run uvicorn --app-dir src mallo_ai.main:app --host 127.0.0.1 --port 8000
+```
+
+## Container
+
+```sh
+docker build -t mallo-ai:test ai-service
+docker run --rm --env-file ai-service/.env.local -p 127.0.0.1:18000:8000 mallo-ai:test
+```
+
+Or from `ai-service`:
+
+```sh
+docker compose up --build
+```
+
+Health checks:
+
+```sh
+curl http://127.0.0.1:18000/healthz
+curl http://127.0.0.1:18000/readyz
+```
+
+## Gabia Deployment
+
+The verified hackathon deployment is available at:
+
+- Base URL: `https://mallo-ai.1-201-116-196.sslip.io`
+- Health: `https://mallo-ai.1-201-116-196.sslip.io/healthz`
+- Internal triage: `POST /internal/v1/triage`
+
+The Spring backend must set:
+
+```dotenv
+AI_BASE_URL=https://mallo-ai.1-201-116-196.sslip.io
+AI_SHARED_SECRET=<same-32-character-secret-as-gabia>
+```
+
+The frontend must never call this host directly or receive either service
+credential. It continues to call Spring's public `POST /v1/ask` endpoint.
+
+The current `sslip.io` hostname is a temporary hackathon endpoint. Replace it
+with a team-owned domain before long-term production use.
