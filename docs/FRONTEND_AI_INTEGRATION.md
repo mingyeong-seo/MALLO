@@ -13,32 +13,35 @@ Expo 앱 → mallo-api.site → Spring → Gabia AI → OpenRouter
 
 ### 프론트 담당
 
-아래 세 단계만 하면 됩니다.
+아래만 하면 됩니다.
 
 ```bash
 git fetch origin
 git switch feat/frontend-ai-wiring
 cd frontend && npm install
-```
-
-필요하면 `frontend/.env.example`을 복사해 `.env.local`을 만듭니다. 기본값이 운영 Spring 주소이므로 별도 파일 없이도 실행할 수 있습니다.
-
-```bash
 npm start
 ```
 
-추가 API 키 등록이나 AI 서버 설정은 없습니다.
+추가 API 키 등록, Gabia AI 서버 설정, OpenRouter 설정은 없습니다. `EXPO_PUBLIC_API_BASE_URL`을 비워두거나 `.env.local`을 만들지 않아도 기본값으로 운영 Spring API `https://mallo-api.site`를 사용합니다.
+
+로컬 Spring에 붙여 테스트할 때만 `frontend/.env.example`을 복사해 `.env.local`을 만들고 주소를 바꾸면 됩니다.
 
 ### 백엔드 담당
 
-AI 연동 브랜치를 Spring 배포 브랜치에 병합하고 AWS 배포 환경에 다음 이름의 변수만 등록하면 됩니다.
+AI 연동 브랜치를 Spring 배포 브랜치에 병합하고 AWS 배포 환경에는 필수로 아래 두 값만 등록하면 됩니다.
 
 - `AI_BASE_URL`
 - `AI_SHARED_SECRET`
-- `AI_CONNECT_TIMEOUT_MS`
-- `AI_READ_TIMEOUT_MS`
 
-값은 공개 문서나 프론트 코드에 적지 말고 배포 담당자에게 별도로 전달합니다. 프론트 요청·응답 계약은 변경할 필요가 없습니다.
+`AI_BASE_URL`은 Gabia AI 서버의 HTTPS 주소입니다. `AI_SHARED_SECRET`은 Gabia AI 서버와 Spring이 공유하는 32자 비밀값입니다. 값은 공개 문서나 프론트 코드에 적지 말고 배포 담당자에게 별도로 전달합니다.
+
+선택값인 `AI_CONNECT_TIMEOUT_MS`, `AI_READ_TIMEOUT_MS`는 Spring 기본값이 있으므로 해커톤 제출용 연동에서는 등록하지 않아도 됩니다. 프론트 요청·응답 계약은 변경할 필요가 없습니다.
+
+### 절대 등록하지 않는 것
+
+- 프론트 `.env.local`에 OpenRouter API key 등록하지 않기
+- 프론트 `.env.local`에 `AI_SHARED_SECRET` 등록하지 않기
+- public GitHub 문서나 코드에 OpenRouter key, shared secret 적지 않기
 
 ## 앱이 사용하는 API
 

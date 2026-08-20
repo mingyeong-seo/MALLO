@@ -14,9 +14,11 @@ import {
 
 const DEFAULT_API_BASE_URL = 'https://mallo-api.site';
 const SESSION_HEADER = 'X-Session-Id';
+const apiBaseUrl =
+  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
 
 const api = ky.create({
-  prefix: process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL,
+  prefix: apiBaseUrl,
   retry: 0,
   timeout: 10_000,
   headers: {
