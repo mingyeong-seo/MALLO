@@ -199,7 +199,7 @@ POSSIBLE · ADJUST · POSTPONE · CONNECT
 MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이터와 의료기관 접점 위에서 작동하는 B2B2C Recovery Layer**입니다.
 
 <p align="center">
-  <img src="./frontend/assets/images/derna-home.png" width="310" alt="DERNA 앱에서 MALLO로 진입하는 화면" />
+  <img src="./backend/docs/aac-to-mallo-recovery-flow.png" width="100%" alt="AAC의 시술 맥락을 MALLO의 회복 행동으로 연결하는 흐름" />
 </p>
 
 | AAC가 가진 맥락 | MALLO에서의 활용 | 사용자·병원 가치 |
