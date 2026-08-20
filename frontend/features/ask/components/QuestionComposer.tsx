@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { MALLO_COLORS } from '@/constants/colors';
+import { MAX_QUESTION_LENGTH } from '@/features/ask/ask-run';
 import { styles } from '@/features/ask/styles';
 import type { QuestionComposerProps } from '@/features/ask/types';
 
@@ -240,7 +241,7 @@ export function QuestionComposer({
 
             <TextInput
               accessibilityLabel="ASK MALLO 질문 입력"
-              maxLength={160}
+              maxLength={MAX_QUESTION_LENGTH}
               multiline
               onBlur={handleBlur}
               onChangeText={handleInputChange}

@@ -1,6 +1,6 @@
 import type { AskInput } from '../../api/contracts';
 
-const MAX_QUESTION_LENGTH = 500;
+export const MAX_QUESTION_LENGTH = 500;
 
 export type PreparedAskRun =
   | {
