@@ -1,6 +1,7 @@
 import { HTTPError } from 'ky';
 
 import type { SessionWire } from '../../api/contracts';
+import { InvalidStoredSessionIdError } from '../../api/session-id';
 import { mapSession } from '../../api/session-mapper';
 import type { RecoverySession } from './types';
 
@@ -25,14 +26,9 @@ export async function runSessionHydration(
     const session = mapSession(await dependencies.getTodaySession(sessionId));
     dependencies.setSession(session);
   } catch (error) {
-    if (!(error instanceof Error)) {
-      throw error;
-    }
-
-    if (
-      error instanceof HTTPError &&
-      [401, 404].includes(error.response.status)
-    ) {
+    const isBackendInvalid =
+      error instanceof HTTPError && [401, 404].includes(error.response.status);
+    if (error instanceof InvalidStoredSessionIdError || isBackendInvalid) {
       await clearSessionIdBestEffort(dependencies.clearSessionId);
     } else {
       dependencies.fail();

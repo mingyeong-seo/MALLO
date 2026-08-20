@@ -1,9 +1,59 @@
 import { describe, expect, it, vi } from 'vitest';
 import ky, { HTTPError } from 'ky';
+import { ZodError } from 'zod';
 
+import { InvalidStoredSessionIdError } from '../../api/session-id';
 import { runSessionHydration } from './session-hydration';
 
 describe('session hydration', () => {
+  it('finishes as no-session when no stored id exists', async () => {
+    // Given
+    const clearSessionId = vi.fn(async () => undefined);
+    const fail = vi.fn();
+    const finish = vi.fn();
+    const setSession = vi.fn();
+
+    // When
+    await runSessionHydration({
+      clearSessionId,
+      fail,
+      finish,
+      getTodaySession: vi.fn(),
+      readSessionId: vi.fn(async () => null),
+      setSession,
+    });
+
+    // Then
+    expect(fail).not.toHaveBeenCalled();
+    expect(clearSessionId).not.toHaveBeenCalled();
+    expect(setSession).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledOnce();
+  });
+
+  it('clears a malformed stored id without entering retry state', async () => {
+    // Given
+    const clearSessionId = vi.fn(async () => undefined);
+    const fail = vi.fn();
+    const finish = vi.fn();
+
+    // When
+    await runSessionHydration({
+      clearSessionId,
+      fail,
+      finish,
+      getTodaySession: vi.fn(),
+      readSessionId: vi.fn(async () => {
+        throw new InvalidStoredSessionIdError();
+      }),
+      setSession: vi.fn(),
+    });
+
+    // Then
+    expect(clearSessionId).toHaveBeenCalledOnce();
+    expect(fail).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledOnce();
+  });
+
   it('finishes hydration when reading stored session id fails', async () => {
     // Given
     const clearSessionId = vi.fn(async () => undefined);
@@ -87,6 +137,62 @@ describe('session hydration', () => {
     expect(finish).toHaveBeenCalledOnce();
   });
 
+  it('reports response schema failures without clearing the stored session id', async () => {
+    // Given
+    const clearSessionId = vi.fn(async () => undefined);
+    const fail = vi.fn();
+    const finish = vi.fn();
+
+    // When
+    await runSessionHydration({
+      clearSessionId,
+      fail,
+      finish,
+      getTodaySession: vi.fn(async () => {
+        throw new ZodError([]);
+      }),
+      readSessionId: vi.fn(async () =>
+        'b408c168-d217-49f9-9cd2-c3c487819cc9',
+      ),
+      setSession: vi.fn(),
+    });
+
+    // Then
+    expect(fail).toHaveBeenCalledOnce();
+    expect(clearSessionId).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledOnce();
+  });
+
+  it.each([401, 404])(
+    'clears backend-invalid session id for HTTP %s',
+    async (status) => {
+      // Given
+      const clearSessionId = vi.fn(async () => undefined);
+      const fail = vi.fn();
+      const finish = vi.fn();
+      const invalidSession = await createHttpError(status);
+
+      // When
+      await runSessionHydration({
+        clearSessionId,
+        fail,
+        finish,
+        getTodaySession: vi.fn(async () => {
+          throw invalidSession;
+        }),
+        readSessionId: vi.fn(async () =>
+          'b408c168-d217-49f9-9cd2-c3c487819cc9',
+        ),
+        setSession: vi.fn(),
+      });
+
+      // Then
+      expect(clearSessionId).toHaveBeenCalledOnce();
+      expect(fail).not.toHaveBeenCalled();
+      expect(finish).toHaveBeenCalledOnce();
+    },
+  );
+
   it('restores the session when hydration succeeds after a retryable failure', async () => {
     // Given
     const fail = vi.fn();
@@ -113,6 +219,7 @@ describe('session hydration', () => {
 
     // Then
     expect(fail).toHaveBeenCalledOnce();
+    expect(dependencies.clearSessionId).not.toHaveBeenCalled();
     expect(finish).toHaveBeenCalledTimes(2);
     expect(setSession).toHaveBeenCalledOnce();
   });

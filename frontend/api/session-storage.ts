@@ -1,9 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { z } from 'zod';
+
+import { parseSessionId, parseStoredSessionId } from './session-id';
 
 const SESSION_STORAGE_KEY = 'mallo_session_id';
-const sessionIdSchema = z.string().uuid();
 
 export async function readSessionId(): Promise<string | null> {
   const stored =
@@ -11,12 +11,11 @@ export async function readSessionId(): Promise<string | null> {
       ? globalThis.localStorage?.getItem(SESSION_STORAGE_KEY) ?? null
       : await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
 
-  const parsed = sessionIdSchema.safeParse(stored);
-  return parsed.success ? parsed.data : null;
+  return parseStoredSessionId(stored);
 }
 
 export async function saveSessionId(sessionId: string): Promise<void> {
-  const validSessionId = sessionIdSchema.parse(sessionId);
+  const validSessionId = parseSessionId(sessionId);
 
   if (Platform.OS === 'web') {
     globalThis.localStorage?.setItem(SESSION_STORAGE_KEY, validSessionId);
