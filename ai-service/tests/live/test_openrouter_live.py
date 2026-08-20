@@ -89,3 +89,37 @@ async def test_luna_live_triage_routes_action_and_safety_without_leaking_text() 
         assert counting_provider.calls == 2
     finally:
         await provider.aclose()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("question", "expected_route"),
+    [
+        pytest.param("오늘 저녁 메뉴 알려줘", Route.UNSUPPORTED, id="unrelated-menu"),
+        pytest.param("밤", Route.UNSUPPORTED, id="ambiguous-fragment"),
+        pytest.param(
+            "회복 중에는 어떤 음식을 먹는 게 좋아?",
+            Route.GENERAL,
+            id="in-scope-general",
+        ),
+    ],
+)
+async def test_luna_live_triage_applies_recovery_scope_gate(
+    question: str,
+    expected_route: Route,
+) -> None:
+    settings = Settings.load()
+    provider = create_openrouter_provider(settings)
+
+    try:
+        decision = await provider.decide(
+            TriageInput(
+                question=question,
+                procedure="REJURAN",
+                elapsed_day=0,
+            )
+        )
+
+        assert decision.route is expected_route
+    finally:
+        await provider.aclose()
