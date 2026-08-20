@@ -19,6 +19,9 @@ import {
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { createSession } from '@/services/session';
+import { setSessionId } from '@/services/session-storage';
 
 // ─── Mock Data ────────────────────────────────────────────────
 
@@ -29,17 +32,21 @@ interface ProcedureData {
   clinic_name: string;
 }
 
-const MOCK_PROCEDURE: ProcedureData = {
-  procedure: 'REJURAN',
-  procedure_at: '2026.08.12 시술',
-  clinic_id: 'clinic_001',
-  clinic_name: '더나의원',
-};
+function createMockProcedure(): ProcedureData {
+  return {
+    procedure: 'REJURAN',
+    procedure_at: formatLocalDate(new Date()),
+    clinic_id: 'clinic_001',
+    clinic_name: '더나의원',
+  };
+}
 
 // ─── Screen ───────────────────────────────────────────────────
 
 export default function ProcedureConfirmScreen() {
   const router = useRouter();
+  const { setRecoverySession } = useRecoveryFlow();
+  const [procedure] = useState<ProcedureData>(createMockProcedure);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Recovery Session 생성 및 S04 이동
@@ -47,24 +54,30 @@ export default function ProcedureConfirmScreen() {
     try {
       setIsSubmitting(true);
 
-      // TODO: 추후 백엔드 Session 생성 API 연동
-      // 1. API 호출 후 response로
-      //    { session_id, elapsed_day, status } 수신
-      // 2. await SecureStore.setItemAsync(
-      //      'session_id',
-      //      response.session_id,
-      //    );
+      const session = await createSession({
+        clinicId: procedure.clinic_id,
+        procedure: procedure.procedure,
+        procedureAt: procedure.procedure_at,
+      });
 
-      // 현재는 Mock 성공 딜레이 후 S04로 이동
-      setTimeout(() => {
-        setIsSubmitting(false);
-        router.dismissTo('/');
-        router.push('/(tabs)/journey/home');
-      }, 500);
+      await setSessionId(session.sessionId);
+      setRecoverySession(session);
+      setIsSubmitting(false);
+
+      router.dismissTo('/');
+      router.push('/(tabs)/journey/home');
     } catch {
       setIsSubmitting(false);
 
-      Alert.alert('오류', '세션 생성에 실패했습니다. 다시 시도해주세요.');
+      const message = '세션 생성에 실패했습니다. 다시 시도해주세요.';
+
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') {
+          window.alert(message);
+        }
+      } else {
+        Alert.alert('오류', message);
+      }
     }
   };
 
@@ -90,15 +103,15 @@ export default function ProcedureConfirmScreen() {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>DERNA에서 확인된 시술 정보</Text>
 
-            <Text style={styles.procedureName}>{MOCK_PROCEDURE.procedure}</Text>
+            <Text style={styles.procedureName}>{procedure.procedure}</Text>
 
             <View style={styles.procedureDetails}>
               <Text style={styles.procedureDetail}>
-                {MOCK_PROCEDURE.procedure_at}
+                {formatProcedureDate(procedure.procedure_at)} 시술
               </Text>
 
               <Text style={styles.procedureDetail}>
-                {MOCK_PROCEDURE.clinic_name}
+                {procedure.clinic_name}
               </Text>
             </View>
           </View>
@@ -137,6 +150,18 @@ export default function ProcedureConfirmScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+function formatProcedureDate(procedureAt: string) {
+  return procedureAt.replaceAll('-', '.');
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 // ─── Styles ───────────────────────────────────────────────────

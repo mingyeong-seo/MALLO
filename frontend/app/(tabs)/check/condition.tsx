@@ -14,19 +14,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MALLO_COLORS } from '@/constants/colors';
 import { CheckRequestState } from '@/features/check/components/CheckRequestState';
 import { CONDITION_CONFIGS, isQuickCheckAction } from '@/features/check/data';
-import { requestMockQuickCheck } from '@/features/check/mock-service';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { createCheck } from '@/services/check';
 
 type RequestState = 'idle' | 'loading' | 'error' | 'no-protocol';
 
 export default function ConditionCheckScreen() {
   const router = useRouter();
 
-  const { action, actionTitle, simulate, source } = useLocalSearchParams<{
+  const { action, actionTitle, source } = useLocalSearchParams<{
     action?: string;
     actionTitle?: string;
-    simulate?: string;
     source?: string;
   }>();
 
@@ -36,16 +35,16 @@ export default function ConditionCheckScreen() {
 
   const [requestState, setRequestState] = useState<RequestState>('idle');
 
-  const [shouldSimulateError, setShouldSimulateError] = useState(
-    simulate === 'error',
-  );
-
   const normalizedAction =
     typeof action === 'string' && isQuickCheckAction(action)
       ? action
       : 'EXERCISE';
 
   const config = CONDITION_CONFIGS[normalizedAction];
+  const selectedOption = config.options.find(
+    (option) => option.value === selectedValue,
+  );
+  const shouldAskMallo = selectedOption?.destination === 'ASK_MALLO';
 
   const displayTitle = actionTitle || config.actionLabel;
 
@@ -60,19 +59,20 @@ export default function ConditionCheckScreen() {
   };
 
   const handleResult = async () => {
-    if (!selectedValue) return;
+    if (!selectedValue || shouldAskMallo) return;
 
     setRequestState('loading');
 
     try {
-      const response = await requestMockQuickCheck({
+      const response = await createCheck(
+        {
         action: normalizedAction,
         context: {
           [config.contextKey]: selectedValue,
         },
-        elapsedDay,
-        simulateError: shouldSimulateError,
-      });
+        },
+        recoverySession?.sessionId,
+      );
 
       if (response.status === 'NO_PROTOCOL') {
         setRequestState('no-protocol');
@@ -90,9 +90,20 @@ export default function ConditionCheckScreen() {
         },
       });
     } catch {
-      setShouldSimulateError(false);
       setRequestState('error');
     }
+  };
+
+  const handlePrimaryAction = () => {
+    if (shouldAskMallo) {
+      router.push({
+        pathname: '/(tabs)/ask',
+        params: { reset: String(Date.now()) },
+      });
+      return;
+    }
+
+    void handleResult();
   };
 
   return (
@@ -185,6 +196,14 @@ export default function ConditionCheckScreen() {
                 );
               })}
             </View>
+
+            {shouldAskMallo ? (
+              <View style={styles.askMalloGuide}>
+                <Text style={styles.askMalloGuideText}>
+                  사용하려는 성분을 Ask MALLO에서 확인해보세요.
+                </Text>
+              </View>
+            ) : null}
           </>
         ) : requestState === 'loading' ? (
           <CheckRequestState
@@ -214,13 +233,19 @@ export default function ConditionCheckScreen() {
       {requestState === 'idle' ? (
         <View style={styles.bottomContainer}>
           <TouchableOpacity
+            accessibilityLabel={
+              shouldAskMallo
+                ? 'Ask MALLO에서 사용하려는 성분 물어보기'
+                : 'Quick Check 결과 확인'
+            }
+            accessibilityRole="button"
             style={[
               styles.primaryButton,
               selectedValue
                 ? styles.primaryButtonActive
                 : styles.primaryButtonDisabled,
             ]}
-            onPress={handleResult}
+            onPress={handlePrimaryAction}
             disabled={!selectedValue}
             activeOpacity={0.8}
           >
@@ -232,7 +257,7 @@ export default function ConditionCheckScreen() {
                   : styles.primaryButtonTextDisabled,
               ]}
             >
-              결과 확인 →
+              {shouldAskMallo ? 'MALLO에게 물어보기 →' : '결과 확인 →'}
             </Text>
           </TouchableOpacity>
 
@@ -418,6 +443,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: MALLO_COLORS.support.secondaryTextGray,
     lineHeight: 18,
+  },
+
+  askMalloGuide: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: MALLO_COLORS.support.warmGray,
+  },
+
+  askMalloGuideText: {
+    fontSize: 14,
+    color: MALLO_COLORS.support.charcoal,
+    lineHeight: 21,
   },
 
   bottomContainer: {

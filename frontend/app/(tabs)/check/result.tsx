@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -25,6 +26,7 @@ import { ACTION_LABELS } from '@/features/check/data';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 import type { QuickCheckDecision } from '@/features/recovery/types';
+import { getCheckById } from '@/services/check';
 
 type RouteParams = {
   checkId?: string;
@@ -49,12 +51,67 @@ const DECISION_COLORS: Record<QuickCheckDecision, string> = {
 export default function QuickCheckResultScreen() {
   const params = useLocalSearchParams<RouteParams>();
   const insets = useSafeAreaInsets();
-  const { findQuickCheck, recoverySession } = useRecoveryFlow();
+  const { findQuickCheck, recoverySession, saveQuickCheck } = useRecoveryFlow();
   const result = params.checkId ? findQuickCheck(params.checkId) : undefined;
+  const [loadState, setLoadState] = useState<
+    'loading' | 'ready' | 'error' | 'no-protocol'
+  >(result ? 'ready' : 'loading');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const floatingTabClearance =
     MALLO_SPACING.xxl * 2 +
     Math.max(insets.bottom, MALLO_SPACING.md) +
     MALLO_SPACING.lg;
+
+  useEffect(() => {
+    if (result) {
+      setLoadState('ready');
+      return;
+    }
+
+    if (!params.checkId) {
+      setLoadState('error');
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCheck = async () => {
+      setLoadState('loading');
+
+      try {
+        const response = await getCheckById(
+          params.checkId as string,
+          recoverySession?.sessionId,
+        );
+
+        if (cancelled) return;
+
+        if (response.status === 'NO_PROTOCOL') {
+          setLoadState('no-protocol');
+          return;
+        }
+
+        saveQuickCheck(response.result);
+        setLoadState('ready');
+      } catch {
+        if (!cancelled) {
+          setLoadState('error');
+        }
+      }
+    };
+
+    void loadCheck();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    loadAttempt,
+    params.checkId,
+    recoverySession?.sessionId,
+    result,
+    saveQuickCheck,
+  ]);
 
   if (!result) {
     return (
@@ -65,13 +122,33 @@ export default function QuickCheckResultScreen() {
             { paddingBottom: floatingTabClearance },
           ]}
         >
-          <CheckRequestState
-            description="저장된 Quick Check 결과를 찾지 못했어요. 행동을 다시 선택해 주세요."
-            onPrimaryPress={() => router.replace('/(tabs)/check/quick')}
-            primaryLabel="Quick Check로 돌아가기"
-            title="결과를 불러올 수 없어요"
-            tone="error"
-          />
+          {loadState === 'loading' ? (
+            <CheckRequestState
+              description="저장된 Quick Check 결과를 불러오고 있어요."
+              title="결과를 확인하고 있어요"
+              tone="loading"
+            />
+          ) : loadState === 'no-protocol' ? (
+            <CheckRequestState
+              description="현재 검수된 Recovery Protocol에서는 이 조건을 안내하기 어려워요."
+              onPrimaryPress={() => router.replace('/(tabs)/check/quick')}
+              primaryLabel="다른 행동 확인하기"
+              title="아직 안내할 수 없는 조건이에요"
+              tone="unsupported"
+            />
+          ) : (
+            <CheckRequestState
+              description="저장된 Quick Check 결과를 찾지 못했어요. 행동을 다시 선택해 주세요."
+              onPrimaryPress={
+                params.checkId
+                  ? () => setLoadAttempt((attempt) => attempt + 1)
+                  : () => router.replace('/(tabs)/check/quick')
+              }
+              primaryLabel={params.checkId ? '다시 시도하기' : 'Quick Check로 돌아가기'}
+              title="결과를 불러올 수 없어요"
+              tone="error"
+            />
+          )}
         </View>
       </SafeAreaView>
     );
@@ -193,10 +270,12 @@ export default function QuickCheckResultScreen() {
               </View>
             ))}
           </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Protocol version</Text>
-            <Text style={styles.metaValue}>{result.protocolVersion}</Text>
-          </View>
+          {result.protocolVersion ? (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Protocol version</Text>
+              <Text style={styles.metaValue}>{result.protocolVersion}</Text>
+            </View>
+          ) : null}
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>저장 시점</Text>
             <Text style={styles.metaValue}>

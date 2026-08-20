@@ -119,7 +119,7 @@ export default function MyScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>내 회복 기록</Text>
           <Pressable
-            accessibilityLabel="회복 기록 모아보기"
+            accessibilityLabel="기록 모아보기"
             accessibilityRole="button"
             onPress={() => router.push('/(tabs)/journey/journal')}
             style={({ pressed }) => [
@@ -134,7 +134,7 @@ export default function MyScreen() {
                 size={20}
               />
             </View>
-            <Text style={styles.listActionText}>회복 기록 모아보기</Text>
+            <Text style={styles.listActionText}>기록 모아보기</Text>
             <Ionicons
               color={MALLO_COLORS.support.secondaryTextGray}
               name="chevron-forward"
@@ -145,9 +145,7 @@ export default function MyScreen() {
 
         <View style={styles.aboutSection}>
           <Text style={styles.sectionTitle}>MALLO 소개</Text>
-          <Text style={styles.aboutText}>
-            시술 후 고민을, 오늘의 행동으로.
-          </Text>
+          <Text style={styles.aboutText}>시술 후 고민을, 오늘의 행동으로.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

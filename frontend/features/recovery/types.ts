@@ -27,36 +27,59 @@ export type QuickCheckResult = {
   reason: string;
 };
 
+export type RecoverySessionStatus = 'ACTIVE' | 'COMPLETED';
+
 export type RecoverySession = {
+  clinicId?: string | null;
+  createdAt?: string;
   elapsedDay: number;
-  phase: string;
+  phase?: string;
   procedureDate: string;
   procedureName: string;
   sessionId: string;
+  status: RecoverySessionStatus;
 };
 
-export type RecoveryRecordStatus = 'DONE' | 'ADJUSTED' | 'SKIPPED';
-
-export type RecoveryRecordPerformedStatus = 'DONE' | 'NOT_DONE';
+export type RecoveryRecordPerformedStatus =
+  | 'DONE'
+  | 'NOT_DONE'
+  | 'ADJUSTED_DONE';
 
 export type RecoveryRecordAction = {
   checkId: string;
   performedStatus: RecoveryRecordPerformedStatus;
 };
 
+export type PhotoUploadStatus =
+  | 'local'
+  | 'uploading'
+  | 'uploaded'
+  | 'error';
+
+export type PhotoAttachment = {
+  clientId: string;
+  createdAt?: string;
+  fileName?: string;
+  fileSize?: number;
+  height?: number;
+  localUri?: string;
+  mimeType?: string;
+  observation?: {
+    dryness: string;
+    redness: string;
+  };
+  photoId?: number;
+  photoUrl?: string;
+  uploadStatus: PhotoUploadStatus;
+  width?: number;
+};
+
 export type RecoveryRecord = {
   actions: RecoveryRecordAction[];
-  attachments: string[];
+  attachments: PhotoAttachment[];
+  createdAt: string;
   elapsedDay: number;
-  id: string;
   memo: string;
-
-  /**
-   * 기존 Mock 구조와의 호환을 위해 남겨둔 필드입니다.
-   * 신규 S09/S10에서는 actions를 사용합니다.
-   */
-  quickCheckId?: string;
-  status?: RecoveryRecordStatus;
-
-  updatedAt: string;
+  recordId: number;
+  sessionId: string;
 };

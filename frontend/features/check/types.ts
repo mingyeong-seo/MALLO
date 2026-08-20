@@ -6,6 +6,7 @@ import type {
 
 export type ConditionOption = {
   description: string;
+  destination?: 'ASK_MALLO';
   label: string;
   value: string;
 };

@@ -10,18 +10,20 @@ import {
   View,
 } from 'react-native';
 
+import { MAX_ASK_QUESTION_LENGTH } from '@/constants/ask';
 import { MALLO_COLORS } from '@/constants/colors';
 import { styles } from '@/features/ask/styles';
 
 type QuestionComposerProps = {
-  attachments: string[];
+  allowAttachments?: boolean;
+  attachments?: string[];
   bottomClearance: number;
   notice: string;
   onChangeText: (value: string) => void;
   onSubmit: () => void;
   onFocusChange?: (focused: boolean) => void;
-  onAddAttachment: () => void;
-  onRemoveAttachment: (attachment: string) => void;
+  onAddAttachment?: () => void;
+  onRemoveAttachment?: (attachment: string) => void;
   suggestions: readonly string[];
   value: string;
 };
@@ -31,7 +33,8 @@ type WebKeyPressNativeEvent = TextInputKeyPressEventData & {
 };
 
 export function QuestionComposer({
-  attachments,
+  allowAttachments = true,
+  attachments = [],
   bottomClearance,
   notice,
   onChangeText,
@@ -117,7 +120,7 @@ export function QuestionComposer({
   };
 
   const handleAddAttachment = () => {
-    onAddAttachment();
+    onAddAttachment?.();
   };
 
   const handleKeyPress = (
@@ -213,14 +216,14 @@ export function QuestionComposer({
         ) : null}
 
         <View style={styles.composerShell}>
-          {attachments.length ? (
+          {allowAttachments && attachments.length ? (
             <View style={styles.attachmentPreviewRow}>
               {attachments.map((attachment, index) => (
                 <Pressable
-                  accessibilityLabel={`Mock 첨부 사진 ${index + 1} 제거`}
+                  accessibilityLabel={`첨부 사진 ${index + 1} 제거`}
                   accessibilityRole="button"
                   key={attachment}
-                  onPress={() => onRemoveAttachment(attachment)}
+                  onPress={() => onRemoveAttachment?.(attachment)}
                   style={styles.attachmentPreview}
                 >
                   <Ionicons
@@ -241,26 +244,28 @@ export function QuestionComposer({
           ) : null}
 
           <View style={styles.composerInputRow}>
-            <Pressable
-              accessibilityLabel="사진 첨부"
-              accessibilityRole="button"
-              hitSlop={6}
-              onPress={handleAddAttachment}
-              style={({ pressed }) => [
-                styles.attachmentButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons
-                name="add"
-                size={21}
-                color={MALLO_COLORS.core.red}
-              />
-            </Pressable>
+            {allowAttachments ? (
+              <Pressable
+                accessibilityLabel="사진 첨부"
+                accessibilityRole="button"
+                hitSlop={6}
+                onPress={handleAddAttachment}
+                style={({ pressed }) => [
+                  styles.attachmentButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons
+                  name="add"
+                  size={21}
+                  color={MALLO_COLORS.core.red}
+                />
+              </Pressable>
+            ) : null}
 
             <TextInput
               accessibilityLabel="ASK MALLO 질문 입력"
-              maxLength={160}
+              maxLength={MAX_ASK_QUESTION_LENGTH}
               multiline
               onBlur={handleBlur}
               onChangeText={handleInputChange}

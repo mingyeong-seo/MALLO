@@ -108,11 +108,13 @@ export function QuestionInputState() {
 
 export function BehaviorFollowUpState({
   config,
+  message,
   onOptionPress,
   onReset,
   question,
 }: {
   config: ConditionConfig;
+  message?: string;
   onOptionPress: (option: ConditionOption) => void;
   onReset: () => void;
   question: string;
@@ -127,7 +129,7 @@ export function BehaviorFollowUpState({
 
       <View style={styles.followUpSection}>
         <View style={styles.followUpMainContent}>
-          <Text style={styles.followUpTitle}>{config.question}</Text>
+          <Text style={styles.followUpTitle}>{message ?? config.question}</Text>
 
           <Text style={styles.followUpDescription}>{config.guide}</Text>
 
