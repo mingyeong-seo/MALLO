@@ -36,7 +36,7 @@
 
 ## Recovery Session / Protocol / ActionCheck (담당: )
 
-- (아직 없음)
+- 2026-08-20: FE QA 보고("DAY 1 세션인데 운동 질문이 NO_PROTOCOL") 대응 — 원인은 EXERCISE·HEAT만 Protocol seed에 시술 당일(elapsedDay=0)용 규칙이 없었던 것. MAKEUP/CLEANSING/SKINCARE는 이미 day 0 규칙(조건 없이 매칭되는 기본 행)이 있어서 정상이었고, EXERCISE/HEAT만 `dayStart(1)`부터라 day 0에는 intensity/조건값과 무관하게 항상 NO_PROTOCOL이 났음(선크림=MATCHED, 운동=NO_PROTOCOL 대조 테스트로 확정). `ProtocolSeeder`에 HEAT는 기존 day1~7 POSTPONE 규칙을 dayStart 0으로 확장, EXERCISE는 MAKEUP/CLEANSING과 동일 패턴으로 day 0 전용 무조건 POSTPONE 행 1개 추가(강도 조건 없음, "시술 당일은 강도와 관계없이 운동 피하고 안정"). 병원 검수 없이 백엔드 판단으로 넣은 값이라 실제 검수 단계에서 재확인 필요. `VERSION` `rejuran-v3`→`rejuran-v4`. **주의: `ProtocolSeeder`는 `protocol` 테이블이 비어있을 때만 실행되는 1회성 시더라, 이미 v3로 시딩된 로컬/배포 DB에는 코드만 바꿔서는 반영 안 됨 — `protocol` 테이블 truncate 후 재기동하거나 새 행 2개를 직접 insert해야 실제로 적용됨.** 테스트는 `ProtocolSeeder`가 `@Profile("!test")`라 전부 별개 fixture 사용, 전체 205개 그대로 통과.
 
 ## Interaction / ASK MALLO (담당: jiung)
 
