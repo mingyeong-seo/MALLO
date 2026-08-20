@@ -221,7 +221,7 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 ## 🏗️ Architecture
 
 <p align="center">
-  <img src="./backend/docs/서비스 아키텍쳐.jpeg" width="100%" alt="MALLO 서비스 아키텍처" />
+  <img src="./backend/docs/service-architecture.jpeg" width="100%" alt="MALLO 서비스 아키텍처" />
 </p>
 
 | Layer | Responsibility |
