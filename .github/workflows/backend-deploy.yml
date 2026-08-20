@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: AI 환경변수 갱신 스크립트 회귀 테스트
+        run: bash scripts/deploy/test-update-ai-env.sh
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -64,15 +67,31 @@ jobs:
           strip_components: 3
           rm: false
 
-      - name: 원격 배포 스크립트 실행
-        uses: appleboy/ssh-action@v1.2.0
+      - name: EC2로 AI 환경변수 갱신 스크립트 전송
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          source: "backend/scripts/deploy/update-ai-env.sh"
+          target: /home/${{ secrets.EC2_USER }}/mallo
+          strip_components: 3
+          rm: false
+
+      - name: 원격 배포 스크립트 실행
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_SHARED_SECRET: ${{ secrets.AI_SHARED_SECRET }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AI_BASE_URL,AI_SHARED_SECRET
           script: |
             set -euo pipefail
             cd /home/${{ secrets.EC2_USER }}/mallo
             JAR_NAME=$(basename "${{ steps.jar.outputs.path }}")
             mv "$JAR_NAME" app.jar.new
+            bash update-ai-env.sh .env
             bash remote-deploy.sh
