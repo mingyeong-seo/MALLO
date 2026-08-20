@@ -42,6 +42,9 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Local isolated worktrees
+.worktrees/
+
 # typescript
 *.tsbuildinfo
 
