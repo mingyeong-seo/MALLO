@@ -31,10 +31,14 @@ public class PhotoRecordController {
 	@Operation(
 			summary = "사진 업로드 (한 장씩) 및 비의료적 관찰 결과 조회 (관찰은 Mock, 저장은 로컬 디스크)",
 			description = "여러 장 붙이려면 이 API를 여러 번 호출해서 photoRecordId를 모은 뒤, "
-					+ "기록 저장/수정 시 photoRecordIds로 같이 보내면 된다 (최대 " + RecoveryRecord.MAX_PHOTOS + "장)."
+					+ "기록 저장/수정 시 photoRecordIds로 같이 보내면 된다 (최대 " + RecoveryRecord.MAX_PHOTOS + "장). "
+					+ "파일 하나당 최대 10MB (nginx client_max_body_size와 Spring 양쪽 다 10MB로 맞춰둠)."
 	)
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "업로드 성공"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "413",
+					description = "파일이 10MB를 초과함. 프로덕션에서는 보통 nginx가 먼저 막아서 "
+							+ "이 JSON이 아니라 nginx의 순수 HTML 413 응답이 내려감"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "사진 저장 실패")
 	})
 	// consumes를 명시해야 springdoc이 requestBody 미디어 타입을 multipart/form-data로 정확히 문서화한다
