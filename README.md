@@ -172,11 +172,11 @@ MALLO의 AI는 의료 답변을 만드는 역할을 맡지 않습니다.
 
 <table>
   <tr>
-    <th width="50%">1. 의료적 질문에는 답변하지 않고 CONNECT</th>
-    <th width="50%">2. 담당 의료진·병원으로 Handoff</th>
+    <th width="50%">1. 회복 정보와 Safety 기준 확인</th>
+    <th width="50%">2. 의료적 판단은 의료진에게 Handoff</th>
   </tr>
   <tr>
-    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-07-46%20002.png" alt="의료적 판단이 필요한 질문을 의료진 확인으로 분기하는 ASK MALLO 화면" /></td>
+    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-12-30.png" alt="사용자의 회복 정보와 질문에 맞는 안전 기준을 확인하는 ASK MALLO 화면" /></td>
     <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-07-46%20001.png" alt="담당 의료진과 병원으로 연결하는 MALLO Handoff 화면" /></td>
   </tr>
 </table>
