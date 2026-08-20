@@ -170,6 +170,19 @@ DERNA에서 MALLO 진입
 
 MALLO의 AI는 의료 답변을 만드는 역할을 맡지 않습니다.
 
+<table>
+  <tr>
+    <th width="50%">1. 의료적 질문에는 답변하지 않고 CONNECT</th>
+    <th width="50%">2. 담당 의료진·병원으로 Handoff</th>
+  </tr>
+  <tr>
+    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-07-46%20002.png" alt="의료적 판단이 필요한 질문을 의료진 확인으로 분기하는 ASK MALLO 화면" /></td>
+    <td><img src="./backend/ir%20deck/KakaoTalk_Photo_2026-08-21-04-07-46%20001.png" alt="담당 의료진과 병원으로 연결하는 MALLO Handoff 화면" /></td>
+  </tr>
+</table>
+
+> 해커톤 MVP에서는 의료진 정보를 mock·seed로 제공하며, 실제 서비스에서는 AAC 제휴 의료기관 데이터와 연결됩니다.
+
 ```text
 사용자 질문
    ↓
