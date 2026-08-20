@@ -30,9 +30,10 @@ spring:
       max-request-size: 10MB
 
 cors:
-  # 콤마로 구분해서 여러 개 등록 가능. Expo 개발 서버 기본 포트 위주로 넣어뒀으니
-  # 각자 웹/시뮬레이터 접속 주소가 다르면 .env 에 CORS_ALLOWED_ORIGINS 로 덮어쓰세요.
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081,http://localhost:19006}
+  # 콤마로 구분해서 여러 개 등록 가능. 와일드카드(*) 지원 — 기본값이 로컬호스트 전체 포트를
+  # 허용해서 Expo Web 개발 서버 포트가 바뀌어도(8081, 8082, ...) 따로 안 고쳐도 된다.
+  # 웹/시뮬레이터 접속 주소가 localhost가 아니면 .env 에 CORS_ALLOWED_ORIGIN_PATTERNS 로 덮어쓰세요.
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
 
 photo:
   storage:
