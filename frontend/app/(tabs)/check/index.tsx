@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
@@ -22,12 +22,14 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { ACTION_LABELS } from '@/features/check/data';
+import { CheckRequestState } from '@/features/check/components/CheckRequestState';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 import type {
   QuickCheckDecision,
   QuickCheckResult,
 } from '@/features/recovery/types';
+import { getTodayChecks } from '@/services/check';
 
 type ActionStatus = 'complete' | 'check';
 
@@ -67,8 +69,12 @@ const DECISION_COLORS: Record<QuickCheckDecision, string> = {
 };
 
 export default function TodayPlanScreen() {
-  const { quickChecks, recoverySession } = useRecoveryFlow();
+  const { quickChecks, recoverySession, setQuickChecks } = useRecoveryFlow();
   const [showAllResults, setShowAllResults] = useState(false);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  );
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const recovery: RecoveryContext = {
     procedureName: recoverySession?.procedureName ?? 'REJURAN',
     recoveryDay: recoverySession?.elapsedDay ?? 0,
@@ -77,6 +83,37 @@ export default function TodayPlanScreen() {
   const actionPlanGroups = createActionPlanGroups(visibleResults);
   const hasResults = quickChecks.length > 0;
   const hasMore = quickChecks.length > 3;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTodayChecks = async () => {
+      setLoadState('loading');
+
+      try {
+        const checks = await getTodayChecks(recoverySession?.sessionId);
+
+        if (cancelled) return;
+
+        setQuickChecks(
+          checks.flatMap((check) =>
+            check.status === 'MATCHED' ? [check.result] : [],
+          ),
+        );
+        setLoadState('ready');
+      } catch {
+        if (!cancelled) {
+          setLoadState('error');
+        }
+      }
+    };
+
+    void loadTodayChecks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAttempt, recoverySession?.sessionId, setQuickChecks]);
 
   const handleActionPress = (action: string) => {
     router.push({
@@ -125,7 +162,27 @@ export default function TodayPlanScreen() {
           </Text>
         </View>
 
-        {hasResults ? (
+        {loadState === 'loading' ? (
+          <View style={styles.planSection}>
+            <CheckRequestState
+              description="오늘 확인한 Quick Check 결과를 불러오고 있어요."
+              title="오늘의 회복 가이드를 확인하고 있어요"
+              tone="loading"
+            />
+          </View>
+        ) : loadState === 'error' ? (
+          <View style={styles.planSection}>
+            <CheckRequestState
+              description="네트워크 연결을 확인하고 다시 시도해주세요."
+              onPrimaryPress={() =>
+                setLoadAttempt((attempt) => attempt + 1)
+              }
+              primaryLabel="다시 시도하기"
+              title="결과를 불러오지 못했어요"
+              tone="error"
+            />
+          </View>
+        ) : hasResults ? (
           <View style={styles.planSection}>
             {actionPlanGroups.map((group) => (
               <ActionGroup

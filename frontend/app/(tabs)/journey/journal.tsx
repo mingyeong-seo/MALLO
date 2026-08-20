@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,17 +23,29 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { ACTION_LABELS } from '@/features/check/data';
+import { formatRecoveryDate } from '@/features/recovery/date';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
 import type {
+  PhotoAttachment,
+  QuickCheckResult,
   QuickCheckDecision,
   RecoveryRecordPerformedStatus,
 } from '@/features/recovery/types';
+import { isApiError } from '@/services/api';
+import { getCheckById } from '@/services/check';
+import { getRecords } from '@/services/record';
 
 const PERFORMED_LABELS: Record<RecoveryRecordPerformedStatus, string> = {
+  ADJUSTED_DONE: '조절해서 했어요',
   DONE: '했어요',
   NOT_DONE: '하지 않았어요',
 };
+
+type JournalLoadState = 'loading' | 'ready' | 'error';
+const DAY_BUTTON_WIDTH = 42;
+const DAY_BUTTON_GAP = MALLO_SPACING.sm;
+const WEB_NAVIGATION_BUTTON_SIZE = 32;
 
 const DECISION_LABELS: Record<QuickCheckDecision, string> = {
   POSSIBLE: '진행 가능',
@@ -54,19 +67,167 @@ export default function RecoveryJournalScreen() {
   const {
     findQuickCheck,
     findRecoveryRecord,
+    quickChecks,
     recoveryRecords,
     recoverySession,
+    saveQuickCheck,
+    setRecoveryRecords,
   } = useRecoveryFlow();
+  const quickChecksRef = useRef<QuickCheckResult[]>(quickChecks);
+  const recoveryRecordsRef = useRef(recoveryRecords);
+  const dayScrollRef = useRef<ScrollView>(null);
+  const [loadState, setLoadState] = useState<JournalLoadState>('loading');
+  const [loadNotice, setLoadNotice] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
 
   const currentDay = recoverySession?.elapsedDay ?? 0;
-  const initialDay = Number.isFinite(Number(params.day))
-    ? Math.min(Math.max(Number(params.day), 0), 6)
-    : currentDay;
+  const parsedRouteDay = Number(params.day);
+  const routeDay = Number.isFinite(parsedRouteDay)
+    ? Math.max(Math.trunc(parsedRouteDay), 0)
+    : null;
 
-  const [selectedDay, setSelectedDay] = useState(initialDay);
-  const selectedRecord = findRecoveryRecord(selectedDay);
-  const isFuture = selectedDay > currentDay;
-  const canEdit = selectedDay === currentDay;
+  const [selectedElapsedDay, setSelectedElapsedDay] = useState(
+    routeDay ?? currentDay,
+  );
+
+  useEffect(() => {
+    quickChecksRef.current = quickChecks;
+  }, [quickChecks]);
+
+  useEffect(() => {
+    recoveryRecordsRef.current = recoveryRecords;
+  }, [recoveryRecords]);
+
+  useEffect(() => {
+    const sessionId = recoverySession?.sessionId;
+
+    if (!sessionId) {
+      setLoadState('error');
+      setLoadNotice('Recovery Session을 확인하지 못했어요.');
+      return;
+    }
+
+    let active = true;
+
+    const loadJournal = async () => {
+      setLoadState('loading');
+      setLoadNotice('');
+
+      try {
+        const records = await getRecords(sessionId);
+
+        if (!active) {
+          return;
+        }
+
+        const hydratedRecords = records.map((record) => {
+          const localRecord = recoveryRecordsRef.current.find(
+            (candidate) => candidate.recordId === record.recordId,
+          );
+
+          return localRecord
+            ? {
+                ...record,
+                attachments: mergePhotoAttachments(
+                  record.attachments,
+                  localRecord.attachments,
+                ),
+              }
+            : record;
+        });
+
+        setRecoveryRecords(hydratedRecords);
+
+        const cachedCheckIds = new Set(
+          quickChecksRef.current.map((check) => check.checkId),
+        );
+        const missingCheckIds = [
+          ...new Set(
+            records.flatMap((record) =>
+              record.actions.map((action) => action.checkId),
+            ),
+          ),
+        ].filter((checkId) => !cachedCheckIds.has(checkId));
+        const checkResponses = await Promise.allSettled(
+          missingCheckIds.map((checkId) => getCheckById(checkId, sessionId)),
+        );
+
+        if (!active) {
+          return;
+        }
+
+        let unresolvedCount = 0;
+
+        checkResponses.forEach((response) => {
+          if (response.status === 'fulfilled') {
+            if (response.value.status === 'MATCHED') {
+              saveQuickCheck(response.value.result);
+            } else {
+              unresolvedCount += 1;
+            }
+          } else {
+            unresolvedCount += 1;
+          }
+        });
+
+        if (unresolvedCount > 0) {
+          setLoadNotice('일부 Quick Check 정보를 불러오지 못했어요.');
+        }
+
+        setLoadState('ready');
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        setLoadState('error');
+        setLoadNotice(
+          isApiError(error)
+            ? error.message
+            : '회복 기록을 불러오지 못했어요.',
+        );
+      }
+    };
+
+    void loadJournal();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    recoverySession?.sessionId,
+    reloadToken,
+    saveQuickCheck,
+    setRecoveryRecords,
+  ]);
+
+  useEffect(() => {
+    if (!recoverySession) {
+      return;
+    }
+
+    setSelectedElapsedDay(
+      routeDay === null ? currentDay : Math.min(routeDay, currentDay),
+    );
+  }, [currentDay, recoverySession, routeDay]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      dayScrollRef.current?.scrollTo({
+        animated: true,
+        x: selectedElapsedDay * (DAY_BUTTON_WIDTH + DAY_BUTTON_GAP),
+        y: 0,
+      });
+    });
+  }, [selectedElapsedDay]);
+
+  const selectedRecord = findRecoveryRecord(selectedElapsedDay);
+  const isFuture = selectedElapsedDay > currentDay;
+  const canEdit = selectedElapsedDay === currentDay;
   const floatingTabClearance =
     MALLO_SPACING.xxl * 2 +
     Math.max(insets.bottom, MALLO_SPACING.md) +
@@ -108,45 +269,105 @@ export default function RecoveryJournalScreen() {
           </Text>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.dayList}
-          horizontal
-          showsHorizontalScrollIndicator={false}
+        <View
+          style={[
+            styles.dayListWrapper,
+            Platform.OS === 'web' && styles.dayListWrapperWeb,
+          ]}
         >
-          {Array.from({ length: Math.max(7, currentDay + 1) }, (_, day) => {
-            const selected = day === selectedDay;
-            const future = day > currentDay;
-            const recorded = recoveryRecords.some(
-              (record) => record.elapsedDay === day,
-            );
+          {Platform.OS === 'web' ? (
+            <DayNavigationButton
+              direction="previous"
+              disabled={selectedElapsedDay === 0}
+              onPress={() =>
+                setSelectedElapsedDay((day) => Math.max(day - 1, 0))
+              }
+            />
+          ) : null}
 
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: future, selected }}
-                disabled={future}
-                key={day}
-                onPress={() => setSelectedDay(day)}
-                style={({ pressed }) => [
-                  styles.dayButton,
-                  selected && styles.dayButtonSelected,
-                  future && styles.dayButtonDisabled,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text
-                  style={[styles.dayText, selected && styles.dayTextSelected]}
-                >
-                  {day + 1}
-                </Text>
-                {recorded ? <View style={styles.recordDot} /> : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+          <ScrollView
+            contentContainerStyle={styles.dayList}
+            horizontal
+            ref={dayScrollRef}
+            showsHorizontalScrollIndicator={false}
+            style={
+              Platform.OS === 'web' ? styles.dayListScrollWeb : undefined
+            }
+          >
+            {Array.from(
+              { length: Math.max(7, currentDay + 1) },
+              (_, elapsedDay) => {
+                const selected = elapsedDay === selectedElapsedDay;
+                const future = elapsedDay > currentDay;
+                const recorded = recoveryRecords.some(
+                  (record) => record.elapsedDay === elapsedDay,
+                );
+
+                return (
+                  <Pressable
+                    accessibilityLabel={`DAY ${elapsedDay + 1}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: future, selected }}
+                    disabled={future}
+                    key={elapsedDay}
+                    onPress={() => setSelectedElapsedDay(elapsedDay)}
+                    style={({ pressed }) => [
+                      styles.dayButton,
+                      selected && styles.dayButtonSelected,
+                      future && styles.dayButtonDisabled,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        selected && styles.dayTextSelected,
+                      ]}
+                    >
+                      {elapsedDay + 1}
+                    </Text>
+                    {recorded && !selected ? (
+                      <Ionicons
+                        accessible={false}
+                        color={MALLO_COLORS.support.secondaryTextGray}
+                        name="checkmark"
+                        size={11}
+                        style={styles.recordIndicator}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              },
+            )}
+          </ScrollView>
+
+          {Platform.OS === 'web' ? (
+            <DayNavigationButton
+              direction="next"
+              disabled={selectedElapsedDay === currentDay}
+              onPress={() =>
+                setSelectedElapsedDay((day) =>
+                  Math.min(day + 1, currentDay),
+                )
+              }
+            />
+          ) : null}
+        </View>
 
         <View style={styles.selectedContext}>
-          <Text style={styles.contextDay}>{formatElapsedDay(selectedDay)}</Text>
+          <View>
+            <Text style={styles.contextDay}>
+              {formatElapsedDay(selectedElapsedDay)}
+            </Text>
+            {recoverySession ? (
+              <Text style={styles.contextDate}>
+                {formatRecoveryDate(
+                  recoverySession.procedureDate,
+                  selectedElapsedDay,
+                )}
+              </Text>
+            ) : null}
+          </View>
           <Text style={styles.contextProcedure}>
             {recoverySession?.procedureName ?? 'REJURAN'}
           </Text>
@@ -156,6 +377,32 @@ export default function RecoveryJournalScreen() {
           <Text accessibilityLiveRegion="polite" style={styles.savedMessage}>
             오늘 기록을 저장했어요.
           </Text>
+        ) : null}
+
+        {loadState === 'loading' ? (
+          <Text accessibilityLiveRegion="polite" style={styles.loadNotice}>
+            회복 기록을 불러오고 있어요.
+          </Text>
+        ) : null}
+
+        {loadNotice ? (
+          <Text accessibilityLiveRegion="polite" style={styles.loadNotice}>
+            {loadNotice}
+          </Text>
+        ) : null}
+
+        {loadState === 'error' ? (
+          <Pressable
+            accessibilityLabel="회복 기록 다시 불러오기"
+            accessibilityRole="button"
+            onPress={() => setReloadToken((current) => current + 1)}
+            style={({ pressed }) => [
+              styles.loadRetry,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.loadRetryText}>다시 불러오기</Text>
+          </Pressable>
         ) : null}
 
         {selectedRecord ? (
@@ -169,7 +416,19 @@ export default function RecoveryJournalScreen() {
                     const quickCheck = findQuickCheck(actionRecord.checkId);
 
                     if (!quickCheck) {
-                      return null;
+                      return (
+                        <View
+                          key={actionRecord.checkId}
+                          style={styles.actionRecord}
+                        >
+                          <Text style={styles.actionRecordTitle}>
+                            Quick Check 정보를 불러오지 못했어요.
+                          </Text>
+                          <Text style={styles.performedValue}>
+                            {PERFORMED_LABELS[actionRecord.performedStatus]}
+                          </Text>
+                        </View>
+                      );
                     }
 
                     return (
@@ -217,16 +476,32 @@ export default function RecoveryJournalScreen() {
 
             {selectedRecord.attachments.length ? (
               <View style={styles.photoGrid}>
-                {selectedRecord.attachments.map((attachment, index) => (
-                  <View key={attachment} style={styles.photoPreview}>
-                    <Ionicons
-                      name="image-outline"
-                      size={24}
-                      color={MALLO_COLORS.core.red}
-                    />
-                    <Text style={styles.photoNumber}>{index + 1}</Text>
-                  </View>
-                ))}
+                {selectedRecord.attachments.map((attachment) => {
+                  const previewUri =
+                    attachment.photoUrl ?? attachment.localUri;
+
+                  return (
+                    <View
+                      key={attachment.clientId}
+                      style={styles.photoPreview}
+                    >
+                      {previewUri ? (
+                        <Image
+                          accessible={false}
+                          resizeMode="cover"
+                          source={{ uri: previewUri }}
+                          style={styles.photoImage}
+                        />
+                      ) : (
+                        <Ionicons
+                          name="image-outline"
+                          size={24}
+                          color={MALLO_COLORS.core.red}
+                        />
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             ) : (
               <Text style={styles.memo}>남긴 사진이 없어요.</Text>
@@ -238,7 +513,7 @@ export default function RecoveryJournalScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/(tabs)/journey/record',
-                    params: { day: String(selectedDay) },
+                    params: { day: String(selectedElapsedDay) },
                   })
                 }
                 style={({ pressed }) => [
@@ -277,7 +552,7 @@ export default function RecoveryJournalScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/(tabs)/journey/record',
-                    params: { day: String(selectedDay) },
+                    params: { day: String(selectedElapsedDay) },
                   })
                 }
                 style={({ pressed }) => [
@@ -292,6 +567,57 @@ export default function RecoveryJournalScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function mergePhotoAttachments(
+  serverAttachments: PhotoAttachment[],
+  localAttachments: PhotoAttachment[],
+) {
+  const serverPhotoIds = new Set(
+    serverAttachments.flatMap((attachment) =>
+      attachment.photoId === undefined ? [] : [attachment.photoId],
+    ),
+  );
+
+  return [
+    ...serverAttachments,
+    ...localAttachments.filter(
+      (attachment) =>
+        attachment.photoId === undefined ||
+        !serverPhotoIds.has(attachment.photoId),
+    ),
+  ];
+}
+
+function DayNavigationButton({
+  direction,
+  disabled,
+  onPress,
+}: {
+  direction: 'previous' | 'next';
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={direction === 'previous' ? '이전 DAY 보기' : '다음 DAY 보기'}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.webNavigationButton,
+        disabled && styles.webNavigationButtonDisabled,
+        pressed && !disabled && styles.pressed,
+      ]}
+    >
+      <Ionicons
+        color={MALLO_COLORS.support.charcoal}
+        name={direction === 'previous' ? 'chevron-back' : 'chevron-forward'}
+        size={17}
+      />
+    </Pressable>
   );
 }
 
@@ -331,12 +657,24 @@ const styles = StyleSheet.create({
     marginTop: MALLO_SPACING.sm,
     color: MALLO_COLORS.support.secondaryTextGray,
   },
-  dayList: {
+  dayListWrapper: {
+    position: 'relative',
+  },
+  dayListWrapperWeb: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: MALLO_SPACING.sm,
+  },
+  dayList: {
+    gap: DAY_BUTTON_GAP,
     paddingVertical: MALLO_SPACING.xl,
   },
+  dayListScrollWeb: {
+    flex: 1,
+    minWidth: 0,
+  },
   dayButton: {
-    width: 42,
+    width: DAY_BUTTON_WIDTH,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
@@ -351,6 +689,20 @@ const styles = StyleSheet.create({
   dayButtonDisabled: {
     opacity: 0.35,
   },
+  webNavigationButton: {
+    width: WEB_NAVIGATION_BUTTON_SIZE,
+    height: WEB_NAVIGATION_BUTTON_SIZE,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.support.mistGray,
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+  webNavigationButtonDisabled: {
+    opacity: 0.35,
+  },
   dayText: {
     ...MALLO_TYPOGRAPHY.buttonLabel,
     color: MALLO_COLORS.support.secondaryTextGray,
@@ -358,12 +710,8 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: MALLO_COLORS.core.red,
   },
-  recordDot: {
-    width: 4,
-    height: 4,
+  recordIndicator: {
     marginTop: 2,
-    borderRadius: MALLO_RADIUS.full,
-    backgroundColor: MALLO_COLORS.core.red,
   },
   selectedContext: {
     flexDirection: 'row',
@@ -381,10 +729,28 @@ const styles = StyleSheet.create({
     ...MALLO_TYPOGRAPHY.statusLabel,
     color: MALLO_COLORS.support.secondaryTextGray,
   },
+  contextDate: {
+    ...MALLO_TYPOGRAPHY.caption,
+    marginTop: MALLO_SPACING.xs,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
   savedMessage: {
     ...MALLO_TYPOGRAPHY.secondaryBody,
     marginTop: MALLO_SPACING.md,
     color: MALLO_COLORS.semantic.possible,
+  },
+  loadNotice: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    marginTop: MALLO_SPACING.md,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+  loadRetry: {
+    alignSelf: 'flex-start',
+    marginTop: MALLO_SPACING.sm,
+  },
+  loadRetryText: {
+    ...MALLO_TYPOGRAPHY.buttonLabel,
+    color: MALLO_COLORS.core.red,
   },
   recordDetail: {
     marginTop: MALLO_SPACING.xl,
@@ -451,10 +817,10 @@ const styles = StyleSheet.create({
     borderRadius: MALLO_RADIUS.md,
     backgroundColor: MALLO_COLORS.support.redTint,
   },
-  photoNumber: {
-    ...MALLO_TYPOGRAPHY.caption,
-    marginTop: 2,
-    color: MALLO_COLORS.core.red,
+  photoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: MALLO_RADIUS.md,
   },
   emptyState: {
     alignItems: 'center',

@@ -14,19 +14,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MALLO_COLORS } from '@/constants/colors';
 import { CheckRequestState } from '@/features/check/components/CheckRequestState';
 import { CONDITION_CONFIGS, isQuickCheckAction } from '@/features/check/data';
-import { requestMockQuickCheck } from '@/features/check/mock-service';
 import { formatElapsedDay } from '@/features/recovery/mock-data';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { createCheck } from '@/services/check';
 
 type RequestState = 'idle' | 'loading' | 'error' | 'no-protocol';
 
 export default function ConditionCheckScreen() {
   const router = useRouter();
 
-  const { action, actionTitle, simulate, source } = useLocalSearchParams<{
+  const { action, actionTitle, source } = useLocalSearchParams<{
     action?: string;
     actionTitle?: string;
-    simulate?: string;
     source?: string;
   }>();
 
@@ -35,10 +34,6 @@ export default function ConditionCheckScreen() {
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
 
   const [requestState, setRequestState] = useState<RequestState>('idle');
-
-  const [shouldSimulateError, setShouldSimulateError] = useState(
-    simulate === 'error',
-  );
 
   const normalizedAction =
     typeof action === 'string' && isQuickCheckAction(action)
@@ -65,14 +60,15 @@ export default function ConditionCheckScreen() {
     setRequestState('loading');
 
     try {
-      const response = await requestMockQuickCheck({
+      const response = await createCheck(
+        {
         action: normalizedAction,
         context: {
           [config.contextKey]: selectedValue,
         },
-        elapsedDay,
-        simulateError: shouldSimulateError,
-      });
+        },
+        recoverySession?.sessionId,
+      );
 
       if (response.status === 'NO_PROTOCOL') {
         setRequestState('no-protocol');
@@ -90,7 +86,6 @@ export default function ConditionCheckScreen() {
         },
       });
     } catch {
-      setShouldSimulateError(false);
       setRequestState('error');
     }
   };

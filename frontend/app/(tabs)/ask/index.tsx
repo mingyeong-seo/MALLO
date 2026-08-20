@@ -21,40 +21,18 @@ import {
   RecoveryContextTags,
 } from '@/features/ask/components/AskContent';
 import { AskLoadingState } from '@/features/ask/components/AskLoadingState';
+import { AskMatchedResultState } from '@/features/ask/components/AskMatchedResultState';
 import { AskStatusState } from '@/features/ask/components/AskStatusState';
 import { QuestionComposer } from '@/features/ask/components/QuestionComposer';
-import {
-  EXAMPLE_QUESTIONS,
-  getGeneralRecoveryResult,
-} from '@/features/ask/data';
+import { EXAMPLE_QUESTIONS } from '@/features/ask/data';
 import { styles } from '@/features/ask/styles';
-import type { AskMalloState, MockQuestionIntent } from '@/features/ask/types';
-import {
-  classifyMockQuestion,
-  getExplicitMockContext,
-} from '@/features/ask/utils';
+import type { AskMalloState } from '@/features/ask/types';
 import { CONDITION_CONFIGS } from '@/features/check/data';
-import { requestMockQuickCheck } from '@/features/check/mock-service';
 import type { ConditionOption } from '@/features/check/types';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
-import type { QuickCheckAction } from '@/features/recovery/types';
-
-const INTENT_ACTION: Partial<Record<MockQuestionIntent, QuickCheckAction>> = {
-  'exercise-follow-up': 'EXERCISE',
-  'wash-follow-up': 'CLEANSING',
-  'skincare-follow-up': 'SKINCARE',
-  'makeup-follow-up': 'MAKEUP',
-  'heat-follow-up': 'HEAT',
-};
-
-// ASK 첫 분석 단계에서 THINK ↔ SEARCH를 보여주는 최소 시간
-const INITIAL_LOADING_DELAY_MS = 2800;
-
-// 조건 선택 후 다시 Protocol을 확인할 때 THINK ↔ SEARCH를 보여주는 최소 시간
-const FOLLOW_UP_LOADING_MIN_MS = 2200;
-
-// CHECK 이미지를 보여준 뒤 다음 화면으로 넘어가기 전 유지 시간
-const CHECKED_HOLD_MS = 700;
+import { askMallo } from '@/services/ask';
+import { isApiError } from '@/services/api';
+import type { AskResult } from '@/types/ask';
 
 export default function AskScreen() {
   const {
@@ -69,7 +47,8 @@ export default function AskScreen() {
   const insets = useSafeAreaInsets();
   const rootNavigation = useNavigation('/');
   const scrollRef = useRef<ScrollView>(null);
-  const { recoverySession, saveQuickCheck } = useRecoveryFlow();
+  const lastRequestQuestionRef = useRef('');
+  const { recoverySession } = useRecoveryFlow();
 
   const isLoadingPreview = previewState === 'loading';
   const loadingPreviewQuestion =
@@ -83,11 +62,10 @@ export default function AskScreen() {
   const [question, setQuestion] = useState('');
   const [submittedQuestion, setSubmittedQuestion] = useState('');
   const [inputNotice, setInputNotice] = useState('');
-  const [attachments, setAttachments] = useState<string[]>([]);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
-  const [pendingAction, setPendingAction] =
-    useState<QuickCheckAction>('EXERCISE');
-  const [isLoadingComplete, setIsLoadingComplete] = useState(false);
+  const [askResult, setAskResult] = useState<AskResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [canRetry, setCanRetry] = useState(false);
 
   const recoveryContext = useMemo(
     () => ({
@@ -95,11 +73,6 @@ export default function AskScreen() {
       recoveryDay: (recoverySession?.elapsedDay ?? 0) + 1,
     }),
     [recoverySession],
-  );
-
-  const generalRecoveryResult = useMemo(
-    () => getGeneralRecoveryResult(submittedQuestion),
-    [submittedQuestion],
   );
 
   const floatingTabClearance =
@@ -121,13 +94,15 @@ export default function AskScreen() {
 
   const resetQuestion = useCallback(() => {
     Keyboard.dismiss();
+    lastRequestQuestionRef.current = '';
     setScreenState('input');
     setQuestion('');
     setSubmittedQuestion('');
     setInputNotice('');
-    setAttachments([]);
     setIsComposerFocused(false);
-    setIsLoadingComplete(false);
+    setAskResult(null);
+    setErrorMessage('');
+    setCanRetry(false);
   }, []);
 
   useEffect(() => {
@@ -136,149 +111,85 @@ export default function AskScreen() {
     }
   }, [isLoadingPreview, resetQuestion, resetRequest]);
 
-  const openStoredResult = (checkId: string, resultQuestion: string) => {
-    router.push({
-      pathname: '/(tabs)/check/result',
-      params: {
-        checkId,
-        question: resultQuestion,
-        source: 'ask-mallo',
-      },
-    });
-  };
+  const applyAskResult = useCallback((result: AskResult) => {
+    setAskResult(result);
+    setScreenState('resolved');
+  }, []);
 
-  const showCheckedThen = async (next: () => void) => {
-    setIsLoadingComplete(true);
+  const executeQuestion = useCallback(
+    async (requestQuestion: string, displayQuestion: string) => {
+      lastRequestQuestionRef.current = requestQuestion;
+      setSubmittedQuestion(displayQuestion);
+      setInputNotice('');
+      setErrorMessage('');
+      setCanRetry(false);
+      setAskResult(null);
+      setScreenState('loading');
+      Keyboard.dismiss();
 
-    // CHECK 상태가 실제 화면에 한 번 렌더링될 때까지 기다림
-    await waitForPaint();
-
-    // 렌더링된 CHECK 화면을 지정한 시간 동안 유지
-    await wait(CHECKED_HOLD_MS);
-
-    next();
-  };
-
-  const completeConditionCheck = async (option: ConditionOption) => {
-    const config = CONDITION_CONFIGS[pendingAction];
-
-    Keyboard.dismiss();
-    setIsLoadingComplete(false);
-    setScreenState('loading');
-
-    try {
-      const [response] = await Promise.all([
-        requestMockQuickCheck({
-          action: pendingAction,
-          context: { [config.contextKey]: option.value },
-          elapsedDay: recoverySession?.elapsedDay ?? 0,
-        }),
-        wait(FOLLOW_UP_LOADING_MIN_MS),
-      ]);
-
-      if (response.status === 'NO_PROTOCOL') {
-        setScreenState('no-protocol');
-        return;
-      }
-
-      saveQuickCheck(response.result);
-
-      await showCheckedThen(() => {
-        openStoredResult(response.result.checkId, submittedQuestion);
-      });
-    } catch {
-      setScreenState('error');
-    }
-  };
-
-  const resolveExplicitContext = async (
-    action: QuickCheckAction,
-    contextValue: string,
-    resultQuestion: string,
-  ) => {
-    const config = CONDITION_CONFIGS[action];
-
-    try {
-      const response = await requestMockQuickCheck({
-        action,
-        context: { [config.contextKey]: contextValue },
-        elapsedDay: recoverySession?.elapsedDay ?? 0,
-      });
-
-      if (response.status === 'NO_PROTOCOL') {
-        setScreenState('no-protocol');
-        return;
-      }
-
-      saveQuickCheck(response.result);
-
-      await showCheckedThen(() => {
-        openStoredResult(response.result.checkId, resultQuestion);
-      });
-    } catch {
-      setScreenState('error');
-    }
-  };
-
-  const finishNonActionIntent = async (intent: MockQuestionIntent) => {
-    await showCheckedThen(() => {
-      switch (intent) {
-        case 'general-result':
-          setScreenState('general-result');
-          break;
-
-        case 'medical-connect':
-          setScreenState('connect');
-          break;
-
-        case 'mock-error':
-          setScreenState('error');
-          break;
-
-        default:
-          setScreenState('unsupported-question');
-      }
-    });
-  };
-
-  const runQuestion = (rawQuestion: string) => {
-    const normalizedQuestion = rawQuestion.trim();
-
-    if (!normalizedQuestion) {
-      setInputNotice('질문을 입력해 주세요.');
-      return;
-    }
-
-    const intent = classifyMockQuestion(normalizedQuestion);
-    const action = INTENT_ACTION[intent];
-    const explicitContext = getExplicitMockContext(normalizedQuestion);
-
-    setQuestion(normalizedQuestion);
-    setSubmittedQuestion(normalizedQuestion);
-    setInputNotice('');
-    setIsLoadingComplete(false);
-    setScreenState('loading');
-    Keyboard.dismiss();
-
-    setTimeout(() => {
-      if (explicitContext) {
-        void resolveExplicitContext(
-          explicitContext.action,
-          explicitContext.value,
-          normalizedQuestion,
+      try {
+        const result = await askMallo(
+          {
+            question: requestQuestion,
+            photoRecordIds: [],
+          },
+          recoverySession?.sessionId,
         );
+
+        applyAskResult(result);
+      } catch (error) {
+        if (isApiError(error) && error.status === 400) {
+          setQuestion(displayQuestion);
+          setInputNotice(error.message);
+          setScreenState('input');
+          return;
+        }
+
+        const isSessionError = isApiError(error) && error.status === 401;
+        setErrorMessage(
+          isSessionError
+            ? '활성 Recovery Session을 확인하지 못했어요.'
+            : isApiError(error)
+              ? error.message
+              : '잠시 후 다시 확인해 주세요. 입력한 질문은 그대로 유지돼요.',
+        );
+        setCanRetry(!isSessionError);
+        setScreenState('error');
+      }
+    },
+    [applyAskResult, recoverySession?.sessionId],
+  );
+
+  const runQuestion = useCallback(
+    (rawQuestion: string) => {
+      const normalizedQuestion = rawQuestion.trim();
+
+      if (!normalizedQuestion) {
+        setInputNotice('질문을 입력해 주세요.');
         return;
       }
 
-      if (action) {
-        setPendingAction(action);
-        setScreenState('behavior-follow-up');
-        return;
-      }
+      setQuestion(normalizedQuestion);
+      void executeQuestion(normalizedQuestion, normalizedQuestion);
+    },
+    [executeQuestion],
+  );
 
-      void finishNonActionIntent(intent);
-    }, INITIAL_LOADING_DELAY_MS);
-  };
+  const completeConditionCheck = useCallback(
+    (option: ConditionOption) => {
+      const followUpQuestion = `${submittedQuestion} 추가 조건은 ${option.label}이에요.`;
+      void executeQuestion(followUpQuestion, submittedQuestion);
+    },
+    [executeQuestion, submittedQuestion],
+  );
+
+  const retryLastQuestion = useCallback(() => {
+    const requestQuestion = lastRequestQuestionRef.current;
+
+    if (requestQuestion) {
+      void executeQuestion(requestQuestion, submittedQuestion);
+    }
+  }, [executeQuestion, submittedQuestion]);
 
   const renderState = () => {
     if (screenState === 'input') {
@@ -288,21 +199,10 @@ export default function AskScreen() {
     if (screenState === 'loading') {
       return (
         <AskLoadingState
-          isComplete={isLoadingComplete}
+          isComplete={false}
           question={
             isLoadingPreview ? loadingPreviewQuestion : submittedQuestion
           }
-        />
-      );
-    }
-
-    if (screenState === 'behavior-follow-up') {
-      return (
-        <BehaviorFollowUpState
-          config={CONDITION_CONFIGS[pendingAction]}
-          onOptionPress={completeConditionCheck}
-          onReset={resetQuestion}
-          question={submittedQuestion}
         />
       );
     }
@@ -312,54 +212,114 @@ export default function AskScreen() {
       question: submittedQuestion,
     };
 
-    switch (screenState) {
-      case 'general-result':
+    if (screenState === 'error') {
+      return (
+        <AskStatusState
+          {...common}
+          description={
+            errorMessage ||
+            '잠시 후 다시 확인해 주세요. 입력한 질문은 그대로 유지돼요.'
+          }
+          icon="refresh-outline"
+          onPrimaryPress={canRetry ? retryLastQuestion : undefined}
+          primaryLabel={canRetry ? '다시 확인하기' : undefined}
+          title={
+            canRetry
+              ? '안내를 불러오지 못했어요'
+              : 'Recovery Session을 확인해 주세요'
+          }
+        />
+      );
+    }
+
+    if (screenState !== 'resolved' || !askResult) {
+      return null;
+    }
+
+    switch (askResult.status) {
+      case 'MATCHED':
         return (
-          <AskStatusState
-            {...common}
-            description={generalRecoveryResult.description}
-            icon="sparkles-outline"
-            title={generalRecoveryResult.title}
+          <AskMatchedResultState
+            onReset={resetQuestion}
+            question={submittedQuestion}
+            result={askResult}
           />
         );
 
-      case 'no-protocol':
+      case 'CLARIFY':
+        const conditionConfig = askResult.action
+          ? CONDITION_CONFIGS[askResult.action]
+          : null;
+
+        if (!conditionConfig) {
+          return (
+            <AskStatusState
+              {...common}
+              description={
+                askResult.message ||
+                '질문을 조금 더 구체적으로 입력하면 다시 확인할 수 있어요.'
+              }
+              icon="chatbubble-ellipses-outline"
+              title="조건을 조금 더 알려주세요"
+            />
+          );
+        }
+
+        return (
+          <BehaviorFollowUpState
+            config={conditionConfig}
+            message={askResult.message || undefined}
+            onOptionPress={completeConditionCheck}
+            onReset={resetQuestion}
+            question={submittedQuestion}
+          />
+        );
+
+      case 'GENERAL':
         return (
           <AskStatusState
             {...common}
-            description="현재 Recovery Protocol에서 이 조건에 맞는 안내를 찾지 못했어요."
+            description={
+              askResult.message || '현재 회복 단계의 정보를 확인했어요.'
+            }
+            icon="sparkles-outline"
+            title="회복 정보를 확인했어요"
+          />
+        );
+
+      case 'NO_PROTOCOL':
+        return (
+          <AskStatusState
+            {...common}
+            description={
+              askResult.message ||
+              '현재 Recovery Protocol에서 이 조건에 맞는 안내를 찾지 못했어요.'
+            }
             icon="document-text-outline"
             title="아직 제공할 수 있는 안내가 없어요"
           />
         );
 
-      case 'unsupported-question':
+      case 'UNSUPPORTED':
         return (
           <AskStatusState
             {...common}
-            description="운동, 세안, 스킨케어, 화장, 열 자극처럼 회복 중 궁금한 행동이나 회복 변화에 대해 질문해 주세요."
+            description={
+              askResult.message ||
+              '이 질문은 회복 관리 범위 밖이라 답변드리기 어려워요.'
+            }
             icon="chatbubble-ellipses-outline"
-            title="이 질문은 아직 확인하기 어려워요"
+            title="회복 관리 범위 밖의 질문이에요"
           />
         );
 
-      case 'error':
+      case 'CONNECT':
         return (
           <AskStatusState
             {...common}
-            description="잠시 후 다시 확인해 주세요. 입력한 질문은 그대로 유지돼요."
-            icon="refresh-outline"
-            onPrimaryPress={() => runQuestion(submittedQuestion)}
-            primaryLabel="다시 확인하기"
-            title="안내를 불러오지 못했어요"
-          />
-        );
-
-      case 'connect':
-        return (
-          <AskStatusState
-            {...common}
-            description="입력한 내용만으로 안내하기 어려워 의료진 확인 단계로 연결해요."
+            description={
+              askResult.message || '이 질문은 의료진 확인이 필요해요.'
+            }
             icon="medical-outline"
             onPrimaryPress={() =>
               rootNavigation.dispatch(
@@ -374,8 +334,6 @@ export default function AskScreen() {
           />
         );
 
-      default:
-        return null;
     }
   };
 
@@ -417,15 +375,9 @@ export default function AskScreen() {
 
         {screenState === 'input' ? (
           <QuestionComposer
-            attachments={attachments}
+            allowAttachments={false}
             bottomClearance={composerBottomClearance}
             notice={inputNotice}
-            onAddAttachment={() =>
-              setAttachments((current) => [
-                ...current,
-                `mock-ask-photo-${Date.now()}`,
-              ])
-            }
             onChangeText={(text) => {
               setQuestion(text);
 
@@ -433,11 +385,6 @@ export default function AskScreen() {
                 setInputNotice('');
               }
             }}
-            onRemoveAttachment={(attachment) =>
-              setAttachments((current) =>
-                current.filter((item) => item !== attachment),
-              )
-            }
             onFocusChange={setIsComposerFocused}
             onSubmit={() => runQuestion(question)}
             suggestions={EXAMPLE_QUESTIONS}
@@ -447,20 +394,4 @@ export default function AskScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
-
-function wait(duration: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, duration);
-  });
-}
-
-function waitForPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        resolve();
-      });
-    });
-  });
 }

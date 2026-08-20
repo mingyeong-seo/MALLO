@@ -28,6 +28,7 @@ import {
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
 import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { getTodayRecord } from '@/services/record';
 
 type RecoveryJourneySummary = {
   procedureName: string;
@@ -74,7 +75,11 @@ const CAROUSEL_NAVIGATION_BUTTON_SIZE = 36;
 
 export default function JourneyHomeScreen() {
   const { scrollToTop } = useLocalSearchParams<{ scrollToTop?: string }>();
-  const { findRecoveryRecord, recoverySession } = useRecoveryFlow();
+  const {
+    findRecoveryRecord,
+    recoverySession,
+    upsertRecoveryRecord,
+  } = useRecoveryFlow();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const carouselRef = useRef<ScrollView>(null);
@@ -99,6 +104,34 @@ export default function JourneyHomeScreen() {
   const [cardWidth, setCardWidth] = useState(0);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const sessionId = recoverySession?.sessionId;
+
+    if (!sessionId || todayRecord) {
+      return;
+    }
+
+    let active = true;
+
+    const hydrateTodayRecord = async () => {
+      try {
+        const record = await getTodayRecord(sessionId);
+
+        if (active && record && record.elapsedDay === elapsedDay) {
+          upsertRecoveryRecord(record);
+        }
+      } catch {
+        // S04의 기존 화면은 유지하고, S09/S10에서 재시도할 수 있게 둡니다.
+      }
+    };
+
+    void hydrateTodayRecord();
+
+    return () => {
+      active = false;
+    };
+  }, [elapsedDay, recoverySession?.sessionId, todayRecord, upsertRecoveryRecord]);
 
   const handlePhasePress = () => {
     setShowPhaseInfo(true);

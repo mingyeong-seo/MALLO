@@ -76,7 +76,7 @@ export function ConsultationScreen({
               color={MALLO_COLORS.core.red}
             />
           </View>
-          <Text style={styles.title}>의료진에게 문의할 수 있어요</Text>
+          <Text style={styles.title}>의료진의 확인이 필요해요</Text>
           <Text style={styles.description}>
             현재는 의료진 문의 전송과 상담 채널 연결을 제공하지 않아요.
           </Text>

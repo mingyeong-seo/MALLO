@@ -7,7 +7,6 @@ import {
   useReducer,
 } from 'react';
 
-import { MOCK_RECOVERY_SESSION } from './mock-data';
 import type {
   QuickCheckResult,
   RecoveryRecord,
@@ -22,6 +21,8 @@ type RecoveryFlowState = {
 
 type RecoveryFlowAction =
   | { type: 'SAVE_QUICK_CHECK'; payload: QuickCheckResult }
+  | { type: 'SET_QUICK_CHECKS'; payload: QuickCheckResult[] }
+  | { type: 'SET_RECOVERY_RECORDS'; payload: RecoveryRecord[] }
   | { type: 'UPSERT_RECOVERY_RECORD'; payload: RecoveryRecord }
   | { type: 'SET_RECOVERY_SESSION'; payload: RecoverySession | null };
 
@@ -29,6 +30,8 @@ type RecoveryFlowContextValue = RecoveryFlowState & {
   findQuickCheck: (checkId: string) => QuickCheckResult | undefined;
   findRecoveryRecord: (elapsedDay: number) => RecoveryRecord | undefined;
   saveQuickCheck: (result: QuickCheckResult) => void;
+  setQuickChecks: (results: QuickCheckResult[]) => void;
+  setRecoveryRecords: (records: RecoveryRecord[]) => void;
   setRecoverySession: (session: RecoverySession | null) => void;
   upsertRecoveryRecord: (record: RecoveryRecord) => void;
 };
@@ -36,7 +39,7 @@ type RecoveryFlowContextValue = RecoveryFlowState & {
 const initialState: RecoveryFlowState = {
   quickChecks: [],
   recoveryRecords: [],
-  recoverySession: MOCK_RECOVERY_SESSION,
+  recoverySession: null,
 };
 
 const RecoveryFlowContext = createContext<RecoveryFlowContextValue | null>(
@@ -59,6 +62,18 @@ function recoveryFlowReducer(
         ],
       };
 
+    case 'SET_QUICK_CHECKS':
+      return {
+        ...state,
+        quickChecks: action.payload,
+      };
+
+    case 'SET_RECOVERY_RECORDS':
+      return {
+        ...state,
+        recoveryRecords: action.payload,
+      };
+
     case 'UPSERT_RECOVERY_RECORD':
       return {
         ...state,
@@ -71,6 +86,16 @@ function recoveryFlowReducer(
       };
 
     case 'SET_RECOVERY_SESSION':
+      if (
+        state.recoverySession?.sessionId !== action.payload?.sessionId
+      ) {
+        return {
+          quickChecks: [],
+          recoveryRecords: [],
+          recoverySession: action.payload,
+        };
+      }
+
       return {
         ...state,
         recoverySession: action.payload,
@@ -83,6 +108,14 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
 
   const saveQuickCheck = useCallback((result: QuickCheckResult) => {
     dispatch({ type: 'SAVE_QUICK_CHECK', payload: result });
+  }, []);
+
+  const setQuickChecks = useCallback((results: QuickCheckResult[]) => {
+    dispatch({ type: 'SET_QUICK_CHECKS', payload: results });
+  }, []);
+
+  const setRecoveryRecords = useCallback((records: RecoveryRecord[]) => {
+    dispatch({ type: 'SET_RECOVERY_RECORDS', payload: records });
   }, []);
 
   const upsertRecoveryRecord = useCallback((record: RecoveryRecord) => {
@@ -111,6 +144,8 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
       findQuickCheck,
       findRecoveryRecord,
       saveQuickCheck,
+      setQuickChecks,
+      setRecoveryRecords,
       setRecoverySession,
       upsertRecoveryRecord,
     }),
@@ -118,6 +153,8 @@ export function RecoveryFlowProvider({ children }: PropsWithChildren) {
       findQuickCheck,
       findRecoveryRecord,
       saveQuickCheck,
+      setQuickChecks,
+      setRecoveryRecords,
       setRecoverySession,
       state,
       upsertRecoveryRecord,

@@ -20,7 +20,7 @@ const CHECKED_IMAGE = require('../../../assets/images/mallo-character-checked.pn
 
 /**
  * THINK / SEARCH 각각을 약 1초씩 보여줍니다.
- * 전체 반복 시간은 Ask index의 Loading delay가 결정합니다.
+ * 실제 ASK API 요청이 진행되는 동안에만 반복합니다.
  */
 const LOADING_IMAGE_INTERVAL_MS = 1000;
 

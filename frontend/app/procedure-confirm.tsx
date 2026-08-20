@@ -19,6 +19,9 @@ import {
   MALLO_SPACING,
   MALLO_TYPOGRAPHY,
 } from '@/constants/theme';
+import { useRecoveryFlow } from '@/features/recovery/RecoveryFlowProvider';
+import { createSession } from '@/services/session';
+import { setSessionId } from '@/services/session-storage';
 
 // ─── Mock Data ────────────────────────────────────────────────
 
@@ -31,7 +34,7 @@ interface ProcedureData {
 
 const MOCK_PROCEDURE: ProcedureData = {
   procedure: 'REJURAN',
-  procedure_at: '2026.08.12 시술',
+  procedure_at: '2026-08-12',
   clinic_id: 'clinic_001',
   clinic_name: '더나의원',
 };
@@ -40,6 +43,7 @@ const MOCK_PROCEDURE: ProcedureData = {
 
 export default function ProcedureConfirmScreen() {
   const router = useRouter();
+  const { setRecoverySession } = useRecoveryFlow();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Recovery Session 생성 및 S04 이동
@@ -47,20 +51,18 @@ export default function ProcedureConfirmScreen() {
     try {
       setIsSubmitting(true);
 
-      // TODO: 추후 백엔드 Session 생성 API 연동
-      // 1. API 호출 후 response로
-      //    { session_id, elapsed_day, status } 수신
-      // 2. await SecureStore.setItemAsync(
-      //      'session_id',
-      //      response.session_id,
-      //    );
+      const session = await createSession({
+        clinicId: MOCK_PROCEDURE.clinic_id,
+        procedure: MOCK_PROCEDURE.procedure,
+        procedureAt: MOCK_PROCEDURE.procedure_at,
+      });
 
-      // 현재는 Mock 성공 딜레이 후 S04로 이동
-      setTimeout(() => {
-        setIsSubmitting(false);
-        router.dismissTo('/');
-        router.push('/(tabs)/journey/home');
-      }, 500);
+      await setSessionId(session.sessionId);
+      setRecoverySession(session);
+      setIsSubmitting(false);
+
+      router.dismissTo('/');
+      router.push('/(tabs)/journey/home');
     } catch {
       setIsSubmitting(false);
 
@@ -94,7 +96,7 @@ export default function ProcedureConfirmScreen() {
 
             <View style={styles.procedureDetails}>
               <Text style={styles.procedureDetail}>
-                {MOCK_PROCEDURE.procedure_at}
+                {formatProcedureDate(MOCK_PROCEDURE.procedure_at)} 시술
               </Text>
 
               <Text style={styles.procedureDetail}>
@@ -137,6 +139,10 @@ export default function ProcedureConfirmScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+function formatProcedureDate(procedureAt: string) {
+  return procedureAt.replaceAll('-', '.');
 }
 
 // ─── Styles ───────────────────────────────────────────────────

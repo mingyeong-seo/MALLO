@@ -708,4 +708,117 @@ export const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginTop: MALLO_SPACING.md,
   },
+
+  matchedContextRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: MALLO_SPACING.sm,
+    marginTop: MALLO_SPACING.lg,
+  },
+
+  matchedContextChip: {
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: MALLO_SPACING.md,
+    paddingVertical: MALLO_SPACING.xs,
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.support.warmGray,
+  },
+
+  matchedContextText: {
+    ...MALLO_TYPOGRAPHY.statusLabel,
+    color: MALLO_COLORS.support.charcoal,
+  },
+
+  matchedConditionChip: {
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: MALLO_SPACING.md,
+    paddingVertical: MALLO_SPACING.xs,
+    borderWidth: 1,
+    borderColor: MALLO_COLORS.core.red,
+    borderRadius: MALLO_RADIUS.full,
+  },
+
+  matchedConditionText: {
+    ...MALLO_TYPOGRAPHY.statusLabel,
+    color: MALLO_COLORS.core.red,
+  },
+
+  matchedResultSection: {
+    marginTop: MALLO_SPACING.xl,
+  },
+
+  matchedDecisionBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: MALLO_SPACING.md,
+    paddingVertical: MALLO_SPACING.xs,
+    borderWidth: 1,
+    borderRadius: MALLO_RADIUS.full,
+  },
+
+  matchedDecisionText: {
+    ...MALLO_TYPOGRAPHY.statusLabel,
+  },
+
+  matchedHeadline: {
+    ...MALLO_TYPOGRAPHY.screenTitle,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginTop: MALLO_SPACING.lg,
+    color: MALLO_COLORS.core.ink,
+  },
+
+  matchedSection: {
+    marginTop: MALLO_SPACING.xl,
+    paddingTop: MALLO_SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: MALLO_COLORS.support.mistGray,
+  },
+
+  matchedSectionTitle: {
+    ...MALLO_TYPOGRAPHY.sectionTitle,
+    color: MALLO_COLORS.support.charcoal,
+  },
+
+  matchedBodyText: {
+    ...MALLO_TYPOGRAPHY.body,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    marginTop: MALLO_SPACING.md,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+
+  matchedProtocolCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: MALLO_SPACING.md,
+    marginTop: MALLO_SPACING.md,
+    padding: MALLO_SPACING.lg,
+    borderRadius: MALLO_RADIUS.md,
+    backgroundColor: MALLO_COLORS.support.warmGray,
+  },
+
+  matchedProtocolIndex: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: MALLO_RADIUS.full,
+    backgroundColor: MALLO_COLORS.core.white,
+  },
+
+  matchedProtocolIndexText: {
+    ...MALLO_TYPOGRAPHY.caption,
+    color: MALLO_COLORS.support.secondaryTextGray,
+  },
+
+  matchedProtocolText: {
+    ...MALLO_TYPOGRAPHY.secondaryBody,
+    ...MALLO_TEXT_STYLES.koreanWordWrap,
+    flex: 1,
+    color: MALLO_COLORS.support.charcoal,
+  },
+
+  matchedResetButton: {
+    marginTop: MALLO_SPACING.xl,
+  },
 });
