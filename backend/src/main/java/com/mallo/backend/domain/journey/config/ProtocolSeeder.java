@@ -24,6 +24,11 @@ import lombok.extern.slf4j.Slf4j;
  * (EXERCISE.intensity / MAKEUP.friction / CLEANSING.method / SKINCARE.product_type /
  * HEAT.heat_type)에 맞춰 conditions 키·값 체계를 갱신했다.
  *
+ * 2026-08-20 day 0(시술 당일) 보강: EXERCISE·HEAT에만 day 0용 규칙이 없어서 시술 당일 세션에서
+ * 두 action은 조건값과 무관하게 무조건 NO_PROTOCOL이 나가던 문제(FE QA 보고)를 고쳤다. MAKEUP/
+ * CLEANSING/SKINCARE는 이미 day 0 규칙이 있어서 정상이었음 — EXERCISE/HEAT만 dayStart가 1부터라
+ * 빠진 것. 병원 검수 없이 백엔드 판단으로 추가했으므로 실제 검수 단계에서 재확인 필요.
+ *
  * 각 규칙 옆 주석 표기:
  *  - [문서 근거] : Appendix D 원문 또는 FE 협의 내용에 직접 명시된 값 (그대로 반영)
  *  - [백엔드 판단] : RECOVERY_PROTOCOL_DECISION_MATRIX_DERNA_FINAL 원문이 따로 없어서, 시술 후
@@ -38,7 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProtocolSeeder implements ApplicationRunner {
 
 	private static final String REJURAN = "REJURAN";
-	private static final String VERSION = "rejuran-v3";
+	private static final String VERSION = "rejuran-v4";
 
 	private final ProtocolRepository protocolRepository;
 
@@ -206,8 +211,11 @@ public class ProtocolSeeder implements ApplicationRunner {
 				// ===== 열 자극 (HEAT) =====
 				// [문서 근거] "사우나, 찜질방 등 열을 발생시키는 활동... 최소 1주일 피하도록"
 				// — 사우나(SAUNA_STEAM)/찜질방·반신욕(HOT_BATH_SHOWER) 구분 없이 동일 규칙이라 조건 없이 적용.
+				// [백엔드 판단] 2026-08-20: dayStart를 1→0으로 확장 — 시술 당일(elapsedDay=0)에 규칙이
+				// 아예 없어서 HEAT 질문이 무조건 NO_PROTOCOL로 새는 문제 발견. "최소 1주일 피하도록"이라는
+				// 문서 근거가 시술 당일을 배제할 이유가 없어 같은 문구·같은 행을 day 0까지 그대로 확장.
 				Protocol.builder()
-						.procedure(REJURAN).dayStart(1).dayEnd(7)
+						.procedure(REJURAN).dayStart(0).dayEnd(7)
 						.action(ActionType.HEAT)
 						.decision(DecisionType.POSTPONE)
 						.guidance("사우나, 찜질방 등 열을 발생시키는 활동은 최소 1주일 피해주세요.")
@@ -217,6 +225,17 @@ public class ProtocolSeeder implements ApplicationRunner {
 				// (이전 seed엔 무조건 POSSIBLE로 있었으나, FE·BE 공통 연동 기준 문서에서 TBD로 확인되어 제거)
 
 				// ===== 운동 (EXERCISE) =====
+				// [백엔드 판단] 2026-08-20: 시술 당일(elapsedDay=0)용 규칙이 없어서 intensity 값과 무관하게
+				// 항상 NO_PROTOCOL로 새는 문제 발견(FE QA 보고). MAKEUP/CLEANSING과 동일하게 "당일은 강도
+				// 구분 없이 보류, 다음날부터 강도별 판단" 패턴으로 통일 — 시술 직후 운동을 권할 근거가 없고,
+				// 시술 부위 안정이 우선이라는 게 일반적인 시술 후 상식이라 무조건 POSTPONE으로 판단.
+				Protocol.builder()
+						.procedure(REJURAN).dayStart(0).dayEnd(0)
+						.action(ActionType.EXERCISE)
+						.decision(DecisionType.POSTPONE)
+						.guidance("시술 당일은 강도와 관계없이 운동을 피하고 몸을 안정시켜 주세요. 다음날부터 강도에 따라 가능합니다.")
+						.version(VERSION)
+						.build(),
 				// [문서 근거] 이평강님이 Figma에서 확인: 고강도 = 오늘 미루기(POSTPONE)
 				Protocol.builder()
 						.procedure(REJURAN).dayStart(1).dayEnd(7)
