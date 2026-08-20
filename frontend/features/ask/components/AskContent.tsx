@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MALLO_COLORS } from '@/constants/colors';
 import { styles } from '@/features/ask/styles';
@@ -159,11 +159,19 @@ export function BehaviorFollowUpState({
             ))}
           </View>
 
-          <View style={styles.followUpIllustrationContainer}>
+          <View
+            style={[
+              styles.followUpIllustrationContainer,
+              Platform.OS === 'web' && compactFollowUpStyles.illustrationContainer,
+            ]}
+          >
             <Image
               accessible={false}
               source={require('../../../assets/images/ask-condition-check.png')}
-              style={styles.followUpIllustration}
+              style={[
+                styles.followUpIllustration,
+                Platform.OS === 'web' && compactFollowUpStyles.illustration,
+              ]}
               resizeMode="contain"
             />
           </View>
@@ -174,6 +182,7 @@ export function BehaviorFollowUpState({
           onPress={onReset}
           style={({ pressed }) => [
             styles.resetButton,
+            Platform.OS === 'web' && compactFollowUpStyles.resetButton,
             pressed && styles.pressed,
           ]}
         >
@@ -189,3 +198,17 @@ export function BehaviorFollowUpState({
     </View>
   );
 }
+
+const compactFollowUpStyles = StyleSheet.create({
+  illustrationContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  illustration: {
+    width: 136,
+    height: 136,
+  },
+  resetButton: {
+    marginTop: 10,
+  },
+});
