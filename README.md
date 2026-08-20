@@ -220,19 +220,9 @@ MALLO는 독립적인 범용 건강 챗봇이 아니라, **AAC의 시술 데이�
 
 ## 🏗️ Architecture
 
-```mermaid
-flowchart LR
-    USER[User] --> FE[Expo App]
-    FE -->|X-Session-Id| BE[Spring Boot]
-    BE --> DB[(MySQL)]
-    BE --> PROTOCOL[(Recovery Protocol)]
-    BE -->|Contract 1.0| AI[FastAPI AI Triage]
-    AI --> SAFE[Safety Gate]
-    SAFE --> LLM[OpenRouter Model]
-    AI -->|Action + Context| BE
-    BE -->|Protocol Result| FE
-    BE --> FCM[Firebase FCM]
-```
+<p align="center">
+  <img src="./backend/docs/서비스 아키텍쳐.jpeg" width="100%" alt="MALLO 서비스 아키텍처" />
+</p>
 
 | Layer | Responsibility |
 | --- | --- |
