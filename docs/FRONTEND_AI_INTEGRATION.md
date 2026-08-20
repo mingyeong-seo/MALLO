@@ -18,7 +18,7 @@ Expo 앱 → mallo-api.site → Spring → Gabia AI → OpenRouter
 ```bash
 git fetch origin
 git switch feat/frontend-ai-wiring
-cd frontend && npm install
+cd frontend && npm ci
 npm start
 ```
 
@@ -28,16 +28,16 @@ npm start
 
 웹 개발 서버도 `http://localhost:<port>`로 열어야 합니다. 배포된 Spring의 기본 CORS 패턴은 `http://localhost:*`이며 `127.0.0.1` 브라우저 origin은 포함하지 않습니다.
 
-### 백엔드 담당
+### 백엔드 담당 — 완료
 
 아래 두 GitHub Secrets는 이미 배포 저장소에 등록되어 있습니다.
 
 - `AI_BASE_URL`
 - `AI_SHARED_SECRET`
 
-백엔드 담당자는 AI 연동 PR [#35 (`feat/ai-triage-service`)](https://github.com/mingyeong-seo/MALLO/pull/35)를 실제 배포 브랜치에 병합하고 GitHub Deploy Action 성공만 확인하면 됩니다. PR #35의 현재 diff에 AI 환경변수 주입까지 포함되어 있으므로 환경변수를 새로 만들거나 프론트 계약을 수정할 필요가 없습니다.
+AI 연동 PR [#35 (`feat/ai-triage-service`)](https://github.com/mingyeong-seo/MALLO/pull/35)는 2026-08-20 `dev`에 병합됐고, 해당 커밋의 Backend Deploy Action도 성공했습니다. PR #35에 AI 환경변수 주입까지 포함되어 있으므로 환경변수를 새로 만들거나 프론트 계약을 수정할 필요가 없습니다.
 
-PR #36은 PR #35가 병합되면 중복되는 배포 변경입니다. 두 PR을 순서 확인 없이 모두 병합하지 말고, PR #35를 기준으로 배포한 뒤 #36의 필요 여부를 다시 확인합니다.
+중복 변경이었던 PR #36도 닫힌 상태입니다. 현재 백엔드 담당자에게 남은 필수 설정 작업은 없습니다. 이후 백엔드 코드가 바뀔 때만 기존 Deploy Action 성공 여부를 확인합니다.
 
 선택값인 `AI_CONNECT_TIMEOUT_MS`, `AI_READ_TIMEOUT_MS`는 Spring 기본값이 있으므로 해커톤 제출용 연동에서는 등록하지 않아도 됩니다. 프론트 요청·응답 계약은 변경할 필요가 없습니다.
 
@@ -137,7 +137,7 @@ npx tsc --noEmit
 npx expo export --platform web
 ```
 
-현재 운영 `mallo-api.site`의 `/v1/ask`는 AI Spring 브랜치가 운영에 병합·배포된 뒤 새 AI 분류를 사용합니다. 그 전까지 프론트 코드는 새 계약을 사용하더라도 운영 응답은 기존 키워드 분류 동작일 수 있습니다.
+운영 `mallo-api.site`의 `/v1/ask`는 새 AI 분류기를 사용합니다. 배포 후 `오늘 땀 많이 나는 인터벌 트레이닝 수업 들어도 될까요?`라는 자연어 질문으로 실제 `프론트 → Spring → Gabia AI/OpenRouter → Recovery Protocol` 흐름을 확인했고, `EXERCISE / INTENSE_ACTIVITY / POSTPONE` 결과가 반환됐습니다.
 
 ## 상속된 의존성 위험
 
