@@ -44,7 +44,8 @@ public class AskService {
 					"스테로이드", "처방", "용량", "투약", "치료", "진료");
 
 	private static final Set<String> DIAGNOSIS_KEYWORDS =
-			Set.of("질환", "병인가", "감염인가", "의사처럼", "전문가처럼");
+			Set.of("질환", "병인가", "감염인가", "의사처럼", "전문가처럼", "병원에 가", "병원 가", "응급실",
+					"의료진 확인", "의사에게");
 
 	private final InteractionRepository interactionRepository;
 	private final ProtocolRepository protocolRepository;
@@ -59,6 +60,10 @@ public class AskService {
 					request.photoRecordIds(), null, null, "이 질문은 의료진 확인이 필요해요.", null);
 		}
 
+		if (AskScopePolicy.isClearlyUnsupported(question)) {
+			return saveUnsupported(sessionId, request);
+		}
+
 		AiTriageResult triageResult = aiTriagePort.triage(
 				new AiTriageInput(question, session.procedure(), session.elapsedDay()));
 		return switch (routeOf(triageResult)) {
@@ -67,8 +72,7 @@ public class AskService {
 					request.photoRecordIds(), null, null, "이 질문은 의료진 확인이 필요해요.", null);
 			case "GENERAL" -> save(sessionId, question, InteractionStatus.GENERAL, null, null, null,
 					request.photoRecordIds(), null, null, "일반적인 회복 정보 질문으로 확인했어요. (MVP 안내 문구)", null);
-			case "UNSUPPORTED" -> save(sessionId, question, InteractionStatus.UNSUPPORTED, null, null, null,
-					request.photoRecordIds(), null, null, "이 질문은 회복 관리 범위 밖이라 답변드리기 어려워요.", null);
+			case "UNSUPPORTED" -> saveUnsupported(sessionId, request);
 			default -> throw new CustomException(InteractionErrorCode.AI_INVALID_RESPONSE);
 		};
 	}
@@ -119,6 +123,11 @@ public class AskService {
 		return containsAny(question, SYMPTOM_KEYWORDS)
 				|| containsAny(question, MEDICATION_TREATMENT_KEYWORDS)
 				|| containsAny(question, DIAGNOSIS_KEYWORDS);
+	}
+
+	private AskResponse saveUnsupported(UUID sessionId, AskRequest request) {
+		return save(sessionId, request.question(), InteractionStatus.UNSUPPORTED, null, null, null,
+				request.photoRecordIds(), null, null, "이 질문은 회복 관리 범위 밖이라 답변드리기 어려워요.", null);
 	}
 
 	private String routeOf(AiTriageResult triageResult) {
