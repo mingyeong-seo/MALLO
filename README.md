@@ -77,10 +77,9 @@ MALLO가 제공하는 결과는 네 가지입니다.
 
 [🚀 최종 Production 서비스 체험하기](https://mallo-recovery.vercel.app)
 
-<!-- 영상이 준비되면 이 안내 문구를 지우고 아래 코드를 사용하세요.
 
-[![MALLO 2분 시연 영상](./docs/readme-assets/demo-thumbnail.png)](YOUTUBE_URL)
-
+[🚀 MALLO 2분 시연 영상](https://youtube.com/shorts/Kj5vgdDihoc?si=RM7yfCwFL5OaHcZC)
+<!--
 [🚀 서비스 직접 체험하기](https://mallo-recovery.vercel.app) · [▶️ 2분 시연 영상](YOUTUBE_URL)
 
 권장 파일:
