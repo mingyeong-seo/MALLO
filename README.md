@@ -71,7 +71,7 @@ MALLO가 제공하는 결과는 네 가지입니다.
 
 <div align="center">
 
-### 최종 배포 빌드 시연 영상 준비 중
+### 최종 배포 빌드 시연 영상
 
 해커톤용 DERNA 진입 화면부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Journal 저장까지 한 번에 보여드릴 예정입니다.
 
