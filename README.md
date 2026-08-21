@@ -90,18 +90,7 @@ MALLO가 제공하는 결과는 네 가지입니다.
 
 </div>
 
-### Demo Flow
 
-```text
-해커톤용 DERNA 화면에서 MALLO 진입
-  → REJURAN 시술 정보로 Recovery Session 시작
-  → “오늘 고강도 운동해도 될까요?”
-  → EXERCISE + INTENSE_ACTIVITY 구조화
-  → 현재 DAY의 Protocol에서 POSTPONE과 근거 반환
-  → “시술 부위 통증이 정상인가요?”
-  → 의료 답변을 생성하지 않고 CONNECT
-  → 오늘 행동을 기록하고 Recovery Journal에서 확인
-```
 
 ---
 
