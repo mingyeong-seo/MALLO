@@ -73,12 +73,12 @@ MALLO가 제공하는 결과는 네 가지입니다.
 
 ### 최종 배포 빌드 시연 영상
 
-해커톤용 DERNA 진입 화면부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Journal 저장까지 한 번에 보여드릴 예정입니다.
+해커톤용 DERNA 진입 화면부터 Quick Check, ASK MALLO의 의료 안전 전환, Recovery Journal 저장까지 한 번에 확인할 수 있습니다.
 
 [🚀 최종 Production 서비스 체험하기](https://mallo-recovery.vercel.app)
 
 
-[🚀 MALLO 시연 영상](https://youtube.com/shorts/Kj5vgdDihoc?si=RM7yfCwFL5OaHcZC)
+[▶️ MALLO 시연 영상](https://youtube.com/shorts/Kj5vgdDihoc?si=RM7yfCwFL5OaHcZC)
 <!--
 [🚀 서비스 직접 체험하기](https://mallo-recovery.vercel.app) · [▶️ 2분 시연 영상](YOUTUBE_URL)
 
