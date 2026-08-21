@@ -23,7 +23,7 @@
 
 <p align="center">
   <strong>MALLO = 병원의 회복 가이드를, 오늘 내가 행동할 수 있는 말로.</strong><br />
-  <sub>‘내 말로’는 의료용어의 단순 번역이 아니라, Recovery Protocol을 내 시술·현재 DAY·행동 상황에 연결해 실제 행동 가능한 정보로 만든다는 의미입니다.</sub>
+  <sub>‘말로’는 의료용어의 단순 번역이 아니라, Recovery Protocol을 내 시술·현재 DAY·행동 상황에 연결해 실제 행동 가능한 정보로 만든다는 의미입니다.</sub>
 </p>
 
 ---
